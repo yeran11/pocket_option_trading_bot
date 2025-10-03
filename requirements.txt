@@ -5,3 +5,5 @@ selenium
 setuptools
 #stock-indicators
 undetected-chromedriver
+flask
+flask-cors
