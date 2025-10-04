@@ -15,6 +15,8 @@ print("\n")
 
 import sys
 import os
+from dotenv import load_dotenv
+load_dotenv()  # Load environment variables from .env file
 import asyncio
 import base64
 import json
