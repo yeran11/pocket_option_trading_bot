@@ -336,9 +336,160 @@
             transition: width 0.5s ease;
             box-shadow: 0 0 10px currentColor;
         }
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, #001a1a 0%, #000 100%);
+            border: 2px solid #0ff;
+            border-radius: 15px;
+            padding: 30px;
+            min-width: 300px;
+            max-width: 500px;
+            box-shadow: 0 0 50px rgba(0,255,255,0.5), inset 0 0 20px rgba(0,255,255,0.1);
+            animation: slideIn 0.3s;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translate(-50%, -60%);
+                opacity: 0;
+            }
+            to {
+                transform: translate(-50%, -50%);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(0,255,255,0.3);
+        }
+
+        .modal-title {
+            font-size: 1.5em;
+            color: #0ff;
+            text-shadow: 0 0 10px #0ff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .modal-body {
+            color: #0ff;
+            font-size: 1.1em;
+            line-height: 1.6;
+            margin-bottom: 25px;
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 15px;
+            justify-content: flex-end;
+        }
+
+        .modal-btn {
+            background: linear-gradient(135deg, #004444 0%, #002222 100%);
+            border: 1px solid #0ff;
+            color: #0ff;
+            padding: 10px 25px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 1em;
+            transition: all 0.3s;
+            box-shadow: 0 0 10px rgba(0,255,255,0.3);
+        }
+
+        .modal-btn:hover {
+            background: linear-gradient(135deg, #006666 0%, #003333 100%);
+            box-shadow: 0 0 20px rgba(0,255,255,0.6);
+            transform: translateY(-2px);
+        }
+
+        .modal-btn.primary {
+            background: linear-gradient(135deg, #00ffff 0%, #0099aa 100%);
+            color: #000;
+            font-weight: bold;
+        }
+
+        .modal-btn.primary:hover {
+            background: linear-gradient(135deg, #33ffff 0%, #00bbcc 100%);
+        }
+
+        .modal-icon {
+            font-size: 1.5em;
+        }
+
+        .success-modal .modal-content {
+            border-color: #0f0;
+            box-shadow: 0 0 50px rgba(0,255,0,0.5), inset 0 0 20px rgba(0,255,0,0.1);
+        }
+
+        .success-modal .modal-title {
+            color: #0f0;
+            text-shadow: 0 0 10px #0f0;
+        }
+
+        .error-modal .modal-content {
+            border-color: #f00;
+            box-shadow: 0 0 50px rgba(255,0,0,0.5), inset 0 0 20px rgba(255,0,0,0.1);
+        }
+
+        .error-modal .modal-title {
+            color: #f00;
+            text-shadow: 0 0 10px #f00;
+        }
+
+        .confirm-modal .modal-content {
+            border-color: #ff0;
+            box-shadow: 0 0 50px rgba(255,255,0,0.5), inset 0 0 20px rgba(255,255,0,0.1);
+        }
+
+        .confirm-modal .modal-title {
+            color: #ff0;
+            text-shadow: 0 0 10px #ff0;
+        }
     </style>
 </head>
 <body>
+    <!-- Modal Container -->
+    <div id="customModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title" id="modalTitle">
+                    <span class="modal-icon" id="modalIcon">✨</span>
+                    <span id="modalTitleText">Notification</span>
+                </div>
+            </div>
+            <div class="modal-body" id="modalBody">
+                Message here
+            </div>
+            <div class="modal-footer" id="modalFooter">
+                <button class="modal-btn primary" onclick="closeModal()">OK</button>
+            </div>
+        </div>
+    </div>
     <div class="header">
         <h1>⚡ ADVANCED TRADING SETTINGS ⚡</h1>
         <p style="margin-top: 10px; color: #0cc; font-size: 1.1em;">🤖 AI CONFIGURATION & INDICATOR CONTROL</p>
@@ -395,6 +546,19 @@
                             <option value="TREND_FOLLOWING">Trend Following</option>
                             <option value="REVERSAL_TRADING">Reversal Trading</option>
                             <option value="VOLATILITY_BREAKOUT">Volatility Breakout</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Active Trading Mode</label>
+                    <div class="setting-control">
+                        <select id="active_strategy">
+                            <option value="AI_ENHANCED">AI Enhanced (GPT-4)</option>
+                            <option value="TRADITIONAL">Traditional Indicators</option>
+                            <option value="SCALPING">Pure Scalping</option>
+                            <option value="TREND_FOLLOW">Trend Following</option>
+                            <option value="REVERSAL">Reversal Trading</option>
                         </select>
                     </div>
                 </div>
@@ -534,6 +698,87 @@
                 </div>
             </div>
 
+            <!-- Trade Frequency Limits -->
+            <div class="settings-card">
+                <div class="card-title">⏱️ Trade Frequency Limits</div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Enable Trade Limits</label>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="trade_limits_enabled" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span>Control trade frequency</span>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Max Trades in 5 Minutes</label>
+                    <div class="setting-control">
+                        <input type="number" id="trade_limit_5min" value="3" min="0" max="20">
+                        <span style="color: #0cc; font-size: 0.9em;">0 = unlimited</span>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Max Trades in 10 Minutes</label>
+                    <div class="setting-control">
+                        <input type="number" id="trade_limit_10min" value="5" min="0" max="30">
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Max Trades in 20 Minutes</label>
+                    <div class="setting-control">
+                        <input type="number" id="trade_limit_20min" value="8" min="0" max="50">
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Max Trades in 30 Minutes</label>
+                    <div class="setting-control">
+                        <input type="number" id="trade_limit_30min" value="10" min="0" max="60">
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Max Trades in 60 Minutes</label>
+                    <div class="setting-control">
+                        <input type="number" id="trade_limit_60min" value="15" min="0" max="100">
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Cooldown After Win (seconds)</label>
+                    <div class="setting-control">
+                        <input type="number" id="cooldown_after_win" value="30" min="0" max="300">
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Cooldown After Loss (seconds)</label>
+                    <div class="setting-control">
+                        <input type="number" id="cooldown_after_loss" value="60" min="0" max="300">
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Max Consecutive Trades</label>
+                    <div class="setting-control">
+                        <input type="number" id="max_consecutive_trades" value="3" min="1" max="10">
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Break Duration (seconds)</label>
+                    <div class="setting-control">
+                        <input type="number" id="break_duration" value="120" min="30" max="600">
+                        <span style="color: #0cc; font-size: 0.9em;">After consecutive trades</span>
+                    </div>
+                </div>
+            </div>
+
             <!-- Trading Settings -->
             <div class="settings-card">
                 <div class="card-title">⚙️ Trading Parameters</div>
@@ -648,6 +893,68 @@
 
     <script>
         let currentSettings = {};
+        let modalCallback = null;
+
+        // Modal Functions
+        function showModal(type, title, message, isConfirm = false) {
+            const modal = document.getElementById('customModal');
+            const modalTitle = document.getElementById('modalTitleText');
+            const modalBody = document.getElementById('modalBody');
+            const modalIcon = document.getElementById('modalIcon');
+            const modalFooter = document.getElementById('modalFooter');
+
+            // Reset classes
+            modal.className = 'modal';
+
+            // Set type-specific styling
+            if (type === 'success') {
+                modal.classList.add('success-modal');
+                modalIcon.textContent = '✅';
+            } else if (type === 'error') {
+                modal.classList.add('error-modal');
+                modalIcon.textContent = '❌';
+            } else if (type === 'confirm') {
+                modal.classList.add('confirm-modal');
+                modalIcon.textContent = '⚠️';
+            } else {
+                modalIcon.textContent = '📢';
+            }
+
+            modalTitle.textContent = title;
+            modalBody.innerHTML = message;
+
+            if (isConfirm) {
+                modalFooter.innerHTML = `
+                    <button class="modal-btn" onclick="confirmAction(false)">Cancel</button>
+                    <button class="modal-btn primary" onclick="confirmAction(true)">Confirm</button>
+                `;
+            } else {
+                modalFooter.innerHTML = `
+                    <button class="modal-btn primary" onclick="closeModal()">OK</button>
+                `;
+            }
+
+            modal.style.display = 'block';
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('customModal');
+            modal.style.display = 'none';
+            modalCallback = null;
+        }
+
+        function confirmAction(confirmed) {
+            closeModal();
+            if (modalCallback) {
+                modalCallback(confirmed);
+                modalCallback = null;
+            }
+        }
+
+        function showConfirm(title, message, callback) {
+            modalCallback = callback;
+            showModal('confirm', title, message, true);
+        }
 
         async function loadSettings() {
             try {
@@ -737,20 +1044,26 @@
 
                 const result = await response.json();
                 if (result.success) {
-                    alert('✅ Settings saved successfully!');
+                    showModal('success', 'Settings Saved', 'Your settings have been saved successfully!');
                     loadSettings(); // Reload to confirm
                 } else {
-                    alert('❌ Error saving settings: ' + result.error);
+                    showModal('error', 'Save Failed', 'Error saving settings: ' + result.error);
                 }
             } catch (error) {
-                alert('❌ Error saving settings: ' + error.message);
+                showModal('error', 'Save Failed', 'Error saving settings: ' + error.message);
             }
         }
 
         function resetSettings() {
-            if (confirm('Are you sure you want to reset all settings to default?')) {
-                location.reload();
-            }
+            showConfirm(
+                'Reset Settings',
+                'Are you sure you want to reset all settings to default values? This action cannot be undone.',
+                (confirmed) => {
+                    if (confirmed) {
+                        location.reload();
+                    }
+                }
+            );
         }
 
         function loadPreset(preset) {
@@ -815,7 +1128,7 @@
                         }
                     }
                 }
-                alert(`✅ Loaded ${preset.replace('_', ' ').toUpperCase()} preset`);
+                showModal('success', 'Preset Loaded', `${preset.replace('_', ' ').toUpperCase()} preset has been loaded successfully!`);
             }
         }
 

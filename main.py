@@ -89,6 +89,12 @@ INITIAL_DEPOSIT = None
 LAST_TRADE_ID = None
 BOT_TRADE_IDS = set()  # Track trades placed by this bot
 
+# Trade frequency tracking
+TRADE_HISTORY = []  # List of (timestamp, asset) tuples
+LAST_TRADE_TIME = None
+CONSECUTIVE_TRADES = 0
+LAST_TRADE_RESULT = None  # 'WIN' or 'LOSS'
+
 # Bot state
 bot_state = {
     'running': False,
@@ -165,6 +171,18 @@ settings = {
     'min_payout': 85,
     'max_trades_per_hour': 20,
     'risk_per_trade': 1.0,
+
+    # Trade Frequency Limits
+    'trade_limits_enabled': True,
+    'trade_limit_5min': 3,      # Max trades in 5 minutes
+    'trade_limit_10min': 5,     # Max trades in 10 minutes
+    'trade_limit_20min': 8,     # Max trades in 20 minutes
+    'trade_limit_30min': 10,    # Max trades in 30 minutes
+    'trade_limit_60min': 15,    # Max trades in 60 minutes
+    'cooldown_after_loss': 60,  # Seconds to wait after a loss
+    'cooldown_after_win': 30,   # Seconds to wait after a win
+    'max_consecutive_trades': 3, # Max trades without a break
+    'break_duration': 120,       # Seconds to break after consecutive trades
 
     # Strategy Selection
     'active_strategy': 'AI_ENHANCED',  # AI_ENHANCED, TRADITIONAL, SCALPING, TREND_FOLLOW, REVERSAL
@@ -654,11 +672,78 @@ async def check_payout(driver, asset):
         return True
 
 
+def check_trade_limits():
+    """Check if we're within configured trade frequency limits"""
+    global TRADE_HISTORY, LAST_TRADE_TIME, CONSECUTIVE_TRADES, LAST_TRADE_RESULT
+
+    if not settings.get('trade_limits_enabled', True):
+        return True, "Limits disabled"
+
+    current_time = datetime.now()
+
+    # Check cooldown periods
+    if LAST_TRADE_TIME:
+        time_since_last = (current_time - LAST_TRADE_TIME).total_seconds()
+
+        # Cooldown after loss
+        if LAST_TRADE_RESULT == 'LOSS' and time_since_last < settings.get('cooldown_after_loss', 60):
+            remaining = settings['cooldown_after_loss'] - int(time_since_last)
+            return False, f"Cooldown after loss ({remaining}s remaining)"
+
+        # Cooldown after win
+        if LAST_TRADE_RESULT == 'WIN' and time_since_last < settings.get('cooldown_after_win', 30):
+            remaining = settings['cooldown_after_win'] - int(time_since_last)
+            return False, f"Cooldown after win ({remaining}s remaining)"
+
+    # Check consecutive trades limit
+    if CONSECUTIVE_TRADES >= settings.get('max_consecutive_trades', 3):
+        if LAST_TRADE_TIME:
+            break_elapsed = (current_time - LAST_TRADE_TIME).total_seconds()
+            break_needed = settings.get('break_duration', 120)
+            if break_elapsed < break_needed:
+                remaining = int(break_needed - break_elapsed)
+                return False, f"Break needed after {CONSECUTIVE_TRADES} consecutive trades ({remaining}s remaining)"
+            else:
+                # Break is over, reset counter
+                CONSECUTIVE_TRADES = 0
+
+    # Clean old trades from history (older than 60 minutes)
+    TRADE_HISTORY = [(t, a) for t, a in TRADE_HISTORY if (current_time - t).total_seconds() < 3600]
+
+    # Check time-window limits
+    limits = [
+        (5, settings.get('trade_limit_5min', 3)),
+        (10, settings.get('trade_limit_10min', 5)),
+        (20, settings.get('trade_limit_20min', 8)),
+        (30, settings.get('trade_limit_30min', 10)),
+        (60, settings.get('trade_limit_60min', 15))
+    ]
+
+    for minutes, max_trades in limits:
+        if max_trades > 0:  # Only check if limit is set
+            window_start = current_time - timedelta(minutes=minutes)
+            recent_trades = [t for t, _ in TRADE_HISTORY if t >= window_start]
+
+            if len(recent_trades) >= max_trades:
+                # Find when the oldest trade in this window will expire
+                oldest_in_window = min(recent_trades)
+                wait_time = int((oldest_in_window + timedelta(minutes=minutes) - current_time).total_seconds())
+                return False, f"Limit reached: {max_trades} trades in {minutes}min (wait {wait_time}s)"
+
+    return True, "Within limits"
+
+
 async def create_order(driver, action, asset, reason=""):
     """Create trading order"""
-    global ACTIONS, BOT_TRADE_IDS
+    global ACTIONS, BOT_TRADE_IDS, TRADE_HISTORY, LAST_TRADE_TIME, CONSECUTIVE_TRADES
 
     if ACTIONS.get(asset) and ACTIONS[asset] + timedelta(seconds=PERIOD * 2) > datetime.now():
+        return False
+
+    # Check trade frequency limits
+    can_trade, limit_reason = check_trade_limits()
+    if not can_trade:
+        add_log(f"⏳ Trade delayed: {limit_reason}")
         return False
 
     try:
@@ -679,6 +764,11 @@ async def create_order(driver, action, asset, reason=""):
         trade_id = f"{asset}_{action}_{datetime.now().strftime('%H:%M:%S')}"
         BOT_TRADE_IDS.add(trade_id)
 
+        # Update trade frequency tracking
+        TRADE_HISTORY.append((datetime.now(), asset))
+        LAST_TRADE_TIME = datetime.now()
+        CONSECUTIVE_TRADES += 1
+
         add_log(f"{'📈' if action == 'call' else '📉'} {action.upper()} on {asset} - {reason}")
         return True
     except Exception as e:
@@ -687,7 +777,7 @@ async def create_order(driver, action, asset, reason=""):
 
 
 async def check_deposit(driver):
-    """Monitor deposit and update balance"""
+    """Monitor deposit and update balance with chart data"""
     global INITIAL_DEPOSIT, bot_state
 
     try:
@@ -695,12 +785,32 @@ async def check_deposit(driver):
             'body > div.wrapper > div.wrapper__top > header > div.right-block.js-right-block > div.right-block__item.js-drop-down-modal-open > div > div.balance-info-block__data > div.balance-info-block__balance > span')
         deposit = float(deposit_elem.text.replace(',', ''))
 
+        # Update bot state balance
+        old_balance = bot_state['balance']
+        bot_state['balance'] = deposit
+
         if INITIAL_DEPOSIT is None:
             INITIAL_DEPOSIT = deposit
             bot_state['initial_balance'] = deposit
-            bot_state['balance'] = deposit
-        else:
-            bot_state['balance'] = deposit
+
+            # Add initial chart data point
+            from datetime import datetime
+            if len(bot_state['chart_data']['balances']) == 0:
+                bot_state['chart_data']['times'].append(datetime.now())
+                bot_state['chart_data']['balances'].append(deposit)
+                add_log(f"📊 Initial balance: ${deposit:.2f}")
+
+        # Update chart data if balance changed significantly (more than $0.01)
+        elif abs(old_balance - deposit) > 0.01:
+            from datetime import datetime
+            bot_state['chart_data']['times'].append(datetime.now())
+            bot_state['chart_data']['balances'].append(deposit)
+
+            # Keep only last 200 data points
+            if len(bot_state['chart_data']['balances']) > 200:
+                bot_state['chart_data']['times'] = bot_state['chart_data']['times'][-200:]
+                bot_state['chart_data']['balances'] = bot_state['chart_data']['balances'][-200:]
+
     except:
         pass
 
@@ -776,6 +886,10 @@ async def check_recent_trades(driver):
                         }
                         bot_state['trades'].insert(0, trade_info)
 
+                        # Update trade result for frequency tracking
+                        global LAST_TRADE_RESULT
+                        LAST_TRADE_RESULT = 'WIN'
+
                         # Update chart data
                         from datetime import datetime
                         bot_state['chart_data']['times'].append(datetime.now())
@@ -827,6 +941,10 @@ async def check_recent_trades(driver):
                                 'time': trade_time
                             }
                             bot_state['trades'].insert(0, trade_info)
+
+                            # Update trade result for frequency tracking
+                            global LAST_TRADE_RESULT
+                            LAST_TRADE_RESULT = 'LOSS'
 
                             # Update chart data
                             from datetime import datetime
@@ -1144,11 +1262,14 @@ def get_ai_status():
     # Check both sources for AI status
     ai_is_enabled = AI_ENABLED or settings.get('ai_enabled', False)
 
+    # Simply return the active_strategy as configured
+    current_strat = settings.get('active_strategy', 'AI_ENHANCED')
+
     return jsonify({
         'ai_enabled': ai_is_enabled,
         'ai_available': ai_brain is not None,
         'patterns_learned': len(ai_brain.pattern_database) if ai_brain else 0,
-        'current_strategy': settings.get('ai_strategy', 'ULTRA_SCALPING')
+        'current_strategy': current_strat
     })
 
 
