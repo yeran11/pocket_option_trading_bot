@@ -101,7 +101,12 @@ bot_state = {
     'current_asset': '-',
     'mode': 'CONNECTING...',
     'trades': [],
-    'logs': []
+    'logs': [],
+    'chart_data': {
+        'times': [],
+        'balances': [],
+        'trades': []
+    }
 }
 
 settings = {
@@ -389,7 +394,8 @@ async def enhanced_strategy(candles):
     current_price = candles[-1][2]
 
     # If AI is enabled, use it for analysis
-    if AI_ENABLED and ai_brain:
+    # Check both AI_ENABLED global and settings value
+    if (AI_ENABLED or settings.get('ai_enabled', False)) and ai_brain:
         try:
             # Prepare market data for AI
             market_data = {
@@ -761,13 +767,20 @@ async def check_recent_trades(driver):
                         bot_state['wins'] += 1
                         bot_state['win_streak'] += 1
 
-                        bot_state['trades'].insert(0, {
+                        trade_info = {
                             'asset': asset,
                             'action': action,
                             'result': 'WIN',
                             'profit': profit,
                             'time': trade_time
-                        })
+                        }
+                        bot_state['trades'].insert(0, trade_info)
+
+                        # Update chart data
+                        from datetime import datetime
+                        bot_state['chart_data']['times'].append(datetime.now())
+                        bot_state['chart_data']['balances'].append(bot_state['balance'])
+                        bot_state['chart_data']['trades'].append(trade_info)
 
                         # AI Learning: Track winning pattern
                         if ai_brain and optimizer:
@@ -806,13 +819,20 @@ async def check_recent_trades(driver):
                             bot_state['losses'] += 1
                             bot_state['win_streak'] = 0
 
-                            bot_state['trades'].insert(0, {
+                            trade_info = {
                                 'asset': asset,
                                 'action': action,
                                 'result': 'LOSS',
                                 'profit': -stake,
                                 'time': trade_time
-                            })
+                            }
+                            bot_state['trades'].insert(0, trade_info)
+
+                            # Update chart data
+                            from datetime import datetime
+                            bot_state['chart_data']['times'].append(datetime.now())
+                            bot_state['chart_data']['balances'].append(bot_state['balance'])
+                            bot_state['chart_data']['trades'].append(trade_info)
 
                             # AI Learning: Track losing pattern
                             if ai_brain and optimizer:
@@ -1100,9 +1120,17 @@ def update_settings():
         new_settings = request.json
         settings.update(new_settings)
 
-        # Update AI status if changed
+        # Update AI status if changed - sync both variables
         if 'ai_enabled' in new_settings:
             AI_ENABLED = new_settings['ai_enabled']
+            settings['ai_enabled'] = new_settings['ai_enabled']
+
+            if AI_ENABLED:
+                add_log("🤖 AI System ENABLED - GPT-4 analysis active")
+                if ai_brain:
+                    ai_brain.load_patterns()  # Load saved patterns
+            else:
+                add_log("🤖 AI System DISABLED - Using traditional indicators only")
 
         add_log(f"⚙️ Settings updated successfully")
         return jsonify({'success': True, 'message': 'Settings updated'})
@@ -1113,8 +1141,11 @@ def update_settings():
 @app.route('/api/ai-status', methods=['GET'])
 def get_ai_status():
     """Get AI system status"""
+    # Check both sources for AI status
+    ai_is_enabled = AI_ENABLED or settings.get('ai_enabled', False)
+
     return jsonify({
-        'ai_enabled': AI_ENABLED,
+        'ai_enabled': ai_is_enabled,
         'ai_available': ai_brain is not None,
         'patterns_learned': len(ai_brain.pattern_database) if ai_brain else 0,
         'current_strategy': settings.get('ai_strategy', 'ULTRA_SCALPING')
@@ -1135,6 +1166,17 @@ def get_strategy_stats():
     if optimizer:
         return jsonify(optimizer.strategy_performance)
     return jsonify({})
+
+
+@app.route('/api/chart-data', methods=['GET'])
+def get_chart_data():
+    """Get historical chart data for persistence"""
+    return jsonify({
+        'times': [t.isoformat() if hasattr(t, 'isoformat') else str(t) for t in bot_state['chart_data']['times']],
+        'balances': bot_state['chart_data']['balances'],
+        'trades': bot_state['chart_data']['trades'],
+        'initial_balance': bot_state['initial_balance']
+    })
 
 
 # Initialize

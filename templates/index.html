@@ -879,14 +879,40 @@
             changeEl.style.color = change >= 0 ? '#0f0' : '#f00';
         }
 
+        // Load persistent chart data
+        function loadChartData() {
+            fetch('/api/chart-data')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.balances && data.balances.length > 0) {
+                        // Restore chart data
+                        chartData.times = data.times.map(t => new Date(t));
+                        chartData.balances = data.balances;
+                        chartData.trades = data.trades || [];
+                        chartData.initialBalance = data.initial_balance || 10000;
+
+                        // Update min/max
+                        chartData.maxBalance = Math.max(...chartData.balances);
+                        chartData.minBalance = Math.min(...chartData.balances);
+
+                        // Redraw chart with loaded data
+                        const lastBalance = chartData.balances[chartData.balances.length - 1];
+                        updateChart(lastBalance);
+
+                        console.log('Chart data restored:', chartData.balances.length, 'points');
+                    }
+                })
+                .catch(err => console.error('Failed to load chart data:', err));
+        }
+
         // Initialize
         connectLogs();
         updateStatus();
 
-        // Initialize chart
+        // Initialize chart and load data
         setTimeout(() => {
             initChart();
-            updateChart(10000); // Initial data point
+            loadChartData(); // Load persistent data
         }, 100);
 
         // Window resize handler
@@ -896,6 +922,15 @@
                 updateChart(chartData.balances[chartData.balances.length - 1]);
             }
         });
+
+        // Periodically save chart data
+        setInterval(() => {
+            // Chart data is automatically saved on server side when trades occur
+            // This is just to refresh if needed
+            if (chartData.balances.length > 0) {
+                console.log('Chart has', chartData.balances.length, 'data points');
+            }
+        }, 30000);
     </script>
 </body>
 </html>
