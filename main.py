@@ -16,7 +16,10 @@ print("\n")
 import sys
 import os
 from dotenv import load_dotenv
-load_dotenv()  # Load environment variables from .env file
+# Load .env from multiple possible locations
+load_dotenv()  # Current directory
+load_dotenv('../.env')  # Parent directory
+# Now environment variables are available
 import asyncio
 import base64
 import json
