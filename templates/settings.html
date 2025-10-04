@@ -398,6 +398,19 @@
                         </select>
                     </div>
                 </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Active Trading Mode</label>
+                    <div class="setting-control">
+                        <select id="active_strategy">
+                            <option value="AI_ENHANCED">AI Enhanced (GPT-4)</option>
+                            <option value="TRADITIONAL">Traditional Indicators</option>
+                            <option value="SCALPING">Pure Scalping</option>
+                            <option value="TREND_FOLLOW">Trend Following</option>
+                            <option value="REVERSAL">Reversal Trading</option>
+                        </select>
+                    </div>
+                </div>
             </div>
 
             <!-- Moving Averages -->
@@ -530,6 +543,87 @@
                     <label class="setting-label">Signal Period</label>
                     <div class="setting-control">
                         <input type="number" id="macd_signal" value="9" min="5" max="20">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Trade Frequency Limits -->
+            <div class="settings-card">
+                <div class="card-title">⏱️ Trade Frequency Limits</div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Enable Trade Limits</label>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="trade_limits_enabled" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span>Control trade frequency</span>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Max Trades in 5 Minutes</label>
+                    <div class="setting-control">
+                        <input type="number" id="trade_limit_5min" value="3" min="0" max="20">
+                        <span style="color: #0cc; font-size: 0.9em;">0 = unlimited</span>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Max Trades in 10 Minutes</label>
+                    <div class="setting-control">
+                        <input type="number" id="trade_limit_10min" value="5" min="0" max="30">
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Max Trades in 20 Minutes</label>
+                    <div class="setting-control">
+                        <input type="number" id="trade_limit_20min" value="8" min="0" max="50">
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Max Trades in 30 Minutes</label>
+                    <div class="setting-control">
+                        <input type="number" id="trade_limit_30min" value="10" min="0" max="60">
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Max Trades in 60 Minutes</label>
+                    <div class="setting-control">
+                        <input type="number" id="trade_limit_60min" value="15" min="0" max="100">
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Cooldown After Win (seconds)</label>
+                    <div class="setting-control">
+                        <input type="number" id="cooldown_after_win" value="30" min="0" max="300">
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Cooldown After Loss (seconds)</label>
+                    <div class="setting-control">
+                        <input type="number" id="cooldown_after_loss" value="60" min="0" max="300">
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Max Consecutive Trades</label>
+                    <div class="setting-control">
+                        <input type="number" id="max_consecutive_trades" value="3" min="1" max="10">
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Break Duration (seconds)</label>
+                    <div class="setting-control">
+                        <input type="number" id="break_duration" value="120" min="30" max="600">
+                        <span style="color: #0cc; font-size: 0.9em;">After consecutive trades</span>
                     </div>
                 </div>
             </div>
