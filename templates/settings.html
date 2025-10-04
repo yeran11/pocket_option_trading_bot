@@ -698,126 +698,6 @@
                 </div>
             </div>
 
-            <!-- Trade Frequency Limits -->
-            <div class="settings-card">
-                <div class="card-title">⏱️ Trade Frequency Limits</div>
-
-                <div class="setting-row">
-                    <label class="setting-label">Enable Trade Limits</label>
-                    <div class="setting-control">
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="trade_limits_enabled" checked>
-                            <span class="toggle-slider"></span>
-                        </label>
-                        <span>Control trade frequency</span>
-                    </div>
-                </div>
-
-                <div class="setting-row">
-                    <label class="setting-label">Max Trades in 5 Minutes</label>
-                    <div class="setting-control">
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="trade_limit_5min_enabled" checked>
-                            <span class="toggle-slider"></span>
-                        </label>
-                        <input type="number" id="trade_limit_5min" value="3" min="1" max="20" style="width: 80px; margin-left: 10px;">
-                        <span style="color: #0cc; font-size: 0.9em; margin-left: 10px;">trades</span>
-                    </div>
-                </div>
-
-                <div class="setting-row">
-                    <label class="setting-label">Max Trades in 10 Minutes</label>
-                    <div class="setting-control">
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="trade_limit_10min_enabled" checked>
-                            <span class="toggle-slider"></span>
-                        </label>
-                        <input type="number" id="trade_limit_10min" value="5" min="1" max="30" style="width: 80px; margin-left: 10px;">
-                        <span style="color: #0cc; font-size: 0.9em; margin-left: 10px;">trades</span>
-                    </div>
-                </div>
-
-                <div class="setting-row">
-                    <label class="setting-label">Max Trades in 20 Minutes</label>
-                    <div class="setting-control">
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="trade_limit_20min_enabled" checked>
-                            <span class="toggle-slider"></span>
-                        </label>
-                        <input type="number" id="trade_limit_20min" value="8" min="1" max="50" style="width: 80px; margin-left: 10px;">
-                        <span style="color: #0cc; font-size: 0.9em; margin-left: 10px;">trades</span>
-                    </div>
-                </div>
-
-                <div class="setting-row">
-                    <label class="setting-label">Max Trades in 30 Minutes</label>
-                    <div class="setting-control">
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="trade_limit_30min_enabled" checked>
-                            <span class="toggle-slider"></span>
-                        </label>
-                        <input type="number" id="trade_limit_30min" value="10" min="1" max="60" style="width: 80px; margin-left: 10px;">
-                        <span style="color: #0cc; font-size: 0.9em; margin-left: 10px;">trades</span>
-                    </div>
-                </div>
-
-                <div class="setting-row">
-                    <label class="setting-label">Max Trades in 60 Minutes</label>
-                    <div class="setting-control">
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="trade_limit_60min_enabled" checked>
-                            <span class="toggle-slider"></span>
-                        </label>
-                        <input type="number" id="trade_limit_60min" value="15" min="1" max="100" style="width: 80px; margin-left: 10px;">
-                        <span style="color: #0cc; font-size: 0.9em; margin-left: 10px;">trades</span>
-                    </div>
-                </div>
-
-                <div class="setting-row">
-                    <label class="setting-label">Cooldown After Win</label>
-                    <div class="setting-control">
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="cooldown_after_win_enabled" checked>
-                            <span class="toggle-slider"></span>
-                        </label>
-                        <input type="number" id="cooldown_after_win" value="30" min="1" max="300" style="width: 80px; margin-left: 10px;">
-                        <span style="color: #0cc; font-size: 0.9em; margin-left: 10px;">seconds</span>
-                    </div>
-                </div>
-
-                <div class="setting-row">
-                    <label class="setting-label">Cooldown After Loss</label>
-                    <div class="setting-control">
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="cooldown_after_loss_enabled" checked>
-                            <span class="toggle-slider"></span>
-                        </label>
-                        <input type="number" id="cooldown_after_loss" value="60" min="1" max="300" style="width: 80px; margin-left: 10px;">
-                        <span style="color: #0cc; font-size: 0.9em; margin-left: 10px;">seconds</span>
-                    </div>
-                </div>
-
-                <div class="setting-row">
-                    <label class="setting-label">Max Consecutive Trades</label>
-                    <div class="setting-control">
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="max_consecutive_trades_enabled" checked>
-                            <span class="toggle-slider"></span>
-                        </label>
-                        <input type="number" id="max_consecutive_trades" value="3" min="1" max="10" style="width: 80px; margin-left: 10px;">
-                        <span style="color: #0cc; font-size: 0.9em; margin-left: 10px;">trades</span>
-                    </div>
-                </div>
-
-                <div class="setting-row">
-                    <label class="setting-label">Break Duration (seconds)</label>
-                    <div class="setting-control">
-                        <input type="number" id="break_duration" value="120" min="30" max="600">
-                        <span style="color: #0cc; font-size: 0.9em;">After consecutive trades</span>
-                    </div>
-                </div>
-            </div>
-
             <!-- Trading Settings -->
             <div class="settings-card">
                 <div class="card-title">⚙️ Trading Parameters</div>
@@ -918,6 +798,133 @@
                         <div class="metric-bar">
                             <div class="metric-fill" style="width: 0%"></div>
                         </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Trade Frequency Limits - Full Width Section -->
+        <div class="settings-card" style="width: 100%; max-width: 100%; margin: 20px 0;">
+            <div class="card-title" style="font-size: 1.5em; text-align: center;">⏱️ TRADE FREQUENCY LIMITS</div>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; padding: 20px;">
+
+                <!-- Master Toggle -->
+                <div class="setting-row" style="grid-column: 1/-1; justify-content: center;">
+                    <label class="setting-label" style="font-size: 1.2em;">Enable Trade Limits</label>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="trade_limits_enabled" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span style="font-size: 1.1em; margin-left: 10px;">Master control for all trade frequency limits</span>
+                    </div>
+                </div>
+
+                <!-- Time-based Limits -->
+                <div class="setting-row">
+                    <label class="setting-label">Max Trades in 5 Minutes</label>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="trade_limit_5min_enabled" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <input type="number" id="trade_limit_5min" value="3" min="1" max="20" style="width: 80px; margin-left: 10px;">
+                        <span style="color: #0cc; font-size: 0.9em; margin-left: 10px;">trades</span>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Max Trades in 10 Minutes</label>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="trade_limit_10min_enabled" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <input type="number" id="trade_limit_10min" value="5" min="1" max="30" style="width: 80px; margin-left: 10px;">
+                        <span style="color: #0cc; font-size: 0.9em; margin-left: 10px;">trades</span>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Max Trades in 20 Minutes</label>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="trade_limit_20min_enabled" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <input type="number" id="trade_limit_20min" value="8" min="1" max="50" style="width: 80px; margin-left: 10px;">
+                        <span style="color: #0cc; font-size: 0.9em; margin-left: 10px;">trades</span>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Max Trades in 30 Minutes</label>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="trade_limit_30min_enabled" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <input type="number" id="trade_limit_30min" value="10" min="1" max="60" style="width: 80px; margin-left: 10px;">
+                        <span style="color: #0cc; font-size: 0.9em; margin-left: 10px;">trades</span>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Max Trades in 60 Minutes</label>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="trade_limit_60min_enabled" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <input type="number" id="trade_limit_60min" value="15" min="1" max="100" style="width: 80px; margin-left: 10px;">
+                        <span style="color: #0cc; font-size: 0.9em; margin-left: 10px;">trades</span>
+                    </div>
+                </div>
+
+                <!-- Cooldown Settings -->
+                <div class="setting-row">
+                    <label class="setting-label">Cooldown After Win</label>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="cooldown_after_win_enabled" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <input type="number" id="cooldown_after_win" value="30" min="1" max="300" style="width: 80px; margin-left: 10px;">
+                        <span style="color: #0cc; font-size: 0.9em; margin-left: 10px;">seconds</span>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Cooldown After Loss</label>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="cooldown_after_loss_enabled" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <input type="number" id="cooldown_after_loss" value="60" min="1" max="300" style="width: 80px; margin-left: 10px;">
+                        <span style="color: #0cc; font-size: 0.9em; margin-left: 10px;">seconds</span>
+                    </div>
+                </div>
+
+                <!-- Consecutive Trading -->
+                <div class="setting-row">
+                    <label class="setting-label">Max Consecutive Trades</label>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="max_consecutive_trades_enabled" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <input type="number" id="max_consecutive_trades" value="3" min="1" max="10" style="width: 80px; margin-left: 10px;">
+                        <span style="color: #0cc; font-size: 0.9em; margin-left: 10px;">trades</span>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Break Duration</label>
+                    <div class="setting-control">
+                        <input type="number" id="break_duration" value="120" min="30" max="600" style="width: 100px;">
+                        <span style="color: #0cc; font-size: 0.9em; margin-left: 10px;">seconds after consecutive trades</span>
                     </div>
                 </div>
             </div>
