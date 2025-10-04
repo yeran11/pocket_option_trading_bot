@@ -1448,20 +1448,48 @@
                 }
             });
 
-            // AI enabled toggle - update status immediately
+            // AI enabled toggle - save immediately and update status
             const aiToggle = document.getElementById('ai_enabled');
             if (aiToggle) {
                 aiToggle.addEventListener('change', async function() {
-                    // Update status display immediately
-                    updateAIStatus({
-                        ai_enabled: this.checked,
-                        ai_available: true,
-                        current_strategy: document.getElementById('active_strategy')?.value || 'AI_ENHANCED',
-                        patterns_learned: 0
-                    });
+                    const isEnabled = this.checked;
+
+                    // Save the AI setting immediately to the server
+                    try {
+                        const response = await fetch('/api/settings', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ ai_enabled: isEnabled })
+                        });
+
+                        const result = await response.json();
+
+                        if (result.success) {
+                            // Update status display with confirmation from server
+                            const aiStatus = await fetch('/api/ai-status').then(r => r.json());
+                            updateAIStatus(aiStatus);
+
+                            // Show quick feedback
+                            const statusText = isEnabled ?
+                                '🚀 AI System ACTIVATED - Ultra Power Mode!' :
+                                '🔌 AI System DEACTIVATED';
+                            console.log(statusText);
+                        } else {
+                            // Revert toggle if save failed
+                            this.checked = !isEnabled;
+                            showModal('error', 'Failed to Update AI', 'Could not update AI status. Please try again.');
+                        }
+                    } catch (error) {
+                        // Revert toggle on error
+                        this.checked = !isEnabled;
+                        showModal('error', 'Connection Error', 'Failed to connect to server.');
+                    }
                 });
             }
         }
+
+        // Track if user is changing settings
+        let isChangingSettings = false;
 
         // Load settings on page load
         window.onload = () => {
@@ -1469,11 +1497,21 @@
             setupToggleHandlers();
             setInterval(loadIndicatorPerformance, 5000); // Update performance every 5 seconds
 
-            // Refresh AI status every 3 seconds to keep it accurate
+            // Refresh AI status every 3 seconds, but not while user is changing settings
             setInterval(async () => {
-                const aiStatus = await fetch('/api/ai-status').then(r => r.json());
-                updateAIStatus(aiStatus);
+                if (!isChangingSettings) {
+                    const aiStatus = await fetch('/api/ai-status').then(r => r.json());
+                    updateAIStatus(aiStatus);
+                }
             }, 3000);
+
+            // Mark when user starts interacting with any input
+            document.querySelectorAll('input, select').forEach(element => {
+                element.addEventListener('focus', () => { isChangingSettings = true; });
+                element.addEventListener('blur', () => {
+                    setTimeout(() => { isChangingSettings = false; }, 1000);
+                });
+            });
         };
     </script>
 </body>
