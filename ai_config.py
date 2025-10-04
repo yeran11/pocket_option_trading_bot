@@ -49,10 +49,9 @@ if not OPENAI_API_KEY:
 
 # Method 3: Hardcoded fallback (you can update this for your deployment)
 if not OPENAI_API_KEY:
-    # IMPORTANT: Replace with your actual API key when deploying
-    # Or set it as an environment variable in your deployment platform
-    OPENAI_API_KEY = "your-api-key-here"
-    OPENAI_PROJECT_ID = "your-project-id-here"
+    # IMPORTANT: Set your API key in environment variables or .env file
+    OPENAI_API_KEY = None  # Must be set via environment variable
+    OPENAI_PROJECT_ID = None  # Must be set via environment variable
 
 # Initialize OpenAI client
 openai.api_key = OPENAI_API_KEY
