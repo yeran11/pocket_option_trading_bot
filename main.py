@@ -72,6 +72,7 @@ PERIOD = 1
 TRADING_ALLOWED = True
 INITIAL_DEPOSIT = None
 LAST_TRADE_ID = None
+BOT_TRADE_IDS = set()  # Track trades placed by this bot
 
 # Bot state
 bot_state = {
@@ -540,7 +541,7 @@ async def check_payout(driver, asset):
 
 async def create_order(driver, action, asset, reason=""):
     """Create trading order"""
-    global ACTIONS
+    global ACTIONS, BOT_TRADE_IDS
 
     if ACTIONS.get(asset) and ACTIONS[asset] + timedelta(seconds=PERIOD * 2) > datetime.now():
         return False
@@ -558,6 +559,11 @@ async def create_order(driver, action, asset, reason=""):
         ACTIONS[asset] = datetime.now()
         bot_state['total_trades'] += 1
         bot_state['current_asset'] = asset
+
+        # Create unique trade ID for this bot's trade
+        trade_id = f"{asset}_{action}_{datetime.now().strftime('%H:%M:%S')}"
+        BOT_TRADE_IDS.add(trade_id)
+
         add_log(f"{'📈' if action == 'call' else '📉'} {action.upper()} on {asset} - {reason}")
         return True
     except Exception as e:
@@ -585,8 +591,8 @@ async def check_deposit(driver):
 
 
 async def check_recent_trades(driver):
-    """Check recent trades for wins/losses"""
-    global bot_state, LAST_TRADE_ID
+    """Check recent trades for wins/losses - ONLY count bot's trades"""
+    global bot_state, LAST_TRADE_ID, BOT_TRADE_IDS
 
     try:
         # Try to open closed trades tab first
@@ -614,6 +620,21 @@ async def check_recent_trades(driver):
 
             # Parse trade result - need at least time, asset, direction, stake, profit
             if len(last_split) >= 5:
+                asset = last_split[1] if len(last_split) > 1 else 'Unknown'
+                action = last_split[2].upper() if len(last_split) > 2 else 'Unknown'
+                trade_time = last_split[0] if last_split[0] else datetime.now().strftime('%H:%M:%S')
+
+                # Create trade identifier
+                trade_identifier = f"{asset}_{action.lower()}_{trade_time}"
+
+                # ONLY count if this is one of our bot's trades
+                if trade_identifier not in BOT_TRADE_IDS:
+                    # Not our trade - skip it
+                    return
+
+                # This is our trade - process it
+                BOT_TRADE_IDS.discard(trade_identifier)  # Remove from pending
+
                 # Check if win, draw, or loss
                 if '$0' != last_split[4] and '$\u202f0' != last_split[4]:  # WIN
                     profit_str = last_split[4].replace('$', '').replace(',', '').replace('\u202f', '')
@@ -623,24 +644,20 @@ async def check_recent_trades(driver):
                         bot_state['wins'] += 1
                         bot_state['win_streak'] += 1
 
-                        asset = last_split[1] if len(last_split) > 1 else 'Unknown'
-                        action = last_split[2] if len(last_split) > 2 else 'Unknown'
-
                         bot_state['trades'].insert(0, {
                             'asset': asset,
                             'action': action,
                             'result': 'WIN',
                             'profit': profit,
-                            'time': last_split[0] if last_split[0] else datetime.now().strftime('%H:%M:%S')
+                            'time': trade_time
                         })
 
                         if len(bot_state['trades']) > 20:
                             bot_state['trades'] = bot_state['trades'][:20]
 
-                        # Fix: use wins+losses for total
-                        total = bot_state['wins'] + bot_state['losses']
-                        win_rate = (bot_state['wins'] / total * 100) if total > 0 else 0
-                        add_log(f"🎉 WIN! +${profit:.2f} | Win Rate: {win_rate:.1f}% ({bot_state['wins']}/{total})")
+                        # Use bot_state['total_trades'] which only counts bot trades
+                        win_rate = (bot_state['wins'] / bot_state['total_trades'] * 100) if bot_state['total_trades'] > 0 else 0
+                        add_log(f"🎉 WIN! +${profit:.2f} | Win Rate: {win_rate:.1f}% ({bot_state['wins']}/{bot_state['total_trades']})")
                     except Exception as e:
                         pass
 
@@ -653,24 +670,20 @@ async def check_recent_trades(driver):
                             bot_state['losses'] += 1
                             bot_state['win_streak'] = 0
 
-                            asset = last_split[1] if len(last_split) > 1 else 'Unknown'
-                            action = last_split[2] if len(last_split) > 2 else 'Unknown'
-
                             bot_state['trades'].insert(0, {
                                 'asset': asset,
                                 'action': action,
                                 'result': 'LOSS',
                                 'profit': -stake,
-                                'time': last_split[0] if last_split[0] else datetime.now().strftime('%H:%M:%S')
+                                'time': trade_time
                             })
 
                             if len(bot_state['trades']) > 20:
                                 bot_state['trades'] = bot_state['trades'][:20]
 
-                            # Fix: use wins+losses for total
-                            total = bot_state['wins'] + bot_state['losses']
-                            win_rate = (bot_state['wins'] / total * 100) if total > 0 else 0
-                            add_log(f"❌ LOSS -${stake:.2f} | Win Rate: {win_rate:.1f}% ({bot_state['wins']}/{total})")
+                            # Use bot_state['total_trades'] which only counts bot trades
+                            win_rate = (bot_state['wins'] / bot_state['total_trades'] * 100) if bot_state['total_trades'] > 0 else 0
+                            add_log(f"❌ LOSS -${stake:.2f} | Win Rate: {win_rate:.1f}% ({bot_state['wins']}/{bot_state['total_trades']})")
                     except Exception as e:
                         pass
     except:
