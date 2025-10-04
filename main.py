@@ -817,7 +817,7 @@ async def check_deposit(driver):
 
 async def check_recent_trades(driver):
     """Check recent trades for wins/losses - ONLY count bot's trades"""
-    global bot_state, LAST_TRADE_ID, BOT_TRADE_IDS
+    global bot_state, LAST_TRADE_ID, BOT_TRADE_IDS, LAST_TRADE_RESULT
 
     try:
         # Try to open closed trades tab first
@@ -887,7 +887,6 @@ async def check_recent_trades(driver):
                         bot_state['trades'].insert(0, trade_info)
 
                         # Update trade result for frequency tracking
-                        global LAST_TRADE_RESULT
                         LAST_TRADE_RESULT = 'WIN'
 
                         # Update chart data
@@ -943,7 +942,6 @@ async def check_recent_trades(driver):
                             bot_state['trades'].insert(0, trade_info)
 
                             # Update trade result for frequency tracking
-                            global LAST_TRADE_RESULT
                             LAST_TRADE_RESULT = 'LOSS'
 
                             # Update chart data
