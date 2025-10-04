@@ -84,34 +84,39 @@ def initialize_ai_system():
     try:
         print("🔄 Starting AI system initialization...")
 
-        # Ensure paths are set up
+        # Ensure paths are set up - try multiple locations
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        # Look for ai_config.py in the workspace directory
-        if 'pocket_option_trading_bot' in current_dir:
-            # We're in the subdirectory, go up one level
-            parent_dir = os.path.dirname(current_dir)
-        else:
-            # We're already in the workspace directory
-            parent_dir = current_dir
 
-        if current_dir not in sys.path:
-            sys.path.insert(0, current_dir)
-        if parent_dir not in sys.path:
-            sys.path.insert(0, parent_dir)
+        # Try multiple paths for ai_config.py
+        possible_paths = [
+            os.path.join(current_dir, 'ai_config.py'),  # Same directory
+            os.path.join(os.path.dirname(current_dir), 'ai_config.py'),  # Parent directory
+            os.path.join('/home/runner/workspace', 'ai_config.py'),  # Absolute path
+            os.path.join('/home/runner/workspace/pocket_option_trading_bot', 'ai_config.py'),  # Absolute bot path
+        ]
+
+        # Add all paths to sys.path
+        for path_dir in [current_dir, os.path.dirname(current_dir), '/home/runner/workspace', '/home/runner/workspace/pocket_option_trading_bot']:
+            if path_dir not in sys.path:
+                sys.path.insert(0, path_dir)
 
         print(f"📂 Current dir: {current_dir}")
-        print(f"📂 Looking for ai_config.py in: {parent_dir}")
+        print(f"📂 Looking for ai_config.py in multiple locations...")
 
         # Try to import the AI config module
         try:
-            # Check if ai_config.py exists
-            ai_config_path = os.path.join(parent_dir, 'ai_config.py')
-            print(f"🔍 Checking for ai_config at: {ai_config_path}")
+            # Find the first existing ai_config.py
+            ai_config_path = None
+            for path in possible_paths:
+                if os.path.exists(path):
+                    ai_config_path = path
+                    break
 
-            if not os.path.exists(ai_config_path):
-                error_msg = f"ai_config.py not found at {ai_config_path}"
-                print(f"❌ {error_msg}")
-                safe_log(f"❌ AI config file not found - cannot enable AI")
+            print(f"🔍 Checking for ai_config at paths: {possible_paths}")
+
+            if not ai_config_path:
+                print(f"❌ ai_config.py not found in any location")
+                safe_log("❌ AI config file not found in any location")
                 return False
 
             print(f"✅ Found ai_config.py at {ai_config_path}")
