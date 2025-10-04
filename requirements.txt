@@ -1,9 +1,5 @@
-pandas
-requests
-#scikit-learn
-selenium
-setuptools
-#stock-indicators
-undetected-chromedriver
-flask
-flask-cors
+flask>=2.3.0
+selenium>=4.10.0
+undetected-chromedriver>=3.5.0
+openai>=1.0.0
+python-dotenv>=1.0.0
