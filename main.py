@@ -174,13 +174,21 @@ settings = {
 
     # Trade Frequency Limits
     'trade_limits_enabled': True,
+    'trade_limit_5min_enabled': True,
     'trade_limit_5min': 3,      # Max trades in 5 minutes
+    'trade_limit_10min_enabled': True,
     'trade_limit_10min': 5,     # Max trades in 10 minutes
+    'trade_limit_20min_enabled': True,
     'trade_limit_20min': 8,     # Max trades in 20 minutes
+    'trade_limit_30min_enabled': True,
     'trade_limit_30min': 10,    # Max trades in 30 minutes
+    'trade_limit_60min_enabled': True,
     'trade_limit_60min': 15,    # Max trades in 60 minutes
+    'cooldown_after_loss_enabled': True,
     'cooldown_after_loss': 60,  # Seconds to wait after a loss
+    'cooldown_after_win_enabled': True,
     'cooldown_after_win': 30,   # Seconds to wait after a win
+    'max_consecutive_trades_enabled': True,
     'max_consecutive_trades': 3, # Max trades without a break
     'break_duration': 120,       # Seconds to break after consecutive trades
 
@@ -686,17 +694,17 @@ def check_trade_limits():
         time_since_last = (current_time - LAST_TRADE_TIME).total_seconds()
 
         # Cooldown after loss
-        if LAST_TRADE_RESULT == 'LOSS' and time_since_last < settings.get('cooldown_after_loss', 60):
+        if settings.get('cooldown_after_loss_enabled', True) and LAST_TRADE_RESULT == 'LOSS' and time_since_last < settings.get('cooldown_after_loss', 60):
             remaining = settings['cooldown_after_loss'] - int(time_since_last)
             return False, f"Cooldown after loss ({remaining}s remaining)"
 
         # Cooldown after win
-        if LAST_TRADE_RESULT == 'WIN' and time_since_last < settings.get('cooldown_after_win', 30):
+        if settings.get('cooldown_after_win_enabled', True) and LAST_TRADE_RESULT == 'WIN' and time_since_last < settings.get('cooldown_after_win', 30):
             remaining = settings['cooldown_after_win'] - int(time_since_last)
             return False, f"Cooldown after win ({remaining}s remaining)"
 
     # Check consecutive trades limit
-    if CONSECUTIVE_TRADES >= settings.get('max_consecutive_trades', 3):
+    if settings.get('max_consecutive_trades_enabled', True) and CONSECUTIVE_TRADES >= settings.get('max_consecutive_trades', 3):
         if LAST_TRADE_TIME:
             break_elapsed = (current_time - LAST_TRADE_TIME).total_seconds()
             break_needed = settings.get('break_duration', 120)
@@ -712,23 +720,25 @@ def check_trade_limits():
 
     # Check time-window limits
     limits = [
-        (5, settings.get('trade_limit_5min', 3)),
-        (10, settings.get('trade_limit_10min', 5)),
-        (20, settings.get('trade_limit_20min', 8)),
-        (30, settings.get('trade_limit_30min', 10)),
-        (60, settings.get('trade_limit_60min', 15))
+        (5, 'trade_limit_5min_enabled', 'trade_limit_5min'),
+        (10, 'trade_limit_10min_enabled', 'trade_limit_10min'),
+        (20, 'trade_limit_20min_enabled', 'trade_limit_20min'),
+        (30, 'trade_limit_30min_enabled', 'trade_limit_30min'),
+        (60, 'trade_limit_60min_enabled', 'trade_limit_60min')
     ]
 
-    for minutes, max_trades in limits:
-        if max_trades > 0:  # Only check if limit is set
-            window_start = current_time - timedelta(minutes=minutes)
-            recent_trades = [t for t, _ in TRADE_HISTORY if t >= window_start]
+    for minutes, enabled_key, limit_key in limits:
+        if settings.get(enabled_key, True):  # Check if this specific limit is enabled
+            max_trades = settings.get(limit_key, 999)  # Default to high number if not set
+            if max_trades > 0:  # Only check if limit is set
+                window_start = current_time - timedelta(minutes=minutes)
+                recent_trades = [t for t, _ in TRADE_HISTORY if t >= window_start]
 
-            if len(recent_trades) >= max_trades:
-                # Find when the oldest trade in this window will expire
-                oldest_in_window = min(recent_trades)
-                wait_time = int((oldest_in_window + timedelta(minutes=minutes) - current_time).total_seconds())
-                return False, f"Limit reached: {max_trades} trades in {minutes}min (wait {wait_time}s)"
+                if len(recent_trades) >= max_trades:
+                    # Find when the oldest trade in this window will expire
+                    oldest_in_window = min(recent_trades)
+                    wait_time = int((oldest_in_window + timedelta(minutes=minutes) - current_time).total_seconds())
+                    return False, f"Limit reached: {max_trades} trades in {minutes}min (wait {wait_time}s)"
 
     return True, "Within limits"
 
