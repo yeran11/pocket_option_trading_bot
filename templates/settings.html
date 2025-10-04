@@ -12,22 +12,35 @@
         }
 
         body {
-            background: linear-gradient(135deg, #0a0a0a, #1a1a2e);
-            color: #fff;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #000;
+            color: #0ff;
+            font-family: 'Courier New', monospace;
             min-height: 100vh;
-            padding: 20px;
+            padding: 10px;
+            overflow-x: auto;
         }
 
         .header {
             text-align: center;
             margin-bottom: 30px;
+            padding: 20px;
+            border: 2px solid #0ff;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #001a1a 0%, #000 100%);
+            box-shadow: 0 0 30px rgba(0,255,255,0.3);
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            text-shadow: 0 0 20px #0ff, 0 0 30px #0ff;
+            margin-bottom: 10px;
             animation: glow 2s ease-in-out infinite;
+            color: #0ff;
         }
 
         @keyframes glow {
-            0%, 100% { text-shadow: 0 0 20px #00ffff; }
-            50% { text-shadow: 0 0 30px #00ffff, 0 0 40px #00ffff; }
+            0%, 100% { text-shadow: 0 0 20px #0ff, 0 0 30px #0ff; }
+            50% { text-shadow: 0 0 30px #0ff, 0 0 50px #0ff, 0 0 70px #0ff; }
         }
 
         .container {
@@ -58,26 +71,30 @@
         }
 
         .settings-card {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(0, 255, 255, 0.3);
+            background: linear-gradient(135deg, #001a1a 0%, #000 50%, #001a1a 100%);
+            border: 2px solid #0ff;
             border-radius: 10px;
             padding: 20px;
-            backdrop-filter: blur(10px);
+            box-shadow: 0 0 20px rgba(0,255,255,0.2);
             transition: all 0.3s ease;
         }
 
         .settings-card:hover {
             transform: translateY(-5px);
-            box-shadow: 0 10px 30px rgba(0, 255, 255, 0.3);
+            box-shadow: 0 0 30px rgba(0,255,255,0.5);
+            border-color: #0ff;
         }
 
         .card-title {
-            font-size: 1.4em;
+            font-size: 1.3em;
             margin-bottom: 20px;
-            color: #00ffff;
+            color: #0ff;
             display: flex;
             align-items: center;
             gap: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #0ff;
+            text-shadow: 0 0 10px #0ff;
         }
 
         .card-title .status-badge {
@@ -92,21 +109,23 @@
         .setting-row {
             margin-bottom: 15px;
             padding: 10px;
-            background: rgba(255, 255, 255, 0.03);
-            border-radius: 8px;
+            background: #001a1a;
+            border: 1px solid rgba(0, 255, 255, 0.2);
+            border-radius: 5px;
             border-left: 3px solid transparent;
             transition: all 0.2s ease;
         }
 
         .setting-row:hover {
-            border-left-color: #00ffff;
-            background: rgba(255, 255, 255, 0.08);
+            border-left-color: #0ff;
+            background: rgba(0, 255, 255, 0.05);
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.2);
         }
 
         .setting-label {
             display: block;
             margin-bottom: 8px;
-            color: #aaa;
+            color: #0cc;
             font-size: 0.9em;
         }
 
@@ -119,20 +138,27 @@
         input[type="number"],
         input[type="text"],
         select {
-            background: rgba(0, 0, 0, 0.5);
-            border: 1px solid rgba(0, 255, 255, 0.3);
-            color: #fff;
+            background: #000;
+            border: 1px solid #0ff;
+            color: #0ff;
             padding: 8px 12px;
             border-radius: 5px;
             flex: 1;
+            font-family: 'Courier New', monospace;
         }
 
         input[type="number"]:focus,
         input[type="text"]:focus,
         select:focus {
             outline: none;
-            border-color: #00ffff;
-            box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+            border-color: #0ff;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);
+            background: rgba(0, 255, 255, 0.05);
+        }
+
+        select option {
+            background: #000;
+            color: #0ff;
         }
 
         .toggle-switch {
@@ -155,7 +181,8 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background-color: #444;
+            background-color: #001a1a;
+            border: 1px solid #0ff;
             transition: 0.4s;
             border-radius: 24px;
         }
@@ -163,17 +190,20 @@
         .toggle-slider:before {
             position: absolute;
             content: "";
-            height: 18px;
-            width: 18px;
+            height: 16px;
+            width: 16px;
             left: 3px;
             bottom: 3px;
-            background-color: white;
+            background-color: #0ff;
             transition: 0.4s;
             border-radius: 50%;
+            box-shadow: 0 0 10px #0ff;
         }
 
         input:checked + .toggle-slider {
-            background-color: #00ffff;
+            background-color: rgba(0, 255, 255, 0.2);
+            border-color: #0ff;
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
         }
 
         input:checked + .toggle-slider:before {
@@ -189,18 +219,22 @@
 
         .preset-btn {
             padding: 10px 20px;
-            background: linear-gradient(135deg, #00ffff, #0080ff);
-            border: none;
+            background: #001a1a;
+            border: 2px solid #0ff;
             border-radius: 5px;
-            color: #fff;
+            color: #0ff;
             font-weight: bold;
             cursor: pointer;
             transition: all 0.3s ease;
+            font-family: 'Courier New', monospace;
+            text-transform: uppercase;
         }
 
         .preset-btn:hover {
             transform: scale(1.05);
-            box-shadow: 0 5px 20px rgba(0, 255, 255, 0.5);
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+            background: rgba(0, 255, 255, 0.1);
+            text-shadow: 0 0 10px #0ff;
         }
 
         .action-buttons {
@@ -212,61 +246,85 @@
 
         .btn {
             padding: 12px 30px;
-            border: none;
+            border: 2px solid;
             border-radius: 5px;
             font-size: 1em;
             font-weight: bold;
             cursor: pointer;
             transition: all 0.3s ease;
+            font-family: 'Courier New', monospace;
+            text-transform: uppercase;
+            background: #000;
         }
 
         .btn-save {
-            background: linear-gradient(135deg, #00ff00, #00cc00);
-            color: #fff;
+            border-color: #0f0;
+            color: #0f0;
         }
 
         .btn-reset {
-            background: linear-gradient(135deg, #ff6600, #ff3300);
-            color: #fff;
+            border-color: #ff6600;
+            color: #ff6600;
         }
 
         .btn-back {
-            background: linear-gradient(135deg, #666, #444);
-            color: #fff;
+            border-color: #0ff;
+            color: #0ff;
         }
 
         .btn:hover {
             transform: scale(1.05);
-            box-shadow: 0 5px 20px rgba(255, 255, 255, 0.3);
+            box-shadow: 0 0 20px currentColor;
+            text-shadow: 0 0 10px currentColor;
+        }
+
+        .btn-save:hover {
+            background: rgba(0, 255, 0, 0.1);
+        }
+
+        .btn-reset:hover {
+            background: rgba(255, 100, 0, 0.1);
+        }
+
+        .btn-back:hover {
+            background: rgba(0, 255, 255, 0.1);
         }
 
         .ai-status {
-            background: linear-gradient(135deg, rgba(0, 255, 0, 0.1), rgba(0, 255, 255, 0.1));
-            border: 2px solid rgba(0, 255, 255, 0.5);
+            background: linear-gradient(135deg, #001a1a 0%, #000 100%);
+            border: 2px solid #0ff;
             border-radius: 10px;
             padding: 20px;
             margin-bottom: 20px;
             text-align: center;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
         }
 
         .ai-status.disabled {
-            background: linear-gradient(135deg, rgba(255, 0, 0, 0.1), rgba(255, 100, 0, 0.1));
-            border-color: rgba(255, 100, 0, 0.5);
+            border-color: #f00;
+            box-shadow: 0 0 20px rgba(255, 0, 0, 0.3);
         }
 
         .performance-metric {
             display: flex;
             justify-content: space-between;
             padding: 10px;
-            background: rgba(255, 255, 255, 0.03);
+            background: #001a1a;
+            border: 1px solid rgba(0, 255, 255, 0.2);
             border-radius: 5px;
             margin-bottom: 10px;
+        }
+
+        .performance-metric:hover {
+            background: rgba(0, 255, 255, 0.05);
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.2);
         }
 
         .metric-bar {
             width: 100%;
             height: 8px;
-            background: rgba(255, 255, 255, 0.1);
+            background: #000;
+            border: 1px solid #0ff;
             border-radius: 4px;
             overflow: hidden;
             margin-top: 5px;
@@ -274,15 +332,16 @@
 
         .metric-fill {
             height: 100%;
-            background: linear-gradient(90deg, #00ffff, #00ff00);
+            background: linear-gradient(90deg, #0ff, #0f0);
             transition: width 0.5s ease;
+            box-shadow: 0 0 10px currentColor;
         }
     </style>
 </head>
 <body>
     <div class="header">
         <h1>⚡ ADVANCED TRADING SETTINGS ⚡</h1>
-        <p style="margin-top: 10px; color: #aaa;">Configure AI & Indicators</p>
+        <p style="margin-top: 10px; color: #0cc; font-size: 1.1em;">🤖 AI CONFIGURATION & INDICATOR CONTROL</p>
     </div>
 
     <div class="container">
@@ -627,8 +686,8 @@
                 statusEl.classList.remove('disabled');
                 statusText.innerHTML = `
                     <p style="color: #0f0; font-size: 1.2em; margin: 10px 0;">✅ AI System Active</p>
-                    <p>Strategy: ${status.current_strategy}</p>
-                    <p>Patterns Learned: ${status.patterns_learned}</p>
+                    <p style="color: #0cc;">Strategy: ${status.current_strategy}</p>
+                    <p style="color: #0cc;">Patterns Learned: ${status.patterns_learned}</p>
                 `;
                 badge.textContent = 'ACTIVE';
                 badge.style.background = 'rgba(0, 255, 0, 0.2)';
@@ -636,7 +695,7 @@
                 statusEl.classList.add('disabled');
                 statusText.innerHTML = `
                     <p style="color: #f00; font-size: 1.2em; margin: 10px 0;">❌ AI System Disabled</p>
-                    <p>Enable AI to use GPT-4 analysis</p>
+                    <p style="color: #f66;">Enable AI to use GPT-4 analysis</p>
                 `;
                 badge.textContent = 'DISABLED';
                 badge.style.background = 'rgba(255, 0, 0, 0.2)';
