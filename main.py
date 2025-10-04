@@ -477,6 +477,8 @@ async def reanimate_favorites(driver):
     global CURRENT_ASSET, FAVORITES_REANIMATED
 
     asset_favorites_items = driver.find_elements(By.CLASS_NAME, 'assets-favorites-item')
+    out_of_reach = []
+
     for item in asset_favorites_items:
         while True:
             if 'assets-favorites-item--active' in item.get_attribute('class'):
@@ -488,8 +490,14 @@ async def reanimate_favorites(driver):
                 item.click()
                 FAVORITES_REANIMATED = True
             except ElementNotInteractableException:
-                add_log(f"Asset {item.get_attribute('data-id')} out of reach")
+                out_of_reach.append(item.get_attribute('data-id'))
                 break
+
+    # Log all out of reach assets in one message
+    if out_of_reach and len(out_of_reach) <= 5:
+        add_log(f"⚠️ {len(out_of_reach)} assets not visible: {', '.join(out_of_reach[:5])}")
+    elif out_of_reach:
+        add_log(f"⚠️ {len(out_of_reach)} assets not visible (scroll down to activate them)")
 
 
 async def switch_to_asset(driver, asset):
@@ -581,6 +589,17 @@ async def check_recent_trades(driver):
     global bot_state, LAST_TRADE_ID
 
     try:
+        # Try to open closed trades tab first
+        try:
+            closed_tab = driver.find_element(By.CSS_SELECTOR,
+                '#bar-chart > div > div > div.right-widget-container > div > div.widget-slot__header > div.divider > ul > li:nth-child(2) > a')
+            closed_tab_parent = closed_tab.find_element(By.XPATH, '..')
+            if closed_tab_parent.get_attribute('class') == '':
+                closed_tab_parent.click()
+                await asyncio.sleep(0.3)
+        except:
+            pass
+
         closed_trades = driver.find_elements(By.CLASS_NAME, 'deals-list__item')
         if closed_trades and len(closed_trades) > 0:
             # Use the full text as a unique ID
@@ -593,7 +612,7 @@ async def check_recent_trades(driver):
             LAST_TRADE_ID = current_trade_id
             last_split = current_trade_id.split('\n')
 
-            # Parse trade result
+            # Parse trade result - need at least time, asset, direction, stake, profit
             if len(last_split) >= 5:
                 # Check if win, draw, or loss
                 if '$0' != last_split[4] and '$\u202f0' != last_split[4]:  # WIN
@@ -612,15 +631,17 @@ async def check_recent_trades(driver):
                             'action': action,
                             'result': 'WIN',
                             'profit': profit,
-                            'time': datetime.now().strftime('%H:%M:%S')
+                            'time': last_split[0] if last_split[0] else datetime.now().strftime('%H:%M:%S')
                         })
 
                         if len(bot_state['trades']) > 20:
                             bot_state['trades'] = bot_state['trades'][:20]
 
-                        win_rate = (bot_state['wins'] / bot_state['total_trades'] * 100) if bot_state['total_trades'] > 0 else 0
-                        add_log(f"🎉 WIN! +${profit:.2f} | Win Rate: {win_rate:.1f}%")
-                    except:
+                        # Fix: use wins+losses for total
+                        total = bot_state['wins'] + bot_state['losses']
+                        win_rate = (bot_state['wins'] / total * 100) if total > 0 else 0
+                        add_log(f"🎉 WIN! +${profit:.2f} | Win Rate: {win_rate:.1f}% ({bot_state['wins']}/{total})")
+                    except Exception as e:
                         pass
 
                 elif '$0' == last_split[3] or '$\u202f0' == last_split[3]:  # LOSS
@@ -640,15 +661,17 @@ async def check_recent_trades(driver):
                                 'action': action,
                                 'result': 'LOSS',
                                 'profit': -stake,
-                                'time': datetime.now().strftime('%H:%M:%S')
+                                'time': last_split[0] if last_split[0] else datetime.now().strftime('%H:%M:%S')
                             })
 
                             if len(bot_state['trades']) > 20:
                                 bot_state['trades'] = bot_state['trades'][:20]
 
-                            win_rate = (bot_state['wins'] / bot_state['total_trades'] * 100) if bot_state['total_trades'] > 0 else 0
-                            add_log(f"❌ LOSS -${stake:.2f} | Win Rate: {win_rate:.1f}%")
-                    except:
+                            # Fix: use wins+losses for total
+                            total = bot_state['wins'] + bot_state['losses']
+                            win_rate = (bot_state['wins'] / total * 100) if total > 0 else 0
+                            add_log(f"❌ LOSS -${stake:.2f} | Win Rate: {win_rate:.1f}% ({bot_state['wins']}/{total})")
+                    except Exception as e:
                         pass
     except:
         pass
