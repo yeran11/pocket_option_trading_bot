@@ -1477,7 +1477,9 @@
                         } else {
                             // Revert toggle if save failed
                             this.checked = !isEnabled;
-                            showModal('error', 'Failed to Update AI', 'Could not update AI status. Please try again.');
+                            const errorMsg = result.error || 'Could not update AI status. Please try again.';
+                            showModal('error', 'Failed to Update AI', errorMsg);
+                            console.error('AI toggle error:', result);
                         }
                     } catch (error) {
                         // Revert toggle on error

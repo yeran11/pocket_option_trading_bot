@@ -73,33 +73,105 @@ def initialize_ai_system():
     """Initialize or reinitialize the AI trading system"""
     global AI_ENABLED, ai_brain, optimizer, INDICATOR_CONFIG, AI_STRATEGIES
 
+    # Helper function for logging when add_log may not be available
+    def safe_log(msg):
+        print(msg)
+        if 'add_log' in globals():
+            add_log(msg)
+
     try:
-        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        print("🔄 Starting AI system initialization...")
 
-        # Force reload the module if it was already imported
-        import importlib
-        import ai_config
-        importlib.reload(ai_config)
+        # Ensure paths are set up
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        # Look for ai_config.py in the workspace directory
+        if 'pocket_option_trading_bot' in current_dir:
+            # We're in the subdirectory, go up one level
+            parent_dir = os.path.dirname(current_dir)
+        else:
+            # We're already in the workspace directory
+            parent_dir = current_dir
 
-        from ai_config import AITradingBrain, SelfOptimizer, INDICATOR_CONFIG as IND_CONFIG, AI_STRATEGIES as AI_STRAT
+        if current_dir not in sys.path:
+            sys.path.insert(0, current_dir)
+        if parent_dir not in sys.path:
+            sys.path.insert(0, parent_dir)
 
+        print(f"📂 Current dir: {current_dir}")
+        print(f"📂 Looking for ai_config.py in: {parent_dir}")
+
+        # Try to import the AI config module
+        try:
+            # Check if ai_config.py exists
+            ai_config_path = os.path.join(parent_dir, 'ai_config.py')
+            print(f"🔍 Checking for ai_config at: {ai_config_path}")
+
+            if not os.path.exists(ai_config_path):
+                error_msg = f"ai_config.py not found at {ai_config_path}"
+                print(f"❌ {error_msg}")
+                safe_log(f"❌ AI config file not found - cannot enable AI")
+                return False
+
+            print(f"✅ Found ai_config.py at {ai_config_path}")
+
+            # Import the module
+            import importlib.util
+            spec = importlib.util.spec_from_file_location("ai_config", ai_config_path)
+            if spec is None:
+                print("❌ Failed to create module spec")
+                safe_log("❌ Failed to load AI module specification")
+                return False
+
+            ai_config = importlib.util.module_from_spec(spec)
+            if ai_config is None:
+                print("❌ Failed to create module from spec")
+                safe_log("❌ Failed to create AI module")
+                return False
+
+            spec.loader.exec_module(ai_config)
+            print("✅ Successfully imported ai_config module")
+
+            # Get the classes and configs
+            AITradingBrain = ai_config.AITradingBrain
+            SelfOptimizer = ai_config.SelfOptimizer
+            INDICATOR_CONFIG = ai_config.INDICATOR_CONFIG
+            AI_STRATEGIES = ai_config.AI_STRATEGIES
+
+            print("✅ Successfully loaded AI classes and configs")
+
+        except Exception as import_error:
+            error_msg = str(import_error)
+            print(f"❌ Failed to import ai_config: {error_msg}")
+            safe_log(f"❌ AI module import error: {error_msg[:100]}")
+            import traceback
+            traceback.print_exc()
+            return False
+
+        # Initialize the AI objects
+        print("🔧 Creating AI brain and optimizer instances...")
         ai_brain = AITradingBrain()
         optimizer = SelfOptimizer()
-        INDICATOR_CONFIG = IND_CONFIG
-        AI_STRATEGIES = AI_STRAT
         AI_ENABLED = True
 
         print("✅ AI Trading System loaded successfully")
-        # add_log will be called later when bot_state is initialized
+        safe_log("✅ AI Trading System initialized successfully")
 
         if ai_brain:
-            ai_brain.load_patterns()
+            try:
+                ai_brain.load_patterns()
+                pattern_count = len(ai_brain.pattern_database) if hasattr(ai_brain, 'pattern_database') else 0
+                print(f"📊 Loaded {pattern_count} patterns")
+                safe_log(f"📊 AI loaded with {pattern_count} learned patterns")
+            except Exception as pattern_error:
+                print(f"📊 Starting with fresh pattern database: {pattern_error}")
+                safe_log("📊 AI starting with fresh pattern database")
 
         return True
 
     except Exception as e:
-        print(f"⚠️ AI System initialization failed: {e}")
+        error_msg = str(e)
+        print(f"❌ Failed to initialize AI: {error_msg}")
+        safe_log(f"❌ AI initialization failed: {error_msg[:100]}")
         import traceback
         traceback.print_exc()
         AI_ENABLED = False
@@ -107,8 +179,7 @@ def initialize_ai_system():
         optimizer = None
         return False
 
-# Try to initialize AI on startup
-initialize_ai_system()
+# AI initialization will happen after add_log is defined
 
 # Global variables
 DRIVER = None
@@ -285,6 +356,11 @@ def add_log(msg):
     if len(bot_state['logs']) > 100:
         bot_state['logs'] = bot_state['logs'][-100:]
     print(f"[{ts}] {msg}")
+
+
+# Try to initialize AI on startup now that add_log is available
+if not ai_brain:
+    initialize_ai_system()
 
 
 # ==================== CHROME DRIVER MANAGEMENT ====================
@@ -1321,16 +1397,23 @@ def update_settings():
             if should_enable:
                 # Try to initialize AI if not already initialized
                 if not ai_brain:
+                    print(f"🔄 AI not initialized, attempting to initialize...")
                     success = initialize_ai_system()
                     if success:
                         AI_ENABLED = True
                         add_log("🤖 AI System ENABLED - ULTRA SUPER POWERFUL MODE ACTIVATED!")
                         add_log("🚀 GPT-4 TRADING GOD ONLINE - 99% WIN RATE TARGET!")
+                        print(f"✅ AI initialization successful, AI_ENABLED={AI_ENABLED}")
                     else:
                         AI_ENABLED = False
                         settings['ai_enabled'] = False  # Revert if initialization failed
-                        add_log("❌ AI System failed to initialize - check API key")
-                        return jsonify({'success': False, 'error': 'AI initialization failed'})
+                        add_log("❌ AI System failed to initialize - check console for details")
+                        print(f"❌ AI initialization failed, returning error")
+                        return jsonify({
+                            'success': False,
+                            'error': 'AI initialization failed. Check if ai_config.py exists in parent directory and OpenAI API key is valid.',
+                            'details': 'Check server console for detailed error logs'
+                        })
                 else:
                     AI_ENABLED = True
                     add_log("🤖 AI System ENABLED - ULTRA SUPER POWERFUL MODE!")
