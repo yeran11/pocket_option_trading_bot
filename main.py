@@ -71,6 +71,7 @@ FAVORITES_REANIMATED = False
 PERIOD = 1
 TRADING_ALLOWED = True
 INITIAL_DEPOSIT = None
+LAST_TRADE_ID = None
 
 # Bot state
 bot_state = {
@@ -577,12 +578,20 @@ async def check_deposit(driver):
 
 async def check_recent_trades(driver):
     """Check recent trades for wins/losses"""
-    global bot_state
+    global bot_state, LAST_TRADE_ID
 
     try:
         closed_trades = driver.find_elements(By.CLASS_NAME, 'deals-list__item')
         if closed_trades and len(closed_trades) > 0:
-            last_split = closed_trades[0].text.split('\n')
+            # Use the full text as a unique ID
+            current_trade_id = closed_trades[0].text
+
+            # Skip if this is the same trade we already processed
+            if current_trade_id == LAST_TRADE_ID:
+                return
+
+            LAST_TRADE_ID = current_trade_id
+            last_split = current_trade_id.split('\n')
 
             # Parse trade result
             if len(last_split) >= 5:
@@ -592,27 +601,25 @@ async def check_recent_trades(driver):
                     try:
                         profit = float(profit_str)
 
-                        # Only count if this is a new trade
-                        if not bot_state['trades'] or bot_state['trades'][0].get('time') != datetime.now().strftime('%H:%M:%S'):
-                            bot_state['wins'] += 1
-                            bot_state['win_streak'] += 1
+                        bot_state['wins'] += 1
+                        bot_state['win_streak'] += 1
 
-                            asset = last_split[1] if len(last_split) > 1 else 'Unknown'
-                            action = last_split[2] if len(last_split) > 2 else 'Unknown'
+                        asset = last_split[1] if len(last_split) > 1 else 'Unknown'
+                        action = last_split[2] if len(last_split) > 2 else 'Unknown'
 
-                            bot_state['trades'].insert(0, {
-                                'asset': asset,
-                                'action': action,
-                                'result': 'WIN',
-                                'profit': profit,
-                                'time': datetime.now().strftime('%H:%M:%S')
-                            })
+                        bot_state['trades'].insert(0, {
+                            'asset': asset,
+                            'action': action,
+                            'result': 'WIN',
+                            'profit': profit,
+                            'time': datetime.now().strftime('%H:%M:%S')
+                        })
 
-                            if len(bot_state['trades']) > 20:
-                                bot_state['trades'] = bot_state['trades'][:20]
+                        if len(bot_state['trades']) > 20:
+                            bot_state['trades'] = bot_state['trades'][:20]
 
-                            win_rate = (bot_state['wins'] / bot_state['total_trades'] * 100) if bot_state['total_trades'] > 0 else 0
-                            add_log(f"🎉 WIN! +${profit:.2f} | Win Rate: {win_rate:.1f}%")
+                        win_rate = (bot_state['wins'] / bot_state['total_trades'] * 100) if bot_state['total_trades'] > 0 else 0
+                        add_log(f"🎉 WIN! +${profit:.2f} | Win Rate: {win_rate:.1f}%")
                     except:
                         pass
 
@@ -621,7 +628,7 @@ async def check_recent_trades(driver):
                     try:
                         stake = float(stake_str) if stake_str != '0' else 0
 
-                        if stake > 0 and (not bot_state['trades'] or bot_state['trades'][0].get('time') != datetime.now().strftime('%H:%M:%S')):
+                        if stake > 0:
                             bot_state['losses'] += 1
                             bot_state['win_streak'] = 0
 
@@ -712,9 +719,16 @@ async def check_indicators(driver):
     """Main trading logic loop"""
     global CANDLES
 
+    # Check if we have any candle data
+    if not CANDLES:
+        return
+
     # Check each asset
     for asset, candles in CANDLES.items():
         if len(candles) < 50:
+            # Log when we're still collecting data
+            if len(candles) > 0 and len(candles) % 10 == 0:
+                add_log(f"📊 {asset}: Collecting data ({len(candles)}/50 candles)")
             continue
 
         result = await enhanced_strategy(candles)
