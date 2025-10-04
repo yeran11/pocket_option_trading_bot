@@ -716,57 +716,96 @@
                 <div class="setting-row">
                     <label class="setting-label">Max Trades in 5 Minutes</label>
                     <div class="setting-control">
-                        <input type="number" id="trade_limit_5min" value="3" min="0" max="20">
-                        <span style="color: #0cc; font-size: 0.9em;">0 = unlimited</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="trade_limit_5min_enabled" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <input type="number" id="trade_limit_5min" value="3" min="1" max="20" style="width: 80px; margin-left: 10px;">
+                        <span style="color: #0cc; font-size: 0.9em; margin-left: 10px;">trades</span>
                     </div>
                 </div>
 
                 <div class="setting-row">
                     <label class="setting-label">Max Trades in 10 Minutes</label>
                     <div class="setting-control">
-                        <input type="number" id="trade_limit_10min" value="5" min="0" max="30">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="trade_limit_10min_enabled" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <input type="number" id="trade_limit_10min" value="5" min="1" max="30" style="width: 80px; margin-left: 10px;">
+                        <span style="color: #0cc; font-size: 0.9em; margin-left: 10px;">trades</span>
                     </div>
                 </div>
 
                 <div class="setting-row">
                     <label class="setting-label">Max Trades in 20 Minutes</label>
                     <div class="setting-control">
-                        <input type="number" id="trade_limit_20min" value="8" min="0" max="50">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="trade_limit_20min_enabled" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <input type="number" id="trade_limit_20min" value="8" min="1" max="50" style="width: 80px; margin-left: 10px;">
+                        <span style="color: #0cc; font-size: 0.9em; margin-left: 10px;">trades</span>
                     </div>
                 </div>
 
                 <div class="setting-row">
                     <label class="setting-label">Max Trades in 30 Minutes</label>
                     <div class="setting-control">
-                        <input type="number" id="trade_limit_30min" value="10" min="0" max="60">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="trade_limit_30min_enabled" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <input type="number" id="trade_limit_30min" value="10" min="1" max="60" style="width: 80px; margin-left: 10px;">
+                        <span style="color: #0cc; font-size: 0.9em; margin-left: 10px;">trades</span>
                     </div>
                 </div>
 
                 <div class="setting-row">
                     <label class="setting-label">Max Trades in 60 Minutes</label>
                     <div class="setting-control">
-                        <input type="number" id="trade_limit_60min" value="15" min="0" max="100">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="trade_limit_60min_enabled" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <input type="number" id="trade_limit_60min" value="15" min="1" max="100" style="width: 80px; margin-left: 10px;">
+                        <span style="color: #0cc; font-size: 0.9em; margin-left: 10px;">trades</span>
                     </div>
                 </div>
 
                 <div class="setting-row">
-                    <label class="setting-label">Cooldown After Win (seconds)</label>
+                    <label class="setting-label">Cooldown After Win</label>
                     <div class="setting-control">
-                        <input type="number" id="cooldown_after_win" value="30" min="0" max="300">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="cooldown_after_win_enabled" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <input type="number" id="cooldown_after_win" value="30" min="1" max="300" style="width: 80px; margin-left: 10px;">
+                        <span style="color: #0cc; font-size: 0.9em; margin-left: 10px;">seconds</span>
                     </div>
                 </div>
 
                 <div class="setting-row">
-                    <label class="setting-label">Cooldown After Loss (seconds)</label>
+                    <label class="setting-label">Cooldown After Loss</label>
                     <div class="setting-control">
-                        <input type="number" id="cooldown_after_loss" value="60" min="0" max="300">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="cooldown_after_loss_enabled" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <input type="number" id="cooldown_after_loss" value="60" min="1" max="300" style="width: 80px; margin-left: 10px;">
+                        <span style="color: #0cc; font-size: 0.9em; margin-left: 10px;">seconds</span>
                     </div>
                 </div>
 
                 <div class="setting-row">
                     <label class="setting-label">Max Consecutive Trades</label>
                     <div class="setting-control">
-                        <input type="number" id="max_consecutive_trades" value="3" min="1" max="10">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="max_consecutive_trades_enabled" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <input type="number" id="max_consecutive_trades" value="3" min="1" max="10" style="width: 80px; margin-left: 10px;">
+                        <span style="color: #0cc; font-size: 0.9em; margin-left: 10px;">trades</span>
                     </div>
                 </div>
 
@@ -1132,10 +1171,69 @@
             }
         }
 
+        // Add toggle handling for trade limits
+        function setupToggleHandlers() {
+            // Trade limit toggles
+            const limitToggles = [
+                'trade_limit_5min_enabled',
+                'trade_limit_10min_enabled',
+                'trade_limit_20min_enabled',
+                'trade_limit_30min_enabled',
+                'trade_limit_60min_enabled',
+                'cooldown_after_win_enabled',
+                'cooldown_after_loss_enabled',
+                'max_consecutive_trades_enabled'
+            ];
+
+            limitToggles.forEach(toggleId => {
+                const toggle = document.getElementById(toggleId);
+                if (toggle) {
+                    // Set initial state
+                    const inputId = toggleId.replace('_enabled', '');
+                    const input = document.getElementById(inputId);
+                    if (input) {
+                        input.disabled = !toggle.checked;
+                        input.style.opacity = toggle.checked ? '1' : '0.5';
+                    }
+
+                    // Add change listener
+                    toggle.addEventListener('change', function() {
+                        const inputId = toggleId.replace('_enabled', '');
+                        const input = document.getElementById(inputId);
+                        if (input) {
+                            input.disabled = !this.checked;
+                            input.style.opacity = this.checked ? '1' : '0.5';
+                        }
+                    });
+                }
+            });
+
+            // AI enabled toggle - update status immediately
+            const aiToggle = document.getElementById('ai_enabled');
+            if (aiToggle) {
+                aiToggle.addEventListener('change', async function() {
+                    // Update status display immediately
+                    updateAIStatus({
+                        ai_enabled: this.checked,
+                        ai_available: true,
+                        current_strategy: document.getElementById('active_strategy')?.value || 'AI_ENHANCED',
+                        patterns_learned: 0
+                    });
+                });
+            }
+        }
+
         // Load settings on page load
         window.onload = () => {
             loadSettings();
+            setupToggleHandlers();
             setInterval(loadIndicatorPerformance, 5000); // Update performance every 5 seconds
+
+            // Refresh AI status every 3 seconds to keep it accurate
+            setInterval(async () => {
+                const aiStatus = await fetch('/api/ai-status').then(r => r.json());
+                updateAIStatus(aiStatus);
+            }, 3000);
         };
     </script>
 </body>
