@@ -141,7 +141,8 @@ async def get_driver():
     if path_default:
         options.add_argument(fr'--user-data-dir={path_default}')
 
-    driver = uc.Chrome(options=options)
+    # Use version_main parameter to auto-update driver
+    driver = uc.Chrome(options=options, version_main=None, use_subprocess=True)
     return driver
 
 
