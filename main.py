@@ -166,6 +166,29 @@ settings = {
     'volume_surge': 1.5,
     'volume_weight': 15,
 
+    # Super Trend
+    'supertrend_enabled': True,
+    'supertrend_atr_period': 10,
+    'supertrend_multiplier': 3,
+    'supertrend_change_detection': True,
+    'supertrend_use_close': True,
+    'supertrend_weight': 20,
+
+    # ADX (Average Directional Index)
+    'adx_enabled': True,
+    'adx_period': 14,
+    'adx_threshold': 25,
+    'adx_use_di_cross': True,
+    'adx_weight': 15,
+
+    # Heikin Ashi
+    'heikin_ashi_enabled': True,
+    'heikin_ashi_smooth': True,
+    'heikin_ashi_doji': True,
+    'heikin_ashi_color_change': True,
+    'heikin_ashi_consecutive': 3,
+    'heikin_ashi_weight': 15,
+
     # Trading Settings
     'min_confidence': 4,
     'min_payout': 85,
