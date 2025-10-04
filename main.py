@@ -624,16 +624,24 @@ async def check_recent_trades(driver):
                 action = last_split[2].upper() if len(last_split) > 2 else 'Unknown'
                 trade_time = last_split[0] if last_split[0] else datetime.now().strftime('%H:%M:%S')
 
-                # Create trade identifier
-                trade_identifier = f"{asset}_{action.lower()}_{trade_time}"
+                # Check if this trade matches any of our bot's trades
+                # Match by asset and action only (time might be slightly different)
+                is_bot_trade = False
+                matching_id = None
+                for bot_trade_id in list(BOT_TRADE_IDS):
+                    if bot_trade_id.startswith(f"{asset}_{action.lower()}_"):
+                        is_bot_trade = True
+                        matching_id = bot_trade_id
+                        break
 
                 # ONLY count if this is one of our bot's trades
-                if trade_identifier not in BOT_TRADE_IDS:
-                    # Not our trade - skip it
+                if not is_bot_trade:
+                    # Not our trade - skip it silently
                     return
 
                 # This is our trade - process it
-                BOT_TRADE_IDS.discard(trade_identifier)  # Remove from pending
+                if matching_id:
+                    BOT_TRADE_IDS.discard(matching_id)  # Remove from pending
 
                 # Check if win, draw, or loss
                 if '$0' != last_split[4] and '$\u202f0' != last_split[4]:  # WIN
