@@ -62,6 +62,21 @@ print("✅ Creating Flask application...")
 
 app = Flask(__name__)
 
+# Import AI Trading System
+try:
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from ai_config import AITradingBrain, SelfOptimizer, INDICATOR_CONFIG, AI_STRATEGIES
+    print("✅ AI Trading System loaded")
+    AI_ENABLED = True
+    ai_brain = AITradingBrain()
+    optimizer = SelfOptimizer()
+except Exception as e:
+    print(f"⚠️ AI System not available: {e}")
+    AI_ENABLED = False
+    ai_brain = None
+    optimizer = None
+
 # Global variables
 DRIVER = None
 CANDLES = {}
@@ -90,13 +105,70 @@ bot_state = {
 }
 
 settings = {
+    # AI Settings
+    'ai_enabled': AI_ENABLED,
+    'ai_min_confidence': 70,
+    'ai_strategy': 'ULTRA_SCALPING',
+
+    # Moving Averages
     'fast_ema': 9,
     'slow_ema': 21,
-    'min_confidence': 4,
+    'ema_enabled': True,
+    'ema_weight': 15,
+
+    # RSI
     'rsi_enabled': True,
     'rsi_period': 14,
     'rsi_upper': 70,
-    'min_payout': 85
+    'rsi_lower': 30,
+    'rsi_weight': 20,
+
+    # Bollinger Bands
+    'bb_enabled': True,
+    'bb_period': 20,
+    'bb_std': 2,
+    'bb_weight': 15,
+
+    # MACD
+    'macd_enabled': True,
+    'macd_fast': 12,
+    'macd_slow': 26,
+    'macd_signal': 9,
+    'macd_weight': 15,
+
+    # Stochastic
+    'stoch_enabled': True,
+    'stoch_k': 14,
+    'stoch_d': 3,
+    'stoch_upper': 80,
+    'stoch_lower': 20,
+    'stoch_weight': 10,
+
+    # ATR (Volatility)
+    'atr_enabled': True,
+    'atr_period': 14,
+    'atr_weight': 10,
+
+    # Volume Analysis
+    'volume_enabled': True,
+    'volume_ma': 20,
+    'volume_surge': 1.5,
+    'volume_weight': 15,
+
+    # Trading Settings
+    'min_confidence': 4,
+    'min_payout': 85,
+    'max_trades_per_hour': 20,
+    'risk_per_trade': 1.0,
+
+    # Strategy Selection
+    'active_strategy': 'AI_ENHANCED',  # AI_ENHANCED, TRADITIONAL, SCALPING, TREND_FOLLOW, REVERSAL
+
+    # Risk Management
+    'take_profit': 100,
+    'stop_loss': 50,
+    'trailing_stop': False,
+    'max_consecutive_losses': 5
 }
 
 ops = {
@@ -309,18 +381,55 @@ async def detect_support_resistance(candles, lookback=20):
 
 async def enhanced_strategy(candles):
     """
-    Multi-indicator strategy combining:
-    - Moving Average Crossover (EMA 9/21)
-    - RSI Overbought/Oversold
-    - Bollinger Bands
-    - Support/Resistance
-    - Volatility Filter (ATR)
+    Advanced AI-enhanced strategy with multiple indicators
     """
     if len(candles) < 50:
         return None
 
     current_price = candles[-1][2]
 
+    # If AI is enabled, use it for analysis
+    if AI_ENABLED and ai_brain:
+        try:
+            # Prepare market data for AI
+            market_data = {
+                'asset': CURRENT_ASSET or 'Unknown',
+                'current_price': current_price,
+                'change_1m': ((candles[-1][2] - candles[-2][2]) / candles[-2][2]) * 100 if len(candles) > 1 else 0,
+                'change_5m': ((candles[-1][2] - candles[-5][2]) / candles[-5][2]) * 100 if len(candles) > 5 else 0,
+                'volume': 'Normal',  # Would need real volume data
+                'volatility': 'Medium',
+                'recent_trades': f"{bot_state['wins']}/{bot_state['total_trades']}",
+                'win_rate': (bot_state['wins'] / bot_state['total_trades'] * 100) if bot_state['total_trades'] > 0 else 0
+            }
+
+            # Calculate indicators for AI
+            rsi = await calculate_rsi(candles, settings.get('rsi_period', 14))
+            ema_fast = await calculate_ema(candles, settings.get('fast_ema', 9))
+            ema_slow = await calculate_ema(candles, settings.get('slow_ema', 21))
+            upper_bb, middle_bb, lower_bb = await calculate_bollinger_bands(candles, 20, 2)
+
+            ai_indicators = {
+                'rsi': rsi or 50,
+                'ema_cross': 'Bullish' if ema_fast and ema_slow and ema_fast > ema_slow else 'Bearish',
+                'bollinger_position': 'Above' if upper_bb and current_price > upper_bb else 'Below' if lower_bb and current_price < lower_bb else 'Middle',
+                'macd_signal': 'Neutral',  # Would need MACD calculation
+                'stochastic': 50,  # Would need stochastic calculation
+                'volume_trend': 'Normal'
+            }
+
+            # Get AI decision
+            ai_action, ai_confidence, ai_reason = await ai_brain.analyze_with_gpt4(market_data, ai_indicators)
+
+            # If AI has high confidence, use its decision
+            if ai_confidence >= settings.get('ai_min_confidence', 70):
+                add_log(f"🤖 AI Decision: {ai_action.upper()} - {ai_reason} ({ai_confidence}%)")
+                if ai_action != 'hold':
+                    return ai_action, f'AI: {ai_reason} ({ai_confidence}%)'
+        except Exception as e:
+            add_log(f"⚠️ AI analysis failed: {e}, using traditional indicators")
+
+    # Traditional indicator analysis (fallback or when AI is disabled)
     # Calculate all indicators
     ema_fast = await calculate_ema(candles, settings['fast_ema'])
     ema_slow = await calculate_ema(candles, settings['slow_ema'])
@@ -660,6 +769,25 @@ async def check_recent_trades(driver):
                             'time': trade_time
                         })
 
+                        # AI Learning: Track winning pattern
+                        if ai_brain and optimizer:
+                            try:
+                                trade_data = {
+                                    'asset': asset,
+                                    'action': action.lower(),
+                                    'result': 'WIN',
+                                    'profit': profit
+                                }
+                                ai_brain.learn_from_trade(trade_data)
+
+                                # Update strategy performance
+                                current_strategy = settings.get('active_strategy', 'TRADITIONAL')
+                                if current_strategy in optimizer.strategy_performance:
+                                    optimizer.strategy_performance[current_strategy]['wins'] += 1
+                                    optimizer.strategy_performance[current_strategy]['trades'] += 1
+                            except:
+                                pass
+
                         if len(bot_state['trades']) > 20:
                             bot_state['trades'] = bot_state['trades'][:20]
 
@@ -685,6 +813,24 @@ async def check_recent_trades(driver):
                                 'profit': -stake,
                                 'time': trade_time
                             })
+
+                            # AI Learning: Track losing pattern
+                            if ai_brain and optimizer:
+                                try:
+                                    trade_data = {
+                                        'asset': asset,
+                                        'action': action.lower(),
+                                        'result': 'LOSS',
+                                        'profit': -stake
+                                    }
+                                    ai_brain.learn_from_trade(trade_data)
+
+                                    # Update strategy performance
+                                    current_strategy = settings.get('active_strategy', 'TRADITIONAL')
+                                    if current_strategy in optimizer.strategy_performance:
+                                        optimizer.strategy_performance[current_strategy]['trades'] += 1
+                                except:
+                                    pass
 
                             if len(bot_state['trades']) > 20:
                                 bot_state['trades'] = bot_state['trades'][:20]
@@ -871,6 +1017,14 @@ def home():
         </body></html>'''
 
 
+@app.route('/settings')
+def settings_page():
+    try:
+        return render_template('settings.html')
+    except:
+        return '<html><body><h1>Settings Page</h1><p>Error loading template</p></body></html>'
+
+
 @app.route('/api/status')
 def get_status():
     return jsonify({
@@ -930,6 +1084,57 @@ def stream_logs():
                 last = curr
             time.sleep(0.5)
     return Response(generate(), mimetype='text/event-stream')
+
+
+@app.route('/api/settings', methods=['GET'])
+def get_settings():
+    """Get current bot settings"""
+    return jsonify(settings)
+
+
+@app.route('/api/settings', methods=['POST'])
+def update_settings():
+    """Update bot settings"""
+    global settings, AI_ENABLED
+    try:
+        new_settings = request.json
+        settings.update(new_settings)
+
+        # Update AI status if changed
+        if 'ai_enabled' in new_settings:
+            AI_ENABLED = new_settings['ai_enabled']
+
+        add_log(f"⚙️ Settings updated successfully")
+        return jsonify({'success': True, 'message': 'Settings updated'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/ai-status', methods=['GET'])
+def get_ai_status():
+    """Get AI system status"""
+    return jsonify({
+        'ai_enabled': AI_ENABLED,
+        'ai_available': ai_brain is not None,
+        'patterns_learned': len(ai_brain.pattern_database) if ai_brain else 0,
+        'current_strategy': settings.get('ai_strategy', 'ULTRA_SCALPING')
+    })
+
+
+@app.route('/api/indicator-performance', methods=['GET'])
+def get_indicator_performance():
+    """Get performance metrics for each indicator"""
+    if optimizer:
+        return jsonify(optimizer.indicator_performance)
+    return jsonify({})
+
+
+@app.route('/api/strategy-stats', methods=['GET'])
+def get_strategy_stats():
+    """Get strategy performance statistics"""
+    if optimizer:
+        return jsonify(optimizer.strategy_performance)
+    return jsonify({})
 
 
 # Initialize
