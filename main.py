@@ -189,6 +189,17 @@ settings = {
     'heikin_ashi_consecutive': 3,
     'heikin_ashi_weight': 15,
 
+    # VWAP (Volume Weighted Average Price)
+    'vwap_enabled': True,
+    'vwap_std_bands': True,
+    'vwap_band_mult_1': 1,
+    'vwap_band_mult_2': 2,
+    'vwap_reset_period': 'daily',
+    'vwap_anchored': True,
+    'vwap_volume_confirm': True,
+    'vwap_deviation_alert': 2,
+    'vwap_weight': 25,
+
     # Trading Settings
     'min_confidence': 4,
     'min_payout': 85,
