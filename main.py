@@ -117,6 +117,57 @@ def add_log(msg):
 
 # ==================== CHROME DRIVER MANAGEMENT ====================
 
+def get_chrome_version():
+    """Get installed Chrome version"""
+    import subprocess
+    import re
+
+    try:
+        os_platform = platform.platform().lower()
+
+        if 'windows' in os_platform:
+            # Windows: Check registry or chrome.exe version
+            paths = [
+                r'C:\Program Files\Google\Chrome\Application\chrome.exe',
+                r'C:\Program Files (x86)\Google\Chrome\Application\chrome.exe',
+            ]
+            for path in paths:
+                if os.path.exists(path):
+                    result = subprocess.run(['powershell', '-Command',
+                        f"(Get-Item '{path}').VersionInfo.ProductVersion"],
+                        capture_output=True, text=True)
+                    if result.returncode == 0:
+                        version = result.stdout.strip()
+                        match = re.search(r'(\d+)', version)
+                        if match:
+                            return int(match.group(1))
+
+        elif 'macos' in os_platform:
+            # macOS
+            result = subprocess.run(['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '--version'],
+                capture_output=True, text=True)
+            if result.returncode == 0:
+                match = re.search(r'(\d+)', result.stdout)
+                if match:
+                    return int(match.group(1))
+
+        elif 'linux' in os_platform:
+            # Linux
+            for cmd in ['google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser']:
+                try:
+                    result = subprocess.run([cmd, '--version'], capture_output=True, text=True)
+                    if result.returncode == 0:
+                        match = re.search(r'(\d+)', result.stdout)
+                        if match:
+                            return int(match.group(1))
+                except FileNotFoundError:
+                    continue
+    except:
+        pass
+
+    return None
+
+
 async def get_driver():
     """Initialize Chrome driver with undetected settings"""
     options = uc.ChromeOptions()
@@ -141,8 +192,15 @@ async def get_driver():
     if path_default:
         options.add_argument(fr'--user-data-dir={path_default}')
 
-    # Use version_main parameter to auto-update driver
-    driver = uc.Chrome(options=options, version_main=None, use_subprocess=True)
+    # Get Chrome version and use matching driver
+    chrome_version = get_chrome_version()
+    if chrome_version:
+        add_log(f"Detected Chrome version: {chrome_version}")
+        driver = uc.Chrome(options=options, version_main=chrome_version, use_subprocess=True)
+    else:
+        add_log("Chrome version auto-detection failed, using default")
+        driver = uc.Chrome(options=options, use_subprocess=True)
+
     return driver
 
 
