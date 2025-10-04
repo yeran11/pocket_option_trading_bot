@@ -373,16 +373,12 @@
             cursor: pointer;
         }
 
-        .log-panel {
-            grid-column: 1 / -1;
-        }
-
         .logs {
             background: #000;
             border: 1px solid #0ff;
             border-radius: 5px;
             padding: 15px;
-            height: 300px;
+            max-height: 400px;
             overflow-y: auto;
             font-size: 0.9em;
             line-height: 1.6;
@@ -398,7 +394,11 @@
         }
 
         .trade-list {
-            max-height: 300px;
+            background: #000;
+            border: 1px solid #0ff;
+            border-radius: 5px;
+            padding: 15px;
+            max-height: 400px;
             overflow-y: auto;
         }
 
@@ -635,9 +635,9 @@
             <!-- Two Column Layout for Logs and Trades -->
             <div class="two-column-layout" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; grid-column: 1/-1;">
                 <!-- Live Logs Panel -->
-                <div class="panel log-panel">
+                <div class="panel">
                     <h2>📝 LIVE LOGS</h2>
-                    <div class="logs" id="logs" style="max-height: 400px;">
+                    <div class="logs" id="logs">
                         <div class="log-entry">System initialized...</div>
                         <div class="log-entry">Waiting for user to start bot...</div>
                     </div>
@@ -646,7 +646,7 @@
                 <!-- Recent Trades Panel -->
                 <div class="panel">
                     <h2>📊 RECENT TRADES</h2>
-                    <div class="trade-list" id="trades" style="max-height: 400px; overflow-y: auto;">
+                    <div class="trade-list" id="trades">
                         <div style="text-align:center; padding: 20px; color: #0cc;">
                             No trades yet. Click START to begin trading.
                         </div>
