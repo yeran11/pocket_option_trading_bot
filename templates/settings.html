@@ -698,6 +698,160 @@
                 </div>
             </div>
 
+            <!-- Super Trend Indicator -->
+            <div class="settings-card">
+                <div class="card-title">📈 Super Trend</div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Enable Super Trend</label>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="supertrend_enabled" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span>Weight: <input type="number" id="supertrend_weight" value="20" min="0" max="100" style="width: 60px;">%</span>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">ATR Period</label>
+                    <div class="setting-control">
+                        <input type="number" id="supertrend_atr_period" value="10" min="5" max="50">
+                        <span style="color: #0cc; font-size: 0.9em;">periods</span>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Multiplier</label>
+                    <div class="setting-control">
+                        <input type="number" id="supertrend_multiplier" value="3" min="1" max="10" step="0.5">
+                        <span style="color: #0cc; font-size: 0.9em;">factor</span>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Change Detection</label>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="supertrend_change_detection" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span style="color: #0cc;">Detect trend reversals</span>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Use Close Price</label>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="supertrend_use_close" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span style="color: #0cc;">Use close vs HL/2</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ADX (Average Directional Index) -->
+            <div class="settings-card">
+                <div class="card-title">💪 ADX (Average Directional Index)</div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Enable ADX</label>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="adx_enabled" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span>Weight: <input type="number" id="adx_weight" value="15" min="0" max="100" style="width: 60px;">%</span>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Period</label>
+                    <div class="setting-control">
+                        <input type="number" id="adx_period" value="14" min="5" max="50">
+                        <span style="color: #0cc; font-size: 0.9em;">periods</span>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Trend Strength Threshold</label>
+                    <div class="setting-control">
+                        <input type="number" id="adx_threshold" value="25" min="10" max="50">
+                        <span style="color: #0cc; font-size: 0.9em;">min strength</span>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Use +DI/-DI Crossover</label>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="adx_use_di_cross" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span style="color: #0cc;">Directional signals</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Heikin Ashi -->
+            <div class="settings-card">
+                <div class="card-title">🕯️ Heikin Ashi</div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Enable Heikin Ashi</label>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="heikin_ashi_enabled" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span>Weight: <input type="number" id="heikin_ashi_weight" value="15" min="0" max="100" style="width: 60px;">%</span>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Smooth Candles</label>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="heikin_ashi_smooth" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span style="color: #0cc;">Reduce noise</span>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Doji Detection</label>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="heikin_ashi_doji" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span style="color: #0cc;">Identify reversals</span>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Color Change Alerts</label>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="heikin_ashi_color_change" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span style="color: #0cc;">Trend changes</span>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Consecutive Candles</label>
+                    <div class="setting-control">
+                        <input type="number" id="heikin_ashi_consecutive" value="3" min="1" max="10">
+                        <span style="color: #0cc; font-size: 0.9em;">for confirmation</span>
+                    </div>
+                </div>
+            </div>
+
             <!-- Trading Settings -->
             <div class="settings-card">
                 <div class="card-title">⚙️ Trading Parameters</div>
