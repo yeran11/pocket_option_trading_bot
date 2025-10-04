@@ -852,6 +852,85 @@
                 </div>
             </div>
 
+            <!-- VWAP (Volume Weighted Average Price) -->
+            <div class="settings-card">
+                <div class="card-title">🎯 VWAP (Volume Weighted Average Price)</div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Enable VWAP</label>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="vwap_enabled" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span>Weight: <input type="number" id="vwap_weight" value="25" min="0" max="100" style="width: 60px;">%</span>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Standard Deviation Bands</label>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="vwap_std_bands" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span style="color: #0cc;">Show deviation bands</span>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Band Multiplier</label>
+                    <div class="setting-control">
+                        <input type="number" id="vwap_band_mult_1" value="1" min="0.5" max="3" step="0.5" style="width: 60px;">
+                        <span style="color: #0cc;">1st band</span>
+                        <input type="number" id="vwap_band_mult_2" value="2" min="1" max="4" step="0.5" style="width: 60px; margin-left: 10px;">
+                        <span style="color: #0cc;">2nd band</span>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Reset Period</label>
+                    <div class="setting-control">
+                        <select id="vwap_reset_period">
+                            <option value="session">Session</option>
+                            <option value="daily" selected>Daily</option>
+                            <option value="weekly">Weekly</option>
+                            <option value="monthly">Monthly</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Anchored VWAP</label>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="vwap_anchored" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span style="color: #0cc;">Anchor to significant highs/lows</span>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Volume Confirmation</label>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="vwap_volume_confirm" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span style="color: #0cc;">Require volume for signals</span>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Deviation Alert Threshold</label>
+                    <div class="setting-control">
+                        <input type="number" id="vwap_deviation_alert" value="2" min="1" max="5" step="0.5">
+                        <span style="color: #0cc; font-size: 0.9em;">standard deviations</span>
+                    </div>
+                </div>
+            </div>
+
             <!-- Trading Settings -->
             <div class="settings-card">
                 <div class="card-title">⚙️ Trading Parameters</div>
