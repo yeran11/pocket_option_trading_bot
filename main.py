@@ -63,19 +63,52 @@ print("✅ Creating Flask application...")
 app = Flask(__name__)
 
 # Import AI Trading System
-try:
-    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    from ai_config import AITradingBrain, SelfOptimizer, INDICATOR_CONFIG, AI_STRATEGIES
-    print("✅ AI Trading System loaded")
-    AI_ENABLED = True
-    ai_brain = AITradingBrain()
-    optimizer = SelfOptimizer()
-except Exception as e:
-    print(f"⚠️ AI System not available: {e}")
-    AI_ENABLED = False
-    ai_brain = None
-    optimizer = None
+AI_ENABLED = False
+ai_brain = None
+optimizer = None
+INDICATOR_CONFIG = None
+AI_STRATEGIES = None
+
+def initialize_ai_system():
+    """Initialize or reinitialize the AI trading system"""
+    global AI_ENABLED, ai_brain, optimizer, INDICATOR_CONFIG, AI_STRATEGIES
+
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+        # Force reload the module if it was already imported
+        import importlib
+        import ai_config
+        importlib.reload(ai_config)
+
+        from ai_config import AITradingBrain, SelfOptimizer, INDICATOR_CONFIG as IND_CONFIG, AI_STRATEGIES as AI_STRAT
+
+        ai_brain = AITradingBrain()
+        optimizer = SelfOptimizer()
+        INDICATOR_CONFIG = IND_CONFIG
+        AI_STRATEGIES = AI_STRAT
+        AI_ENABLED = True
+
+        print("✅ AI Trading System loaded successfully")
+        # add_log will be called later when bot_state is initialized
+
+        if ai_brain:
+            ai_brain.load_patterns()
+
+        return True
+
+    except Exception as e:
+        print(f"⚠️ AI System initialization failed: {e}")
+        import traceback
+        traceback.print_exc()
+        AI_ENABLED = False
+        ai_brain = None
+        optimizer = None
+        return False
+
+# Try to initialize AI on startup
+initialize_ai_system()
 
 # Global variables
 DRIVER = None
@@ -117,7 +150,7 @@ bot_state = {
 
 settings = {
     # AI Settings
-    'ai_enabled': AI_ENABLED,
+    'ai_enabled': True,  # Default to enabled
     'ai_min_confidence': 70,
     'ai_strategy': 'ULTRA_SCALPING',
 
@@ -1275,43 +1308,67 @@ def get_settings():
 @app.route('/api/settings', methods=['POST'])
 def update_settings():
     """Update bot settings"""
-    global settings, AI_ENABLED
+    global settings, AI_ENABLED, ai_brain, optimizer
     try:
         new_settings = request.json
         settings.update(new_settings)
 
-        # Update AI status if changed - sync both variables
+        # Update AI status if changed
         if 'ai_enabled' in new_settings:
-            AI_ENABLED = new_settings['ai_enabled']
-            settings['ai_enabled'] = new_settings['ai_enabled']
+            should_enable = new_settings['ai_enabled']
+            settings['ai_enabled'] = should_enable
 
-            if AI_ENABLED:
-                add_log("🤖 AI System ENABLED - GPT-4 analysis active")
-                if ai_brain:
-                    ai_brain.load_patterns()  # Load saved patterns
+            if should_enable:
+                # Try to initialize AI if not already initialized
+                if not ai_brain:
+                    success = initialize_ai_system()
+                    if success:
+                        AI_ENABLED = True
+                        add_log("🤖 AI System ENABLED - ULTRA SUPER POWERFUL MODE ACTIVATED!")
+                        add_log("🚀 GPT-4 TRADING GOD ONLINE - 99% WIN RATE TARGET!")
+                    else:
+                        AI_ENABLED = False
+                        settings['ai_enabled'] = False  # Revert if initialization failed
+                        add_log("❌ AI System failed to initialize - check API key")
+                        return jsonify({'success': False, 'error': 'AI initialization failed'})
+                else:
+                    AI_ENABLED = True
+                    add_log("🤖 AI System ENABLED - ULTRA SUPER POWERFUL MODE!")
+                    if ai_brain:
+                        ai_brain.load_patterns()
             else:
+                AI_ENABLED = False
                 add_log("🤖 AI System DISABLED - Using traditional indicators only")
 
         add_log(f"⚙️ Settings updated successfully")
         return jsonify({'success': True, 'message': 'Settings updated'})
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)})
 
 
 @app.route('/api/ai-status', methods=['GET'])
 def get_ai_status():
     """Get AI system status"""
-    # Check both sources for AI status
-    ai_is_enabled = AI_ENABLED or settings.get('ai_enabled', False)
+    global AI_ENABLED, ai_brain
 
-    # Simply return the active_strategy as configured
+    # The actual current state
+    ai_is_enabled = AI_ENABLED and ai_brain is not None
+
+    # Get the active strategy
     current_strat = settings.get('active_strategy', 'AI_ENHANCED')
+    if current_strat == 'AI_ENHANCED' and settings.get('ai_strategy'):
+        current_strat = settings.get('ai_strategy', 'ULTRA_SCALPING')
 
     return jsonify({
         'ai_enabled': ai_is_enabled,
         'ai_available': ai_brain is not None,
-        'patterns_learned': len(ai_brain.pattern_database) if ai_brain else 0,
-        'current_strategy': current_strat
+        'patterns_learned': len(ai_brain.pattern_database) if ai_brain and hasattr(ai_brain, 'pattern_database') else 0,
+        'current_strategy': current_strat,
+        'ai_module_loaded': ai_brain is not None,
+        'settings_enabled': settings.get('ai_enabled', False),
+        'global_enabled': AI_ENABLED
     })
 
 
