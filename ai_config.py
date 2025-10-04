@@ -10,13 +10,59 @@ import json
 from datetime import datetime, timedelta
 import asyncio
 
-# OpenAI Configuration
+# OpenAI Configuration with multiple fallback options
 import os
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "your-api-key-here")
-OPENAI_PROJECT_ID = os.environ.get("OPENAI_PROJECT_ID", "your-project-id-here")
+
+# Try multiple sources for API key:
+# 1. First check environment variables (works in Replit Secrets and .env)
+# 2. Then check if .env file exists and load it
+# 3. Then check for hardcoded fallback (for local testing)
+
+# Try to load from .env file if it exists
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # dotenv not installed, that's okay
+
+# Get API key from multiple sources
+OPENAI_API_KEY = None
+OPENAI_PROJECT_ID = None
+
+# Method 1: Environment variables (Replit Secrets or .env loaded above)
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+OPENAI_PROJECT_ID = os.environ.get("OPENAI_PROJECT_ID")
+
+# Method 2: If still None, try direct .env file read (backup method)
+if not OPENAI_API_KEY:
+    try:
+        env_path = os.path.join(os.path.dirname(__file__), '.env')
+        if os.path.exists(env_path):
+            with open(env_path, 'r') as f:
+                for line in f:
+                    if line.startswith('OPENAI_API_KEY='):
+                        OPENAI_API_KEY = line.split('=', 1)[1].strip().strip('"').strip("'")
+                    elif line.startswith('OPENAI_PROJECT_ID='):
+                        OPENAI_PROJECT_ID = line.split('=', 1)[1].strip().strip('"').strip("'")
+    except Exception as e:
+        print(f"Could not read .env file: {e}")
+
+# Method 3: Hardcoded fallback (you can update this for your deployment)
+if not OPENAI_API_KEY:
+    # IMPORTANT: Replace with your actual API key when deploying
+    # Or set it as an environment variable in your deployment platform
+    OPENAI_API_KEY = "your-api-key-here"
+    OPENAI_PROJECT_ID = "your-project-id-here"
 
 # Initialize OpenAI client
 openai.api_key = OPENAI_API_KEY
+
+# Validation
+if not OPENAI_API_KEY or OPENAI_API_KEY == "your-api-key-here":
+    print("⚠️ WARNING: OpenAI API key not configured properly!")
+    print("Please set OPENAI_API_KEY in environment variables, .env file, or ai_config.py")
+else:
+    print(f"✅ OpenAI API key loaded successfully (ending in ...{OPENAI_API_KEY[-4:]})")
 
 # Advanced Indicator Configuration
 INDICATOR_CONFIG = {

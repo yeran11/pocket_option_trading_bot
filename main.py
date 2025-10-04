@@ -139,6 +139,10 @@ def initialize_ai_system():
             INDICATOR_CONFIG = ai_config.INDICATOR_CONFIG
             AI_STRATEGIES = ai_config.AI_STRATEGIES
 
+            # Also get the API key from the module
+            OPENAI_API_KEY = ai_config.OPENAI_API_KEY
+            OPENAI_PROJECT_ID = ai_config.OPENAI_PROJECT_ID
+
             print("✅ Successfully loaded AI classes and configs")
 
         except Exception as import_error:
@@ -149,14 +153,24 @@ def initialize_ai_system():
             traceback.print_exc()
             return False
 
+        # Check if API key is valid before initializing
+        if not OPENAI_API_KEY or OPENAI_API_KEY == "your-api-key-here" or len(OPENAI_API_KEY) < 20:
+            print("❌ Invalid or missing OpenAI API key")
+            safe_log("❌ AI initialization failed - Invalid API key")
+            return False
+
         # Initialize the AI objects
         print("🔧 Creating AI brain and optimizer instances...")
-        ai_brain = AITradingBrain()
-        optimizer = SelfOptimizer()
-        AI_ENABLED = True
-
-        print("✅ AI Trading System loaded successfully")
-        safe_log("✅ AI Trading System initialized successfully")
+        try:
+            ai_brain = AITradingBrain()
+            optimizer = SelfOptimizer()
+            AI_ENABLED = True
+            print("✅ AI Trading System loaded successfully")
+            safe_log("✅ AI Trading System initialized successfully")
+        except Exception as init_error:
+            print(f"❌ Failed to initialize AI objects: {init_error}")
+            safe_log(f"❌ AI initialization error: {str(init_error)[:100]}")
+            return False
 
         if ai_brain:
             try:
