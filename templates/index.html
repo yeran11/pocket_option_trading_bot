@@ -379,42 +379,42 @@
                 </div>
             </div>
 
-            <!-- Balance Panel -->
-            <div class="panel">
-                <h2>💰 BALANCE</h2>
-                <div class="stat-box" style="grid-column: 1/-1;">
-                    <div class="stat-value" id="balance">$10,000.00</div>
-                    <div class="stat-label">Current Balance</div>
-                </div>
-                <div class="status-bar">
-                    <span>Initial:</span>
-                    <span id="initial-balance">$10,000.00</span>
-                </div>
-                <div class="status-bar">
-                    <span>Profit/Loss:</span>
-                    <span id="profit-loss" style="font-weight:bold;">$0.00</span>
-                </div>
-            </div>
-
-            <!-- Statistics Panel -->
-            <div class="panel">
-                <h2>📈 STATISTICS</h2>
-                <div class="stat-grid">
-                    <div class="stat-box">
-                        <div class="stat-value" id="total-trades">0</div>
-                        <div class="stat-label">Total Trades</div>
+            <!-- Performance Chart Panel -->
+            <div class="panel" style="grid-column: span 2; min-height: 400px;">
+                <h2>📊 LIVE PERFORMANCE CHART</h2>
+                <div style="position: relative; height: 320px; margin: 10px 0;">
+                    <canvas id="performanceChart" style="width: 100%; height: 100%;"></canvas>
+                    <div id="chart-legend" style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.9); padding: 8px 12px; border: 1px solid #0ff; border-radius: 5px; font-size: 0.85em;">
+                        <div style="color: #0ff; margin-bottom: 3px;">
+                            <span style="display: inline-block; width: 20px; height: 2px; background: #0ff; margin-right: 5px; vertical-align: middle;"></span>
+                            Balance
+                        </div>
+                        <div style="color: #0f0; margin-bottom: 3px;">
+                            <span style="display: inline-block; width: 8px; height: 8px; background: #0f0; border-radius: 50%; margin-right: 5px; vertical-align: middle;"></span>
+                            Wins
+                        </div>
+                        <div style="color: #f00;">
+                            <span style="display: inline-block; width: 8px; height: 8px; background: #f00; border-radius: 50%; margin-right: 5px; vertical-align: middle;"></span>
+                            Losses
+                        </div>
                     </div>
-                    <div class="stat-box">
-                        <div class="stat-value" id="win-rate">0%</div>
-                        <div class="stat-label">Win Rate</div>
+                </div>
+                <div style="display: flex; justify-content: space-around; padding-top: 15px; border-top: 1px solid rgba(0,255,255,0.3);">
+                    <div style="text-align: center;">
+                        <span style="color: #0cc; font-size: 0.85em;">24h High</span>
+                        <div id="chart-high" style="color: #0f0; font-weight: bold; font-size: 1.1em;">$10,000</div>
                     </div>
-                    <div class="stat-box">
-                        <div class="stat-value" id="wins">0</div>
-                        <div class="stat-label">Wins</div>
+                    <div style="text-align: center;">
+                        <span style="color: #0cc; font-size: 0.85em;">24h Low</span>
+                        <div id="chart-low" style="color: #f00; font-weight: bold; font-size: 1.1em;">$10,000</div>
                     </div>
-                    <div class="stat-box">
-                        <div class="stat-value" id="losses">0</div>
-                        <div class="stat-label">Losses</div>
+                    <div style="text-align: center;">
+                        <span style="color: #0cc; font-size: 0.85em;">Current</span>
+                        <div id="chart-current" style="color: #0ff; font-weight: bold; font-size: 1.1em;">$10,000</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <span style="color: #0cc; font-size: 0.85em;">Change</span>
+                        <div id="chart-change" style="font-weight: bold; font-size: 1.1em;">0.00%</div>
                     </div>
                 </div>
             </div>
@@ -589,9 +589,8 @@
                         })
                         .catch(err => console.error('AI status error:', err));
 
-                    // Balance
-                    document.getElementById('balance').textContent = '$' + data.balance.toFixed(2);
-                    document.getElementById('initial-balance').textContent = '$' + data.initial_balance.toFixed(2);
+                    // Remove references to deleted elements
+                    // Balance elements were removed
 
                     // Update Quick Stats Bar
                     document.getElementById('quick-balance').textContent = '$' + data.balance.toFixed(2);
@@ -604,16 +603,25 @@
                     document.getElementById('quick-wins').textContent = data.wins;
                     document.getElementById('quick-losses').textContent = data.losses;
 
-                    const pl = data.profit_loss;
-                    const plEl = document.getElementById('profit-loss');
-                    plEl.textContent = (pl >= 0 ? '+' : '') + '$' + pl.toFixed(2);
-                    plEl.style.color = pl >= 0 ? '#0f0' : '#f00';
+                    // Update chart with new balance
+                    updateChart(data.balance);
 
-                    // Stats
-                    document.getElementById('total-trades').textContent = data.total_trades;
-                    document.getElementById('wins').textContent = data.wins;
-                    document.getElementById('losses').textContent = data.losses;
-                    document.getElementById('win-rate').textContent = data.win_rate.toFixed(1) + '%';
+                    // Check for new trades and add them to chart
+                    if (data.trades && data.trades.length > 0) {
+                        const latestTrade = data.trades[0];
+                        if (chartData.trades.length === 0 ||
+                            chartData.trades[chartData.trades.length - 1].time !== latestTrade.time) {
+                            // New trade detected
+                            updateChart(data.balance, latestTrade);
+                        }
+                    }
+
+                    // Set initial balance if not set
+                    if (chartData.initialBalance === 10000 && data.initial_balance !== 10000) {
+                        chartData.initialBalance = data.initial_balance;
+                    }
+
+                    // Update other status elements
                     document.getElementById('win-streak').textContent = data.win_streak;
                     document.getElementById('current-asset').textContent = data.current_asset;
                     document.getElementById('mode').textContent = data.mode;
@@ -684,9 +692,210 @@
                 .catch(e => addLog('❌ Error: ' + e));
         }
 
+        // Chart Variables
+        let chartData = {
+            times: [],
+            balances: [],
+            trades: [],
+            maxBalance: 10000,
+            minBalance: 10000,
+            initialBalance: 10000
+        };
+
+        function initChart() {
+            const canvas = document.getElementById('performanceChart');
+            if (!canvas) return;
+
+            const ctx = canvas.getContext('2d');
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+
+            // Set cyberpunk styling
+            ctx.strokeStyle = '#0ff';
+            ctx.lineWidth = 2;
+            ctx.shadowColor = '#0ff';
+            ctx.shadowBlur = 10;
+
+            // Draw initial grid
+            drawChartGrid(ctx, canvas.width, canvas.height);
+        }
+
+        function drawChartGrid(ctx, width, height) {
+            ctx.save();
+            ctx.strokeStyle = 'rgba(0, 255, 255, 0.1)';
+            ctx.lineWidth = 1;
+            ctx.shadowBlur = 0;
+
+            // Horizontal grid lines
+            for (let i = 0; i <= 10; i++) {
+                const y = (height / 10) * i;
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(width, y);
+                ctx.stroke();
+            }
+
+            // Vertical grid lines
+            for (let i = 0; i <= 20; i++) {
+                const x = (width / 20) * i;
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, height);
+                ctx.stroke();
+            }
+
+            ctx.restore();
+        }
+
+        function updateChart(balance, trade = null) {
+            const canvas = document.getElementById('performanceChart');
+            if (!canvas) return;
+
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+
+            // Add new data point
+            const now = new Date();
+            chartData.times.push(now);
+            chartData.balances.push(balance);
+
+            if (trade) {
+                chartData.trades.push({
+                    time: now,
+                    balance: balance,
+                    type: trade.result,
+                    profit: trade.profit
+                });
+            }
+
+            // Keep only last 100 points
+            if (chartData.times.length > 100) {
+                chartData.times.shift();
+                chartData.balances.shift();
+            }
+
+            // Update min/max
+            chartData.maxBalance = Math.max(...chartData.balances, chartData.maxBalance);
+            chartData.minBalance = Math.min(...chartData.balances, chartData.minBalance);
+
+            // Clear and redraw
+            ctx.clearRect(0, 0, width, height);
+            drawChartGrid(ctx, width, height);
+
+            // Draw balance line with neon effect
+            if (chartData.balances.length > 1) {
+                const range = chartData.maxBalance - chartData.minBalance || 100;
+                const padding = height * 0.1;
+
+                // Multiple passes for glow effect
+                for (let glowSize = 16; glowSize > 0; glowSize -= 4) {
+                    ctx.save();
+                    ctx.strokeStyle = '#0ff';
+                    ctx.lineWidth = glowSize;
+                    ctx.globalAlpha = 0.03;
+                    ctx.shadowColor = '#0ff';
+                    ctx.shadowBlur = glowSize;
+
+                    ctx.beginPath();
+                    for (let i = 0; i < chartData.balances.length; i++) {
+                        const x = (width / Math.max(100, chartData.balances.length)) * i;
+                        const y = height - padding - ((chartData.balances[i] - chartData.minBalance) / range) * (height - 2 * padding);
+
+                        if (i === 0) {
+                            ctx.moveTo(x, y);
+                        } else {
+                            // Smooth curve
+                            const prevX = (width / Math.max(100, chartData.balances.length)) * (i - 1);
+                            const prevY = height - padding - ((chartData.balances[i - 1] - chartData.minBalance) / range) * (height - 2 * padding);
+                            const cpX = (x + prevX) / 2;
+                            ctx.quadraticCurveTo(cpX, prevY, x, y);
+                        }
+                    }
+                    ctx.stroke();
+                    ctx.restore();
+                }
+
+                // Main line
+                ctx.save();
+                ctx.strokeStyle = '#0ff';
+                ctx.lineWidth = 2;
+                ctx.shadowColor = '#0ff';
+                ctx.shadowBlur = 10;
+
+                ctx.beginPath();
+                for (let i = 0; i < chartData.balances.length; i++) {
+                    const x = (width / Math.max(100, chartData.balances.length)) * i;
+                    const y = height - padding - ((chartData.balances[i] - chartData.minBalance) / range) * (height - 2 * padding);
+
+                    if (i === 0) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        const prevX = (width / Math.max(100, chartData.balances.length)) * (i - 1);
+                        const prevY = height - padding - ((chartData.balances[i - 1] - chartData.minBalance) / range) * (height - 2 * padding);
+                        const cpX = (x + prevX) / 2;
+                        ctx.quadraticCurveTo(cpX, prevY, x, y);
+                    }
+                }
+                ctx.stroke();
+                ctx.restore();
+
+                // Draw trade markers
+                ctx.save();
+                chartData.trades.forEach((trade, idx) => {
+                    const timeIndex = chartData.times.findIndex(t => Math.abs(t - trade.time) < 1000);
+                    if (timeIndex >= 0) {
+                        const x = (width / Math.max(100, chartData.balances.length)) * timeIndex;
+                        const y = height - padding - ((trade.balance - chartData.minBalance) / range) * (height - 2 * padding);
+
+                        // Glow effect
+                        ctx.beginPath();
+                        ctx.arc(x, y, 8, 0, Math.PI * 2);
+                        ctx.fillStyle = trade.type === 'WIN' ? 'rgba(0, 255, 0, 0.3)' : 'rgba(255, 0, 0, 0.3)';
+                        ctx.fill();
+
+                        // Main dot
+                        ctx.beginPath();
+                        ctx.arc(x, y, 4, 0, Math.PI * 2);
+                        ctx.fillStyle = trade.type === 'WIN' ? '#0f0' : '#f00';
+                        ctx.shadowColor = trade.type === 'WIN' ? '#0f0' : '#f00';
+                        ctx.shadowBlur = 10;
+                        ctx.fill();
+                    }
+                });
+                ctx.restore();
+            }
+
+            // Update chart stats
+            const current = chartData.balances[chartData.balances.length - 1] || chartData.initialBalance;
+            const change = ((current - chartData.initialBalance) / chartData.initialBalance) * 100;
+
+            document.getElementById('chart-high').textContent = '$' + chartData.maxBalance.toFixed(2);
+            document.getElementById('chart-low').textContent = '$' + chartData.minBalance.toFixed(2);
+            document.getElementById('chart-current').textContent = '$' + current.toFixed(2);
+
+            const changeEl = document.getElementById('chart-change');
+            changeEl.textContent = (change >= 0 ? '+' : '') + change.toFixed(2) + '%';
+            changeEl.style.color = change >= 0 ? '#0f0' : '#f00';
+        }
+
         // Initialize
         connectLogs();
         updateStatus();
+
+        // Initialize chart
+        setTimeout(() => {
+            initChart();
+            updateChart(10000); // Initial data point
+        }, 100);
+
+        // Window resize handler
+        window.addEventListener('resize', () => {
+            initChart();
+            if (chartData.balances.length > 0) {
+                updateChart(chartData.balances[chartData.balances.length - 1]);
+            }
+        });
     </script>
 </body>
 </html>
