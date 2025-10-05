@@ -4,3 +4,4 @@ data*/
 default/*
 # Environment variables
 .env
+secrets.py
