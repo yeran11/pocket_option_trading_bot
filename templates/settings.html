@@ -237,6 +237,20 @@
             text-shadow: 0 0 10px #0ff;
         }
 
+        .preset-btn.selected {
+            background: linear-gradient(135deg, #0ff, #00ffaa);
+            color: #000;
+            border-color: #0ff;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.8);
+            text-shadow: none;
+            animation: pulse-selected 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-selected {
+            0%, 100% { box-shadow: 0 0 30px rgba(0, 255, 255, 0.8); }
+            50% { box-shadow: 0 0 40px rgba(0, 255, 255, 1); }
+        }
+
         .action-buttons {
             display: flex;
             gap: 15px;
@@ -1345,12 +1359,14 @@
             );
         }
 
-        function loadPreset(preset) {
+        async function loadPreset(preset) {
             const presets = {
                 ultra_scalping: {
                     ai_enabled: true,
                     ai_min_confidence: 75,
                     ai_strategy: 'ULTRA_SCALPING',
+                    active_strategy: 'ULTRA_SCALPING',
+                    selected_strategy: 'ultra_scalping',
                     fast_ema: 5,
                     slow_ema: 13,
                     min_confidence: 3,
@@ -1361,6 +1377,8 @@
                     ai_enabled: true,
                     ai_min_confidence: 70,
                     ai_strategy: 'TREND_FOLLOWING',
+                    active_strategy: 'TREND_FOLLOWING',
+                    selected_strategy: 'trend_follow',
                     fast_ema: 9,
                     slow_ema: 21,
                     min_confidence: 5,
@@ -1371,6 +1389,8 @@
                     ai_enabled: true,
                     ai_min_confidence: 80,
                     ai_strategy: 'REVERSAL_TRADING',
+                    active_strategy: 'REVERSAL_TRADING',
+                    selected_strategy: 'reversal',
                     rsi_upper: 75,
                     rsi_lower: 25,
                     min_confidence: 6,
@@ -1380,6 +1400,8 @@
                 conservative: {
                     ai_enabled: true,
                     ai_min_confidence: 85,
+                    active_strategy: 'CONSERVATIVE',
+                    selected_strategy: 'conservative',
                     min_confidence: 7,
                     max_trades_per_hour: 5,
                     risk_per_trade: 0.5,
@@ -1388,6 +1410,8 @@
                 aggressive: {
                     ai_enabled: true,
                     ai_min_confidence: 60,
+                    active_strategy: 'AGGRESSIVE',
+                    selected_strategy: 'aggressive',
                     min_confidence: 2,
                     max_trades_per_hour: 50,
                     risk_per_trade: 5,
@@ -1397,6 +1421,7 @@
 
             const settings = presets[preset];
             if (settings) {
+                // Update UI fields
                 for (const [key, value] of Object.entries(settings)) {
                     const element = document.getElementById(key);
                     if (element) {
@@ -1407,7 +1432,47 @@
                         }
                     }
                 }
-                showModal('success', 'Preset Loaded', `${preset.replace('_', ' ').toUpperCase()} preset has been loaded successfully!`);
+
+                // Save to server immediately
+                try {
+                    const response = await fetch('/api/settings', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(settings)
+                    });
+
+                    const result = await response.json();
+                    if (result.success) {
+                        // Update button selection visually
+                        updatePresetSelection(preset);
+                        showModal('success', 'Strategy Selected', `✅ ${preset.replace('_', ' ').toUpperCase()} strategy activated and saved!`);
+                    } else {
+                        showModal('error', 'Save Failed', 'Failed to save strategy: ' + result.error);
+                    }
+                } catch (error) {
+                    showModal('error', 'Save Failed', 'Error saving strategy: ' + error.message);
+                }
+            }
+        }
+
+        function updatePresetSelection(selectedPreset) {
+            // Remove selected class from all buttons
+            document.querySelectorAll('.preset-btn').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+
+            // Add selected class to the clicked button
+            const presetMap = {
+                'ultra_scalping': 0,
+                'trend_follow': 1,
+                'reversal': 2,
+                'conservative': 3,
+                'aggressive': 4
+            };
+
+            const buttons = document.querySelectorAll('.preset-btn');
+            if (buttons[presetMap[selectedPreset]]) {
+                buttons[presetMap[selectedPreset]].classList.add('selected');
             }
         }
 
@@ -1514,6 +1579,14 @@
                     setTimeout(() => { isChangingSettings = false; }, 1000);
                 });
             });
+
+            // Load and highlight selected strategy
+            setTimeout(() => {
+                const selectedStrategy = currentSettings.selected_strategy;
+                if (selectedStrategy) {
+                    updatePresetSelection(selectedStrategy);
+                }
+            }, 500);
         };
     </script>
 </body>

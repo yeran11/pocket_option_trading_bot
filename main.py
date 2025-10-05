@@ -731,6 +731,7 @@ async def detect_candlestick_patterns(candles):
     # 3. Morning Star (3-candle pattern)
     if len(candles) >= 3:
         open_p2, close_p2 = prev2[1], prev2[2]
+        body_p2 = abs(close_p2 - open_p2)
         if close_p2 < open_p2:  # First candle red
             if abs(close_p - open_p) < body_p2 * 0.3:  # Second small
                 if close_c > open_c and close_c > (open_p2 + close_p2) / 2:  # Third green
@@ -752,6 +753,7 @@ async def detect_candlestick_patterns(candles):
     # 6. Evening Star
     if len(candles) >= 3:
         open_p2, close_p2 = prev2[1], prev2[2]
+        body_p2 = abs(close_p2 - open_p2)
         if close_p2 > open_p2:  # First candle green
             if abs(close_p - open_p) < body_p2 * 0.3:  # Second small
                 if close_c < open_c and close_c < (open_p2 + close_p2) / 2:  # Third red
