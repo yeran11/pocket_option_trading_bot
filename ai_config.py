@@ -29,7 +29,35 @@ except ImportError:
 OPENAI_API_KEY = None
 OPENAI_PROJECT_ID = None
 
-# Method 1: Try to import from api_secrets.py (MOST RELIABLE - Direct Python import)
+# ========================================================================
+# PRIORITY METHOD 0: Desktop Credentials (BEST for local development)
+# ========================================================================
+# This checks YOUR desktop home directory for a one-time credentials file
+# Location: C:\Users\YourUsername\.openai_credentials (Windows)
+#           ~/.openai_credentials (Mac/Linux)
+#
+# This is THE BEST method for your local machine because:
+# - Set up ONCE on your desktop
+# - Works for ALL your projects automatically
+# - Never committed to git
+# - Secure in your home directory
+print("🔍 Checking for desktop credentials...")
+try:
+    import load_my_credentials
+    # The import automatically loads credentials into os.environ
+    # Check if it worked:
+    if os.environ.get("OPENAI_API_KEY"):
+        OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+        OPENAI_PROJECT_ID = os.environ.get("OPENAI_PROJECT_ID")
+        print("✅✅✅ LOADED FROM DESKTOP CREDENTIALS - YOU'RE ALL SET! ✅✅✅")
+except ImportError:
+    print("⚠️ load_my_credentials.py not found (normal on Replit)")
+    pass
+except Exception as e:
+    print(f"⚠️ Desktop credentials check failed: {e}")
+    pass
+
+# Method 1: Try to import from api_secrets.py (Good for Replit)
 # Note: Named api_secrets to avoid conflict with Python's built-in secrets module
 try:
     from api_secrets import OPENAI_API_KEY as SECRET_KEY, OPENAI_PROJECT_ID as SECRET_PROJECT_ID
