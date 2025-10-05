@@ -389,8 +389,26 @@ def add_log(msg):
 
 
 # Try to initialize AI on startup now that add_log is available
+print("\n" + "=" * 80)
+print("🤖 INITIALIZING AI TRADING SYSTEM")
+print("=" * 80)
 if not ai_brain:
-    initialize_ai_system()
+    success = initialize_ai_system()
+    if success:
+        print("=" * 80)
+        print("✅ AI SYSTEM READY - GPT-4 TRADING GOD ONLINE!")
+        print(f"   AI_ENABLED: {AI_ENABLED}")
+        print(f"   ai_brain: {ai_brain is not None}")
+        print(f"   optimizer: {optimizer is not None}")
+        print("=" * 80 + "\n")
+    else:
+        print("=" * 80)
+        print("❌ AI SYSTEM FAILED TO INITIALIZE")
+        print("   Check errors above for details")
+        print("=" * 80 + "\n")
+else:
+    print("✅ AI already initialized")
+    print("=" * 80 + "\n")
 
 
 # ==================== CHROME DRIVER MANAGEMENT ====================
@@ -779,8 +797,17 @@ async def enhanced_strategy(candles):
 
     # If AI is enabled, use it for analysis
     # Check both AI_ENABLED global and settings value
-    if (AI_ENABLED or settings.get('ai_enabled', False)) and ai_brain:
+    ai_enabled_flag = AI_ENABLED or settings.get('ai_enabled', False)
+    ai_brain_available = ai_brain is not None
+
+    # DEBUG: Log AI status
+    print(f"🔍 AI Check - AI_ENABLED: {AI_ENABLED}, settings.ai_enabled: {settings.get('ai_enabled', False)}, ai_brain: {ai_brain is not None}")
+
+    if ai_enabled_flag and ai_brain_available:
         try:
+            add_log(f"🤖 AI ANALYSIS STARTING...")
+            print(f"🤖 AI Analysis initiated for {CURRENT_ASSET}")
+
             # Prepare market data for AI
             market_data = {
                 'asset': CURRENT_ASSET or 'Unknown',
@@ -808,16 +835,28 @@ async def enhanced_strategy(candles):
                 'volume_trend': 'Normal'
             }
 
+            print(f"📊 Calling GPT-4 for analysis...")
             # Get AI decision
             ai_action, ai_confidence, ai_reason = await ai_brain.analyze_with_gpt4(market_data, ai_indicators)
+            print(f"✅ GPT-4 Response: {ai_action.upper()} @ {ai_confidence}%")
 
             # If AI has high confidence, use its decision
             if ai_confidence >= settings.get('ai_min_confidence', 70):
-                add_log(f"🤖 AI Decision: {ai_action.upper()} - {ai_reason} ({ai_confidence}%)")
+                add_log(f"🤖 AI Decision: {ai_action.upper()} - {ai_reason[:100]}... ({ai_confidence}%)")
                 if ai_action != 'hold':
-                    return ai_action, f'AI: {ai_reason} ({ai_confidence}%)'
+                    return ai_action, f'AI: {ai_reason[:100]}... ({ai_confidence}%)'
+            else:
+                add_log(f"🤖 AI Confidence too low ({ai_confidence}% < {settings.get('ai_min_confidence', 70)}%), using traditional indicators")
         except Exception as e:
-            add_log(f"⚠️ AI analysis failed: {e}, using traditional indicators")
+            import traceback
+            error_trace = traceback.format_exc()
+            add_log(f"❌ AI analysis failed: {str(e)}")
+            print(f"❌ AI ERROR:\n{error_trace}")
+    else:
+        if not ai_enabled_flag:
+            print(f"ℹ️ AI disabled (AI_ENABLED={AI_ENABLED}, settings={settings.get('ai_enabled', False)})")
+        if not ai_brain_available:
+            print(f"⚠️ AI brain not available (ai_brain={ai_brain})")
 
     # Traditional indicator analysis (fallback or when AI is disabled)
     # Calculate all indicators
