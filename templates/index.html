@@ -817,12 +817,21 @@
                     // Remove references to deleted elements
                     // Balance elements were removed
 
-                    // Update Quick Stats Bar
-                    document.getElementById('quick-balance').textContent = '$' + data.balance.toFixed(2);
-                    const profit = data.balance - data.initial_balance;
-                    const profitEl = document.getElementById('quick-profit');
-                    profitEl.textContent = (profit >= 0 ? '+' : '') + '$' + profit.toFixed(2);
-                    profitEl.style.color = profit >= 0 ? '#0f0' : '#f00';
+                    // Update Quick Stats Bar with ULTRA SAFE error handling
+                    try {
+                        // Balance
+                        const balance = data.balance || 0;
+                        document.getElementById('quick-balance').textContent = '$' + balance.toFixed(2);
+
+                        // Profit/Loss
+                        const initialBalance = data.initial_balance || 0;
+                        const profit = balance - initialBalance;
+                        const profitEl = document.getElementById('quick-profit');
+                        profitEl.textContent = (profit >= 0 ? '+' : '') + '$' + profit.toFixed(2);
+                        profitEl.style.color = profit >= 0 ? '#0f0' : '#f00';
+                    } catch (e) {
+                        console.error('❌ Error updating balance:', e);
+                    }
 
                     // Debug logging for stats updates
                     console.log('📊 Stats Update:', {
@@ -833,10 +842,56 @@
                         trades_count: data.trades ? data.trades.length : 0
                     });
 
-                    document.getElementById('quick-winrate').textContent = data.win_rate.toFixed(1) + '%';
-                    document.getElementById('quick-trades').textContent = data.total_trades;
-                    document.getElementById('quick-wins').textContent = data.wins;
-                    document.getElementById('quick-losses').textContent = data.losses;
+                    // Update stats with defensive null checks
+                    try {
+                        // Win Rate - SAFE calculation
+                        const winRate = (data.win_rate !== undefined && data.win_rate !== null) ? data.win_rate : 0;
+                        const winRateEl = document.getElementById('quick-winrate');
+                        if (winRateEl) {
+                            winRateEl.textContent = winRate.toFixed(1) + '%';
+                        }
+                    } catch (e) {
+                        console.error('❌ Error updating win rate:', e);
+                    }
+
+                    try {
+                        // Total Trades
+                        const totalTrades = data.total_trades || 0;
+                        const tradesEl = document.getElementById('quick-trades');
+                        if (tradesEl) {
+                            tradesEl.textContent = totalTrades;
+                        }
+                    } catch (e) {
+                        console.error('❌ Error updating total trades:', e);
+                    }
+
+                    try {
+                        // Wins
+                        const wins = data.wins || 0;
+                        const winsEl = document.getElementById('quick-wins');
+                        if (winsEl) {
+                            winsEl.textContent = wins;
+                            console.log('✅ Updated wins to:', wins);
+                        } else {
+                            console.error('❌ quick-wins element not found!');
+                        }
+                    } catch (e) {
+                        console.error('❌ Error updating wins:', e);
+                    }
+
+                    try {
+                        // Losses
+                        const losses = data.losses || 0;
+                        const lossesEl = document.getElementById('quick-losses');
+                        if (lossesEl) {
+                            lossesEl.textContent = losses;
+                            console.log('✅ Updated losses to:', losses);
+                        } else {
+                            console.error('❌ quick-losses element not found!');
+                        }
+                    } catch (e) {
+                        console.error('❌ Error updating losses:', e);
+                    }
 
                     // Update chart with new balance
                     updateChart(data.balance);
@@ -865,12 +920,21 @@
                     document.getElementById('start-btn').disabled = data.running;
                     document.getElementById('stop-btn').disabled = !data.running;
 
-                    // Trades
-                    if (data.trades && data.trades.length > 0) {
-                        console.log('📈 Updating trades, count:', data.trades.length);
-                        updateTrades(data.trades);
-                    } else {
-                        console.log('ℹ️ No trades to display yet');
+                    // Trades - ULTRA SAFE with error handling
+                    try {
+                        if (data.trades && Array.isArray(data.trades) && data.trades.length > 0) {
+                            console.log('📈 Updating trades, count:', data.trades.length);
+                            updateTrades(data.trades);
+                        } else {
+                            console.log('ℹ️ No trades to display yet');
+                            // Make sure to show "no trades" message
+                            const tradesContainer = document.getElementById('trades');
+                            if (tradesContainer && tradesContainer.children.length === 0) {
+                                tradesContainer.innerHTML = '<div style="text-align:center; padding: 20px; color: #0cc;">No trades yet. Click START to begin trading.</div>';
+                            }
+                        }
+                    } catch (err) {
+                        console.error('❌ Error updating trades display:', err);
                     }
                 })
                 .catch(err => {
@@ -879,34 +943,59 @@
         }
 
         function updateTrades(trades) {
-            const container = document.getElementById('trades');
+            try {
+                const container = document.getElementById('trades');
 
-            console.log('🔄 updateTrades called with', trades.length, 'trades');
+                if (!container) {
+                    console.error('❌ Trades container element not found!');
+                    return;
+                }
 
-            if (!trades || trades.length === 0) {
-                container.innerHTML = '<div style="text-align:center; padding: 20px; color: #0cc;">No trades yet. Click START to begin trading.</div>';
-                return;
+                console.log('🔄 updateTrades called with', trades ? trades.length : 0, 'trades');
+
+                if (!trades || !Array.isArray(trades) || trades.length === 0) {
+                    container.innerHTML = '<div style="text-align:center; padding: 20px; color: #0cc;">No trades yet. Click START to begin trading.</div>';
+                    return;
+                }
+
+                container.innerHTML = '';
+
+                trades.forEach((trade, index) => {
+                    try {
+                        console.log(`  - Trade ${index + 1}:`, trade.asset, trade.action, trade.result, trade.profit);
+
+                        // Validate trade data
+                        if (!trade.asset || !trade.action || !trade.result) {
+                            console.warn('⚠️ Incomplete trade data:', trade);
+                            return;
+                        }
+
+                        const div = document.createElement('div');
+                        div.className = 'trade-item ' + (trade.result === 'WIN' ? 'trade-win' : 'trade-loss');
+
+                        const profit = trade.profit || 0;
+                        const time = trade.time || 'Unknown time';
+
+                        div.innerHTML = `
+                            <div>
+                                <strong>${trade.asset}</strong> - ${trade.action} - ${time}
+                            </div>
+                            <div class="${trade.result === 'WIN' ? 'profit' : 'loss'}">
+                                ${trade.result} ${profit >= 0 ? '+' : ''}$${profit.toFixed(2)}
+                            </div>
+                        `;
+
+                        container.appendChild(div);
+                    } catch (tradeError) {
+                        console.error('❌ Error rendering individual trade:', tradeError, trade);
+                    }
+                });
+
+                console.log(`✅ Successfully rendered ${container.children.length} trades`);
+
+            } catch (error) {
+                console.error('❌ Critical error in updateTrades:', error);
             }
-
-            container.innerHTML = '';
-
-            trades.forEach(trade => {
-                console.log('  - Trade:', trade.asset, trade.action, trade.result, trade.profit);
-
-                const div = document.createElement('div');
-                div.className = 'trade-item ' + (trade.result === 'WIN' ? 'trade-win' : 'trade-loss');
-
-                div.innerHTML = `
-                    <div>
-                        <strong>${trade.asset}</strong> - ${trade.action} - ${trade.time}
-                    </div>
-                    <div class="${trade.result === 'WIN' ? 'profit' : 'loss'}">
-                        ${trade.result} ${trade.profit >= 0 ? '+' : ''}$${trade.profit.toFixed(2)}
-                    </div>
-                `;
-
-                container.appendChild(div);
-            });
         }
 
         function startBot() {
