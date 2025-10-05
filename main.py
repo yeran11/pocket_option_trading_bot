@@ -581,6 +581,189 @@ async def detect_support_resistance(candles, lookback=20):
     return support, resistance
 
 
+async def calculate_macd(candles, fast_period=12, slow_period=26, signal_period=9):
+    """
+    MACD (Moving Average Convergence Divergence)
+    Returns: (MACD line, Signal line, Histogram)
+    """
+    if len(candles) < slow_period + signal_period:
+        return None, None, None
+
+    # Calculate EMAs for MACD
+    ema_fast = await calculate_ema(candles, fast_period)
+    ema_slow = await calculate_ema(candles, slow_period)
+
+    if ema_fast is None or ema_slow is None:
+        return None, None, None
+
+    # MACD Line = Fast EMA - Slow EMA
+    macd_line = ema_fast - ema_slow
+
+    # Signal Line = EMA of MACD Line (simplified - using recent MACD values)
+    # For now, we'll use a simple moving average of MACD
+    macd_values = []
+    for i in range(max(signal_period, 1)):
+        if len(candles) > slow_period + i:
+            ema_f = await calculate_ema(candles[:-i] if i > 0 else candles, fast_period)
+            ema_s = await calculate_ema(candles[:-i] if i > 0 else candles, slow_period)
+            if ema_f and ema_s:
+                macd_values.append(ema_f - ema_s)
+
+    signal_line = sum(macd_values) / len(macd_values) if macd_values else macd_line
+
+    # Histogram = MACD - Signal
+    histogram = macd_line - signal_line
+
+    return macd_line, signal_line, histogram
+
+
+async def calculate_stochastic(candles, k_period=14, d_period=3):
+    """
+    Stochastic Oscillator
+    Returns: (%K, %D)
+    """
+    if len(candles) < k_period:
+        return None, None
+
+    recent = candles[-k_period:]
+    current_close = candles[-1][2]
+
+    # Get highest high and lowest low
+    highest_high = max([c[3] for c in recent])
+    lowest_low = min([c[4] for c in recent])
+
+    # Calculate %K
+    if highest_high == lowest_low:
+        k_value = 50
+    else:
+        k_value = ((current_close - lowest_low) / (highest_high - lowest_low)) * 100
+
+    # Calculate %D (SMA of %K) - simplified
+    k_values = []
+    for i in range(d_period):
+        if len(candles) > k_period + i:
+            recent_k = candles[-(k_period+i):-i] if i > 0 else candles[-k_period:]
+            close_k = candles[-(i+1)][2]
+            high_k = max([c[3] for c in recent_k])
+            low_k = min([c[4] for c in recent_k])
+            if high_k != low_k:
+                k_values.append(((close_k - low_k) / (high_k - low_k)) * 100)
+
+    d_value = sum(k_values) / len(k_values) if k_values else k_value
+
+    return k_value, d_value
+
+
+async def calculate_supertrend(candles, atr_period=10, multiplier=3):
+    """
+    SuperTrend Indicator
+    Returns: (supertrend_value, trend_direction)
+    trend_direction: 1 = bullish, -1 = bearish
+    """
+    if len(candles) < atr_period + 1:
+        return None, 0
+
+    atr = await calculate_atr(candles, atr_period)
+    if not atr:
+        return None, 0
+
+    # Use HL/2 as base
+    current_hl2 = (candles[-1][3] + candles[-1][4]) / 2
+
+    # Basic bands
+    upper_band = current_hl2 + (multiplier * atr)
+    lower_band = current_hl2 - (multiplier * atr)
+
+    current_close = candles[-1][2]
+
+    # Determine trend
+    if current_close > upper_band:
+        trend = 1  # Bullish
+        supertrend = lower_band
+    elif current_close < lower_band:
+        trend = -1  # Bearish
+        supertrend = upper_band
+    else:
+        # Check previous trend
+        prev_close = candles[-2][2]
+        prev_hl2 = (candles[-2][3] + candles[-2][4]) / 2
+        if prev_close > prev_hl2:
+            trend = 1
+            supertrend = lower_band
+        else:
+            trend = -1
+            supertrend = upper_band
+
+    return supertrend, trend
+
+
+async def detect_candlestick_patterns(candles):
+    """
+    Detect powerful candlestick patterns
+    Returns: (pattern_name, signal_strength, direction)
+    """
+    if len(candles) < 3:
+        return None, 0, 'neutral'
+
+    current = candles[-1]
+    prev = candles[-2]
+    prev2 = candles[-3]
+
+    open_c, high_c, low_c, close_c = current[1], current[3], current[4], current[2]
+    open_p, high_p, low_p, close_p = prev[1], prev[3], prev[4], prev[2]
+
+    body_c = abs(close_c - open_c)
+    body_p = abs(close_p - open_p)
+
+    # Bullish Patterns
+    # 1. Hammer (bullish reversal)
+    if body_c > 0:
+        lower_shadow = min(open_c, close_c) - low_c
+        upper_shadow = high_c - max(open_c, close_c)
+        if lower_shadow > body_c * 2 and upper_shadow < body_c * 0.3 and close_c > open_c:
+            return "Hammer", 3, 'call'
+
+    # 2. Bullish Engulfing
+    if close_p < open_p and close_c > open_c:  # prev red, current green
+        if close_c > open_p and open_c < close_p:  # engulfs previous
+            return "Bullish Engulfing", 4, 'call'
+
+    # 3. Morning Star (3-candle pattern)
+    if len(candles) >= 3:
+        open_p2, close_p2 = prev2[1], prev2[2]
+        if close_p2 < open_p2:  # First candle red
+            if abs(close_p - open_p) < body_p2 * 0.3:  # Second small
+                if close_c > open_c and close_c > (open_p2 + close_p2) / 2:  # Third green
+                    return "Morning Star", 5, 'call'
+
+    # Bearish Patterns
+    # 4. Shooting Star (bearish reversal)
+    if body_c > 0:
+        upper_shadow = high_c - max(open_c, close_c)
+        lower_shadow = min(open_c, close_c) - low_c
+        if upper_shadow > body_c * 2 and lower_shadow < body_c * 0.3 and close_c < open_c:
+            return "Shooting Star", 3, 'put'
+
+    # 5. Bearish Engulfing
+    if close_p > open_p and close_c < open_c:  # prev green, current red
+        if close_c < open_p and open_c > close_p:  # engulfs previous
+            return "Bearish Engulfing", 4, 'put'
+
+    # 6. Evening Star
+    if len(candles) >= 3:
+        open_p2, close_p2 = prev2[1], prev2[2]
+        if close_p2 > open_p2:  # First candle green
+            if abs(close_p - open_p) < body_p2 * 0.3:  # Second small
+                if close_c < open_c and close_c < (open_p2 + close_p2) / 2:  # Third red
+                    return "Evening Star", 5, 'put'
+
+    # Doji (indecision - neutral but useful)
+    if body_c < (high_c - low_c) * 0.1:
+        return "Doji", 1, 'neutral'
+
+    return None, 0, 'neutral'
+
+
 # ==================== TRADING STRATEGY ====================
 
 async def enhanced_strategy(candles):
@@ -646,54 +829,87 @@ async def enhanced_strategy(candles):
     atr = await calculate_atr(candles)
     support, resistance = await detect_support_resistance(candles)
 
+    # ULTRA POWERFUL NEW INDICATORS
+    macd_line, macd_signal, macd_histogram = await calculate_macd(candles)
+    stoch_k, stoch_d = await calculate_stochastic(candles)
+    supertrend_value, supertrend_direction = await calculate_supertrend(candles)
+    pattern_name, pattern_strength, pattern_direction = await detect_candlestick_patterns(candles)
+
     if None in [ema_fast, ema_slow, rsi, upper_bb, lower_bb]:
         return None
 
-    # Signal counters
-    call_signals = 0
-    put_signals = 0
+    # WEIGHTED SIGNAL SCORING SYSTEM (Ultra Powerful!)
+    call_score = 0.0
+    put_score = 0.0
 
-    # 1. Moving Average Crossover
+    # 1. Moving Average Crossover (Weight: 15%)
     if ema_fast_prev < ema_slow_prev and ema_fast > ema_slow:
-        call_signals += 3  # Strong signal
+        call_score += 15.0  # Golden cross - STRONG bullish
+        add_log("📈 GOLDEN CROSS detected!")
     elif ema_fast_prev > ema_slow_prev and ema_fast < ema_slow:
-        put_signals += 3
+        put_score += 15.0  # Death cross - STRONG bearish
+        add_log("📉 DEATH CROSS detected!")
+    elif ema_fast > ema_slow:
+        call_score += 5.0  # Trend continuation
+    else:
+        put_score += 5.0  # Trend continuation
 
-    # 2. RSI Analysis
+    # 2. RSI Analysis (Weight: 12%)
     if settings['rsi_enabled']:
         rsi_upper = settings['rsi_upper']
         rsi_lower = 100 - rsi_upper
 
-        if rsi < rsi_lower:  # Oversold -> potential call
-            call_signals += 2
-        elif rsi > rsi_upper:  # Overbought -> potential put
-            put_signals += 2
+        if rsi < 20:  # EXTREME oversold
+            call_score += 12.0
+            add_log(f"💪 RSI EXTREME OVERSOLD: {rsi:.1f}")
+        elif rsi < rsi_lower:  # Oversold
+            call_score += 8.0
+        elif rsi > 80:  # EXTREME overbought
+            put_score += 12.0
+            add_log(f"💪 RSI EXTREME OVERBOUGHT: {rsi:.1f}")
+        elif rsi > rsi_upper:  # Overbought
+            put_score += 8.0
 
-        # Extreme levels
-        if rsi < 30:
-            call_signals += 1
-        elif rsi > 70:
-            put_signals += 1
+        # RSI Divergence bonus (momentum shift)
+        if 45 < rsi < 55:  # Neutral zone - trend may reverse
+            pass  # No points in neutral
 
-    # 3. Bollinger Bands
-    if current_price <= lower_bb:  # Price at lower band -> potential bounce up
-        call_signals += 2
-    elif current_price >= upper_bb:  # Price at upper band -> potential bounce down
-        put_signals += 2
+    # 3. Bollinger Bands (Weight: 10%)
+    bb_range = upper_bb - lower_bb
+    bb_position = (current_price - lower_bb) / bb_range if bb_range > 0 else 0.5
 
-    # 4. Price vs Middle BB
-    if current_price < middle_bb and ema_fast > ema_slow:
-        call_signals += 1
-    elif current_price > middle_bb and ema_fast < ema_slow:
-        put_signals += 1
+    if bb_position <= 0.1:  # Price at/below lower band
+        call_score += 10.0
+        add_log(f"🎯 Price at LOWER BB - Bounce expected!")
+    elif bb_position <= 0.3:  # Near lower band
+        call_score += 6.0
+    elif bb_position >= 0.9:  # Price at/above upper band
+        put_score += 10.0
+        add_log(f"🎯 Price at UPPER BB - Pullback expected!")
+    elif bb_position >= 0.7:  # Near upper band
+        put_score += 6.0
 
-    # 5. Support/Resistance
+    # BB Squeeze detection (low volatility = breakout coming)
+    bb_width = (bb_range / middle_bb) * 100
+    if bb_width < 2.0:  # Tight squeeze
+        add_log(f"⚡ BB SQUEEZE detected - Breakout imminent!")
+        # Wait for direction confirmation from other indicators
+
+    # 4. Support/Resistance (Weight: 8%)
     if support and resistance:
         price_range = resistance - support
-        if current_price < support + (price_range * 0.2):  # Near support
-            call_signals += 1
-        elif current_price > resistance - (price_range * 0.2):  # Near resistance
-            put_signals += 1
+        support_distance = (current_price - support) / price_range if price_range > 0 else 0.5
+
+        if support_distance <= 0.15:  # Very near support
+            call_score += 8.0
+            add_log(f"🛡️ Price near SUPPORT level!")
+        elif support_distance <= 0.3:  # Near support
+            call_score += 4.0
+        elif support_distance >= 0.85:  # Very near resistance
+            put_score += 8.0
+            add_log(f"🧱 Price near RESISTANCE level!")
+        elif support_distance >= 0.7:  # Near resistance
+            put_score += 4.0
 
     # 6. Volatility Filter (ATR)
     if atr:
@@ -705,28 +921,100 @@ async def enhanced_strategy(candles):
             add_log(f"⚠️ High volatility: {volatility_percent:.2f}% - Skipping")
             return None
 
-    # 7. Trend Strength
+    # 7. Trend Strength (Weight: 7%)
     if ema_fast > ema_slow:
         trend_strength = ((ema_fast - ema_slow) / ema_slow) * 100
-        if trend_strength > 0.5:
-            call_signals += 1
+        if trend_strength > 1.0:  # STRONG uptrend
+            call_score += 7.0
+        elif trend_strength > 0.3:  # Moderate uptrend
+            call_score += 4.0
     else:
         trend_strength = ((ema_slow - ema_fast) / ema_fast) * 100
-        if trend_strength > 0.5:
-            put_signals += 1
+        if trend_strength > 1.0:  # STRONG downtrend
+            put_score += 7.0
+        elif trend_strength > 0.3:  # Moderate downtrend
+            put_score += 4.0
 
-    # Decision Logic
-    signal_diff = abs(call_signals - put_signals)
-    min_confidence = settings['min_confidence']
+    # 8. 🚀 MACD ULTRA POWER (Weight: 15%)
+    if macd_line is not None and macd_signal is not None and macd_histogram is not None:
+        # MACD Crossover
+        if macd_line > macd_signal and macd_histogram > 0:
+            call_score += 15.0
+            add_log("🚀 MACD BULLISH CROSSOVER!")
+        elif macd_line < macd_signal and macd_histogram < 0:
+            put_score += 15.0
+            add_log("🚀 MACD BEARISH CROSSOVER!")
 
-    if call_signals > put_signals and signal_diff >= min_confidence:
-        confidence = (call_signals / (call_signals + put_signals)) * 100
-        return 'call', f'Confidence: {confidence:.1f}% ({call_signals} signals)'
-    elif put_signals > call_signals and signal_diff >= min_confidence:
-        confidence = (put_signals / (call_signals + put_signals)) * 100
-        return 'put', f'Confidence: {confidence:.1f}% ({put_signals} signals)'
+        # Histogram strength
+        if abs(macd_histogram) > 0.0001:  # Strong momentum
+            if macd_histogram > 0:
+                call_score += 5.0
+            else:
+                put_score += 5.0
 
-    return None
+    # 9. 💎 STOCHASTIC POWER (Weight: 12%)
+    if stoch_k is not None and stoch_d is not None:
+        if stoch_k < 20 and stoch_d < 20:  # EXTREME oversold
+            call_score += 12.0
+            add_log(f"💎 STOCHASTIC EXTREME OVERSOLD: K={stoch_k:.1f}")
+        elif stoch_k < 30:  # Oversold
+            call_score += 8.0
+
+        if stoch_k > 80 and stoch_d > 80:  # EXTREME overbought
+            put_score += 12.0
+            add_log(f"💎 STOCHASTIC EXTREME OVERBOUGHT: K={stoch_k:.1f}")
+        elif stoch_k > 70:  # Overbought
+            put_score += 8.0
+
+        # Stochastic Crossover
+        if stoch_k > stoch_d and stoch_k < 50:  # Bullish cross in lower zone
+            call_score += 6.0
+        elif stoch_k < stoch_d and stoch_k > 50:  # Bearish cross in upper zone
+            put_score += 6.0
+
+    # 10. ⚡ SUPERTREND ULTRA (Weight: 18%)
+    if supertrend_direction != 0:
+        if supertrend_direction == 1:  # Bullish trend
+            call_score += 18.0
+            add_log("⚡ SUPERTREND: BULLISH!")
+        elif supertrend_direction == -1:  # Bearish trend
+            put_score += 18.0
+            add_log("⚡ SUPERTREND: BEARISH!")
+
+    # 11. 🎯 CANDLESTICK PATTERNS (Weight: Variable)
+    if pattern_name and pattern_direction != 'neutral':
+        pattern_score = pattern_strength * 2.0  # Multiply strength for weight
+        if pattern_direction == 'call':
+            call_score += pattern_score
+            add_log(f"🎯 PATTERN: {pattern_name} (Bullish +{pattern_score})")
+        elif pattern_direction == 'put':
+            put_score += pattern_score
+            add_log(f"🎯 PATTERN: {pattern_name} (Bearish +{pattern_score})")
+
+    # === ULTRA DECISION LOGIC ===
+    total_score = call_score + put_score
+    if total_score == 0:
+        return None
+
+    # Calculate confidence percentage
+    call_confidence = (call_score / total_score) * 100 if total_score > 0 else 0
+    put_confidence = (put_score / total_score) * 100 if total_score > 0 else 0
+
+    # Minimum score threshold (adjustable)
+    min_score_threshold = 40.0  # Out of 100 possible points
+
+    # Strong directional bias required
+    score_diff = abs(call_score - put_score)
+
+    if call_score > put_score and call_score >= min_score_threshold and score_diff >= 15:
+        add_log(f"✅ CALL Signal - Score: {call_score:.1f} vs {put_score:.1f} | Confidence: {call_confidence:.1f}%")
+        return 'call', f'🎯 Ultra Score: {call_score:.1f}/100 ({call_confidence:.0f}% conf)'
+    elif put_score > call_score and put_score >= min_score_threshold and score_diff >= 15:
+        add_log(f"✅ PUT Signal - Score: {put_score:.1f} vs {call_score:.1f} | Confidence: {put_confidence:.1f}%")
+        return 'put', f'🎯 Ultra Score: {put_score:.1f}/100 ({put_confidence:.0f}% conf)'
+    else:
+        add_log(f"⚖️ No clear signal - CALL: {call_score:.1f} | PUT: {put_score:.1f}")
+        return None
 
 
 # ==================== POCKET OPTION INTEGRATION ====================
