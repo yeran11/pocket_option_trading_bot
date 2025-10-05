@@ -29,14 +29,15 @@ except ImportError:
 OPENAI_API_KEY = None
 OPENAI_PROJECT_ID = None
 
-# Method 1: Try to import from secrets.py (MOST RELIABLE - Direct Python import)
+# Method 1: Try to import from api_secrets.py (MOST RELIABLE - Direct Python import)
+# Note: Named api_secrets to avoid conflict with Python's built-in secrets module
 try:
-    from secrets import OPENAI_API_KEY as SECRET_KEY, OPENAI_PROJECT_ID as SECRET_PROJECT_ID
+    from api_secrets import OPENAI_API_KEY as SECRET_KEY, OPENAI_PROJECT_ID as SECRET_PROJECT_ID
     OPENAI_API_KEY = SECRET_KEY
     OPENAI_PROJECT_ID = SECRET_PROJECT_ID
-    print("✅ Loaded API keys from secrets.py")
+    print("✅ Loaded API keys from api_secrets.py")
 except ImportError:
-    print("⚠️ secrets.py not found, trying other methods...")
+    print("⚠️ api_secrets.py not found, trying other methods...")
     pass
 
 # Method 2: Environment variables (Replit Secrets or .env loaded above)

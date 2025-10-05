@@ -5,3 +5,4 @@ default/*
 # Environment variables
 .env
 secrets.py
+api_secrets.py
