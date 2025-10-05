@@ -29,29 +29,48 @@ except ImportError:
 OPENAI_API_KEY = None
 OPENAI_PROJECT_ID = None
 
-# Method 1: Environment variables (Replit Secrets or .env loaded above)
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-OPENAI_PROJECT_ID = os.environ.get("OPENAI_PROJECT_ID")
+# Method 1: Try to import from secrets.py (MOST RELIABLE - Direct Python import)
+try:
+    from secrets import OPENAI_API_KEY as SECRET_KEY, OPENAI_PROJECT_ID as SECRET_PROJECT_ID
+    OPENAI_API_KEY = SECRET_KEY
+    OPENAI_PROJECT_ID = SECRET_PROJECT_ID
+    print("✅ Loaded API keys from secrets.py")
+except ImportError:
+    print("⚠️ secrets.py not found, trying other methods...")
+    pass
 
-# Method 2: If still None, try direct .env file read (backup method)
+# Method 2: Environment variables (Replit Secrets or .env loaded above)
+if not OPENAI_API_KEY:
+    OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+    OPENAI_PROJECT_ID = os.environ.get("OPENAI_PROJECT_ID")
+    if OPENAI_API_KEY:
+        print("✅ Loaded API keys from environment variables")
+
+# Method 3: If still None, try direct .env file read (backup method)
 if not OPENAI_API_KEY:
     try:
         env_path = os.path.join(os.path.dirname(__file__), '.env')
+        print(f"🔍 Checking for .env at: {env_path}")
+        print(f"🔍 .env exists: {os.path.exists(env_path)}")
         if os.path.exists(env_path):
             with open(env_path, 'r') as f:
                 for line in f:
                     if line.startswith('OPENAI_API_KEY='):
                         OPENAI_API_KEY = line.split('=', 1)[1].strip().strip('"').strip("'")
+                        print(f"✅ Loaded API key from .env file (length: {len(OPENAI_API_KEY)})")
                     elif line.startswith('OPENAI_PROJECT_ID='):
                         OPENAI_PROJECT_ID = line.split('=', 1)[1].strip().strip('"').strip("'")
+        else:
+            print(f"⚠️ .env file not found at {env_path}")
     except Exception as e:
-        print(f"Could not read .env file: {e}")
+        print(f"❌ Could not read .env file: {e}")
 
-# Method 3: Hardcoded fallback (you can update this for your deployment)
+# Method 4: Fallback - if still nothing found
 if not OPENAI_API_KEY:
-    # IMPORTANT: Set your API key in environment variables or .env file
-    OPENAI_API_KEY = None  # Must be set via environment variable
-    OPENAI_PROJECT_ID = None  # Must be set via environment variable
+    # IMPORTANT: Create secrets.py file or set environment variables
+    print("⚠️ No API key found! Please create secrets.py or set environment variables")
+    OPENAI_API_KEY = None
+    OPENAI_PROJECT_ID = None
 
 # Initialize OpenAI client
 openai.api_key = OPENAI_API_KEY

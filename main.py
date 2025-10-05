@@ -151,6 +151,12 @@ def initialize_ai_system():
             OPENAI_API_KEY = ai_config.OPENAI_API_KEY
             OPENAI_PROJECT_ID = ai_config.OPENAI_PROJECT_ID
 
+            # Diagnostic: Check API key value
+            if OPENAI_API_KEY:
+                print(f"🔑 API Key loaded: {OPENAI_API_KEY[:15]}...{OPENAI_API_KEY[-8:]} (length: {len(OPENAI_API_KEY)})")
+            else:
+                print(f"⚠️ API Key is: {OPENAI_API_KEY}")
+
             print("✅ Successfully loaded AI classes and configs")
 
         except Exception as import_error:
