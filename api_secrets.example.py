@@ -2,17 +2,19 @@
 API Secrets Configuration Template
 
 INSTRUCTIONS:
-1. Copy this file to 'secrets.py' in the same directory
+1. Copy this file to 'api_secrets.py' in the same directory
 2. Replace the placeholder values with your actual API keys
-3. Never commit secrets.py to git (it's in .gitignore)
+3. Never commit api_secrets.py to git (it's in .gitignore)
 
 For localhost:
-- Copy secrets.example.py to secrets.py
+- Copy api_secrets.example.py to api_secrets.py
 - Add your real API keys
 - Run the bot
 
 For Replit:
 - Same process, or use Replit Secrets
+
+Note: Named api_secrets.py to avoid conflict with Python's built-in secrets module
 """
 
 # OpenAI API Configuration
