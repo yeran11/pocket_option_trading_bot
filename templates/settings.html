@@ -540,7 +540,35 @@
                             <input type="checkbox" id="ai_enabled" checked>
                             <span class="toggle-slider"></span>
                         </label>
-                        <span>AI Analysis with GPT-4</span>
+                        <span>Dual AI Ensemble System</span>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">AI Models</label>
+                    <div class="setting-control" style="display: flex; gap: 15px; flex-wrap: wrap;">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="use_gpt4" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span>GPT-4</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="use_claude" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span>Claude 3.5</span>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">AI Mode</label>
+                    <div class="setting-control">
+                        <select id="ai_mode">
+                            <option value="ensemble">Ensemble (Both must agree)</option>
+                            <option value="any">Any AI (Either can trigger)</option>
+                            <option value="gpt4_only">GPT-4 Only</option>
+                            <option value="claude_only">Claude Only</option>
+                        </select>
                     </div>
                 </div>
 
@@ -574,6 +602,58 @@
                             <option value="TREND_FOLLOW">Trend Following</option>
                             <option value="REVERSAL">Reversal Trading</option>
                         </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ULTRA Strategy Combination -->
+            <div class="settings-card">
+                <div class="card-title">
+                    🎯 ULTRA Strategy Combination
+                    <span class="status-badge" style="background: rgba(255, 215, 0, 0.2); color: gold;">ADVANCED</span>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Decision Mode</label>
+                    <div class="setting-control">
+                        <select id="decision_mode">
+                            <option value="ultra_safe">ULTRA SAFE: AI + Traditional both agree</option>
+                            <option value="ai_priority">AI Priority: AI decides, Traditional validates</option>
+                            <option value="traditional_priority">Traditional Priority: Traditional + AI validation</option>
+                            <option value="aggressive">Aggressive: AI OR Traditional</option>
+                            <option value="ai_only">AI Only: Ignore traditional indicators</option>
+                            <option value="traditional_only">Traditional Only: Ignore AI</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Require Pattern Confirmation</label>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="require_pattern">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span>Chart patterns must align</span>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Check Support/Resistance</label>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="check_support_resistance" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span>Verify proximity to key levels</span>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Minimum Indicator Alignment</label>
+                    <div class="setting-control">
+                        <input type="number" id="min_indicator_alignment" value="5" min="2" max="10">
+                        <span>/ 13 indicators</span>
                     </div>
                 </div>
             </div>

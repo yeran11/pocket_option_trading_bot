@@ -544,19 +544,32 @@ class AITradingBrain:
 
         return "ACTION: HOLD\nCONFIDENCE: 0\nREASON: Claude API error"
 
-    async def analyze_with_ensemble(self, market_data: Dict, indicators: Dict) -> Tuple[str, float, str]:
+    async def analyze_with_ensemble(self, market_data: Dict, indicators: Dict, ai_mode: str = 'ensemble', use_gpt4: bool = True, use_claude: bool = True) -> Tuple[str, float, str]:
         """
         MULTI-MODEL ENSEMBLE: Use both GPT-4 and Claude for maximum accuracy
         Returns: (action, confidence, reasoning)
+
+        Args:
+            market_data: Market information
+            indicators: Technical indicators
+            ai_mode: 'ensemble' (both must agree), 'any' (either can trigger), 'gpt4_only', 'claude_only'
+            use_gpt4: Enable GPT-4
+            use_claude: Enable Claude
         """
         try:
             # Build analysis prompt
             prompt = self._build_analysis_prompt(market_data, indicators)
 
-            # Call both AI models in parallel for speed
+            # Determine which AIs to use based on mode and settings
             tasks = []
-            gpt4_available = OPENAI_API_KEY is not None
-            claude_available = CLAUDE_API_KEY is not None
+            gpt4_available = OPENAI_API_KEY is not None and use_gpt4
+            claude_available = CLAUDE_API_KEY is not None and use_claude
+
+            # Override based on ai_mode
+            if ai_mode == 'gpt4_only':
+                claude_available = False
+            elif ai_mode == 'claude_only':
+                gpt4_available = False
 
             if gpt4_available:
                 tasks.append(self._call_gpt4(prompt))
@@ -587,29 +600,55 @@ class AITradingBrain:
                 ai_names.append("Claude")
                 print(f"🧠 Claude: {claude_decision[0].upper()} @ {claude_decision[1]}%")
 
-            # VOTING SYSTEM: Both AIs must agree for high confidence
+            # VOTING SYSTEM: Behavior depends on ai_mode
             if len(decisions) == 2:
                 action1, conf1, reason1 = decisions[0]
                 action2, conf2, reason2 = decisions[1]
 
-                # Both AIs agree on action
-                if action1 == action2 and action1 != "hold":
-                    # Boost confidence when both agree
-                    avg_confidence = (conf1 + conf2) / 2
-                    boosted_confidence = min(avg_confidence + 10, 100)  # +10 bonus for agreement
-                    combined_reason = f"🎯 CONSENSUS: Both {ai_names[0]} & {ai_names[1]} agree! {reason1[:80]}"
-                    print(f"✅ CONSENSUS TRADE: {action1.upper()} @ {boosted_confidence}%")
-                    return action1, boosted_confidence, combined_reason
+                if ai_mode == 'ensemble':
+                    # ENSEMBLE MODE: Both must agree
+                    if action1 == action2 and action1 != "hold":
+                        # Boost confidence when both agree
+                        avg_confidence = (conf1 + conf2) / 2
+                        boosted_confidence = min(avg_confidence + 10, 100)  # +10 bonus for agreement
+                        combined_reason = f"🎯 CONSENSUS: Both {ai_names[0]} & {ai_names[1]} agree! {reason1[:80]}"
+                        print(f"✅ CONSENSUS TRADE: {action1.upper()} @ {boosted_confidence}%")
+                        return action1, boosted_confidence, combined_reason
+                    elif action1 != action2:
+                        print(f"⚠️ DISAGREEMENT: {ai_names[0]} says {action1}, {ai_names[1]} says {action2} - HOLDING")
+                        return "hold", 0.0, f"AI models disagree: {ai_names[0]} ({action1}) vs {ai_names[1]} ({action2})"
+                    else:
+                        avg_confidence = (conf1 + conf2) / 2
+                        return "hold", avg_confidence, "Both AIs recommend holding"
 
-                # AIs disagree - be cautious
-                elif action1 != action2:
-                    print(f"⚠️ DISAGREEMENT: {ai_names[0]} says {action1}, {ai_names[1]} says {action2} - HOLDING")
-                    return "hold", 0.0, f"AI models disagree: {ai_names[0]} ({action1}) vs {ai_names[1]} ({action2})"
-
-                # Both say hold
-                else:
-                    avg_confidence = (conf1 + conf2) / 2
-                    return "hold", avg_confidence, "Both AIs recommend holding"
+                elif ai_mode == 'any':
+                    # ANY MODE: Either AI can trigger (pick highest confidence)
+                    if action1 != "hold" or action2 != "hold":
+                        # Pick the non-hold action with highest confidence
+                        if action1 != "hold" and action2 == "hold":
+                            print(f"✅ {ai_names[0]} TRIGGERS: {action1.upper()} @ {conf1}%")
+                            return action1, conf1, f"ANY MODE: {ai_names[0]} - {reason1[:80]}"
+                        elif action2 != "hold" and action1 == "hold":
+                            print(f"✅ {ai_names[1]} TRIGGERS: {action2.upper()} @ {conf2}%")
+                            return action2, conf2, f"ANY MODE: {ai_names[1]} - {reason2[:80]}"
+                        elif action1 == action2:
+                            # Both agree, boost confidence
+                            avg_confidence = (conf1 + conf2) / 2
+                            boosted_confidence = min(avg_confidence + 10, 100)
+                            print(f"✅ BOTH AGREE: {action1.upper()} @ {boosted_confidence}%")
+                            return action1, boosted_confidence, f"ANY MODE (CONSENSUS): {reason1[:80]}"
+                        else:
+                            # Different actions, pick highest confidence
+                            if conf1 >= conf2:
+                                print(f"✅ {ai_names[0]} HIGHER CONFIDENCE: {action1.upper()} @ {conf1}%")
+                                return action1, conf1, f"ANY MODE: {ai_names[0]} (higher conf) - {reason1[:80]}"
+                            else:
+                                print(f"✅ {ai_names[1]} HIGHER CONFIDENCE: {action2.upper()} @ {conf2}%")
+                                return action2, conf2, f"ANY MODE: {ai_names[1]} (higher conf) - {reason2[:80]}"
+                    else:
+                        # Both recommend hold
+                        avg_confidence = (conf1 + conf2) / 2
+                        return "hold", avg_confidence, "Both AIs recommend holding"
 
             # Single AI mode
             else:
