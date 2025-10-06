@@ -252,8 +252,17 @@ bot_state = {
 settings = {
     # AI Settings
     'ai_enabled': True,  # Default to enabled
+    'use_gpt4': True,  # Enable GPT-4
+    'use_claude': True,  # Enable Claude
+    'ai_mode': 'ensemble',  # ensemble, any, gpt4_only, claude_only
     'ai_min_confidence': 70,
     'ai_strategy': 'ULTRA_SCALPING',
+
+    # ULTRA Strategy Combination
+    'decision_mode': 'ultra_safe',  # ultra_safe, ai_priority, traditional_priority, aggressive, ai_only, traditional_only
+    'require_pattern': False,  # Require chart pattern confirmation
+    'check_support_resistance': True,  # Check proximity to S/R levels
+    'min_indicator_alignment': 5,  # Minimum indicators that must align (out of 13)
 
     # Moving Averages
     'fast_ema': 9,
@@ -896,18 +905,50 @@ async def enhanced_strategy(candles):
                 'pattern_direction': pattern_direction or 'neutral'
             }
 
-            print(f"📊 Calling DUAL AI ENSEMBLE (GPT-4 + Claude)...")
-            # Get AI ENSEMBLE decision (both GPT-4 and Claude vote)
-            ai_action, ai_confidence, ai_reason = await ai_brain.analyze_with_ensemble(market_data, ai_indicators)
-            print(f"✅ ENSEMBLE Response: {ai_action.upper()} @ {ai_confidence}%")
+            # Get AI mode and model settings
+            ai_mode = settings.get('ai_mode', 'ensemble')
+            use_gpt4 = settings.get('use_gpt4', True)
+            use_claude = settings.get('use_claude', True)
 
-            # If AI has high confidence, use its decision
-            if ai_confidence >= settings.get('ai_min_confidence', 70):
-                add_log(f"🤖 AI Decision: {ai_action.upper()} - {ai_reason[:100]}... ({ai_confidence}%)")
-                if ai_action != 'hold':
-                    return ai_action, f'AI: {ai_reason[:100]}... ({ai_confidence}%)'
+            print(f"📊 Calling AI (Mode: {ai_mode.upper()}, GPT-4: {use_gpt4}, Claude: {use_claude})...")
+            # Get AI ENSEMBLE decision with user settings
+            ai_action, ai_confidence, ai_reason = await ai_brain.analyze_with_ensemble(
+                market_data,
+                ai_indicators,
+                ai_mode=ai_mode,
+                use_gpt4=use_gpt4,
+                use_claude=use_claude
+            )
+            print(f"✅ AI Response: {ai_action.upper()} @ {ai_confidence}%")
+
+            # ULTRA STRATEGY COMBINATION - Check decision mode
+            decision_mode = settings.get('decision_mode', 'ultra_safe')
+
+            if decision_mode == 'ai_only':
+                # AI ONLY MODE: Use AI decision exclusively
+                if ai_confidence >= settings.get('ai_min_confidence', 70):
+                    add_log(f"🤖 AI ONLY Decision: {ai_action.upper()} - {ai_reason[:100]}... ({ai_confidence}%)")
+                    if ai_action != 'hold':
+                        return ai_action, f'AI ONLY: {ai_reason[:100]}... ({ai_confidence}%)'
+                else:
+                    add_log(f"🤖 AI Confidence too low ({ai_confidence}% < {settings.get('ai_min_confidence', 70)}%)")
+            elif decision_mode in ['ultra_safe', 'ai_priority', 'traditional_priority', 'aggressive']:
+                # ULTRA COMBINED MODE: Store AI decision for later validation with traditional
+                # Set flag to run traditional analysis and then combine
+                ai_decision_stored = {
+                    'action': ai_action,
+                    'confidence': ai_confidence,
+                    'reason': ai_reason
+                }
+                # Continue to traditional analysis below
             else:
-                add_log(f"🤖 AI Confidence too low ({ai_confidence}% < {settings.get('ai_min_confidence', 70)}%), using traditional indicators")
+                # Legacy behavior for compatibility
+                if ai_confidence >= settings.get('ai_min_confidence', 70):
+                    add_log(f"🤖 AI Decision: {ai_action.upper()} - {ai_reason[:100]}... ({ai_confidence}%)")
+                    if ai_action != 'hold':
+                        return ai_action, f'AI: {ai_reason[:100]}... ({ai_confidence}%)'
+                else:
+                    add_log(f"🤖 AI Confidence too low ({ai_confidence}% < {settings.get('ai_min_confidence', 70)}%), using traditional indicators")
         except Exception as e:
             import traceback
             error_trace = traceback.format_exc()
@@ -1090,14 +1131,117 @@ async def enhanced_strategy(candles):
     # Strong directional bias required
     score_diff = abs(call_score - put_score)
 
+    # Determine traditional decision
+    trad_action = None
+    trad_confidence = 0
+    trad_reason = ""
+
     if call_score > put_score and call_score >= min_score_threshold and score_diff >= 15:
+        trad_action = 'call'
+        trad_confidence = call_confidence
+        trad_reason = f'🎯 Ultra Score: {call_score:.1f}/100 ({call_confidence:.0f}% conf)'
         add_log(f"✅ CALL Signal - Score: {call_score:.1f} vs {put_score:.1f} | Confidence: {call_confidence:.1f}%")
-        return 'call', f'🎯 Ultra Score: {call_score:.1f}/100 ({call_confidence:.0f}% conf)'
     elif put_score > call_score and put_score >= min_score_threshold and score_diff >= 15:
+        trad_action = 'put'
+        trad_confidence = put_confidence
+        trad_reason = f'🎯 Ultra Score: {put_score:.1f}/100 ({put_confidence:.0f}% conf)'
         add_log(f"✅ PUT Signal - Score: {put_score:.1f} vs {call_score:.1f} | Confidence: {put_confidence:.1f}%")
-        return 'put', f'🎯 Ultra Score: {put_score:.1f}/100 ({put_confidence:.0f}% conf)'
     else:
-        add_log(f"⚖️ No clear signal - CALL: {call_score:.1f} | PUT: {put_score:.1f}")
+        trad_action = 'hold'
+        trad_confidence = 0
+        trad_reason = f'No clear signal - CALL: {call_score:.1f} | PUT: {put_score:.1f}'
+        add_log(f"⚖️ {trad_reason}")
+
+    # === ULTRA COMBINED STRATEGY DECISION ===
+    # Check if we have stored AI decision for combination
+    if 'ai_decision_stored' in locals() and ai_decision_stored:
+        decision_mode = settings.get('decision_mode', 'ultra_safe')
+        ai_action = ai_decision_stored['action']
+        ai_confidence = ai_decision_stored['confidence']
+        ai_reason = ai_decision_stored['reason']
+
+        if decision_mode == 'ultra_safe':
+            # ULTRA SAFE: Both AI and Traditional must agree
+            if ai_action == trad_action and ai_action != 'hold':
+                combined_conf = (ai_confidence + trad_confidence) / 2
+                add_log(f"🎯 ULTRA CONSENSUS! AI({ai_confidence:.0f}%) + Traditional({trad_confidence:.0f}%) = {combined_conf:.0f}%")
+                return ai_action, f'🎯 ULTRA SAFE CONSENSUS: {ai_action.upper()} @ {combined_conf:.0f}%'
+            else:
+                add_log(f"⚠️ ULTRA SAFE: AI({ai_action}) vs Traditional({trad_action}) - HOLDING for safety")
+                return None
+
+        elif decision_mode == 'ai_priority':
+            # AI Priority: AI decides, Traditional validates
+            if ai_confidence >= 80 and ai_action != 'hold':
+                # High AI confidence, check Traditional doesn't strongly disagree
+                if trad_action == ai_action or trad_action == 'hold':
+                    add_log(f"✅ AI PRIORITY: High AI confidence({ai_confidence:.0f}%), Traditional agrees/neutral")
+                    return ai_action, f'AI Priority: {ai_action.upper()} @ {ai_confidence:.0f}%'
+                else:
+                    add_log(f"⚠️ AI PRIORITY: AI confident but Traditional disagrees - HOLDING")
+                    return None
+            elif ai_action != 'hold' and trad_action == ai_action:
+                # Lower AI confidence, need Traditional support
+                combined_conf = (ai_confidence + trad_confidence) / 2
+                add_log(f"✅ AI PRIORITY: AI + Traditional aligned @ {combined_conf:.0f}%")
+                return ai_action, f'AI Priority (validated): {ai_action.upper()} @ {combined_conf:.0f}%'
+            else:
+                add_log(f"⚠️ AI PRIORITY: No strong aligned signal")
+                return None
+
+        elif decision_mode == 'traditional_priority':
+            # Traditional Priority: Traditional decides, AI validates
+            if trad_confidence >= 70 and trad_action != 'hold':
+                # High Traditional confidence, check AI doesn't strongly disagree
+                if ai_action == trad_action or ai_action == 'hold':
+                    add_log(f"✅ TRADITIONAL PRIORITY: Traditional confident, AI agrees/neutral")
+                    return trad_action, f'Traditional Priority: {trad_action.upper()} @ {trad_confidence:.0f}%'
+                elif ai_confidence < 60:  # AI not very confident in disagreement
+                    add_log(f"✅ TRADITIONAL PRIORITY: Traditional strong, AI weak disagreement")
+                    return trad_action, trad_reason
+                else:
+                    add_log(f"⚠️ TRADITIONAL PRIORITY: Strong disagreement - HOLDING")
+                    return None
+            elif trad_action != 'hold' and ai_action == trad_action:
+                combined_conf = (ai_confidence + trad_confidence) / 2
+                add_log(f"✅ TRADITIONAL PRIORITY: Both aligned @ {combined_conf:.0f}%")
+                return trad_action, f'Traditional Priority (AI validated): {trad_action.upper()} @ {combined_conf:.0f}%'
+            else:
+                return None
+
+        elif decision_mode == 'aggressive':
+            # Aggressive: AI OR Traditional (pick highest confidence)
+            if ai_action != 'hold' and trad_action == 'hold':
+                add_log(f"✅ AGGRESSIVE: AI triggers ({ai_confidence:.0f}%)")
+                return ai_action, f'Aggressive (AI): {ai_action.upper()} @ {ai_confidence:.0f}%'
+            elif trad_action != 'hold' and ai_action == 'hold':
+                add_log(f"✅ AGGRESSIVE: Traditional triggers ({trad_confidence:.0f}%)")
+                return trad_action, f'Aggressive (Traditional): {trad_action.upper()} @ {trad_confidence:.0f}%'
+            elif ai_action != 'hold' and trad_action != 'hold':
+                if ai_action == trad_action:
+                    combined_conf = (ai_confidence + trad_confidence) / 2
+                    add_log(f"✅ AGGRESSIVE: Both agree! Combined {combined_conf:.0f}%")
+                    return ai_action, f'Aggressive (CONSENSUS): {ai_action.upper()} @ {combined_conf:.0f}%'
+                else:
+                    # Pick highest confidence
+                    if ai_confidence >= trad_confidence:
+                        add_log(f"✅ AGGRESSIVE: AI higher conf ({ai_confidence:.0f}% > {trad_confidence:.0f}%)")
+                        return ai_action, f'Aggressive (AI higher): {ai_action.upper()} @ {ai_confidence:.0f}%'
+                    else:
+                        add_log(f"✅ AGGRESSIVE: Traditional higher conf ({trad_confidence:.0f}% > {ai_confidence:.0f}%)")
+                        return trad_action, f'Aggressive (Trad higher): {trad_action.upper()} @ {trad_confidence:.0f}%'
+            else:
+                return None
+
+    # Traditional only mode or no AI decision stored
+    elif settings.get('decision_mode') == 'traditional_only':
+        if trad_action != 'hold':
+            return trad_action, trad_reason
+        return None
+    else:
+        # Default behavior (legacy compatibility)
+        if trad_action != 'hold':
+            return trad_action, trad_reason
         return None
 
 

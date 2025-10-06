@@ -1287,5 +1287,273 @@ AI Mode: [Ensemble/Any/GPT-4 Only/Claude Only]
 
 ---
 
+## 📅 **October 6, 2025 - Session 5: ULTRA COMBINED STRATEGY IMPLEMENTATION**
+
+**Session Focus:** AI + Traditional Indicator Combination System
+**Status:** ✅ **COMPLETE - 6 DECISION MODES IMPLEMENTED**
+
+---
+
+### 🎯 What We Accomplished Today (Session 5)
+
+#### **THE REQUEST:**
+User requested implementation of ULTRA Combined Strategy with:
+- Individual toggles for GPT-4 and Claude AI models
+- AI Mode selector (Ensemble, Any, Single model)
+- 6 Decision Modes combining AI + Traditional indicators
+- **Critical constraint:** "please ultrathink do not breake our project while making these updates"
+
+#### **THE SOLUTION:**
+**ULTRA Combined Strategy System** 🚀
+
+Flexible decision-making system that combines AI ensemble with traditional technical indicators in 6 different modes.
+
+---
+
+### 📝 Implementation Details
+
+#### **1. AI Model Controls**
+
+**New Settings Added:**
+```python
+'use_gpt4': True,          # Individual GPT-4 toggle
+'use_claude': True,        # Individual Claude toggle
+'ai_mode': 'ensemble',     # ensemble | any | gpt4_only | claude_only
+```
+
+**AI Mode Options:**
+1. **Ensemble**: Both GPT-4 and Claude must agree (safest)
+2. **Any**: Either GPT-4 or Claude can trigger (more signals)
+3. **GPT-4 Only**: Use only GPT-4 analysis
+4. **Claude Only**: Use only Claude analysis
+
+**Implementation:** ai_config.py lines 547-651
+- Enhanced `analyze_with_ensemble()` function
+- Added ai_mode, use_gpt4, use_claude parameters
+- Implemented mode-specific voting logic
+- Maintained backward compatibility
+
+---
+
+#### **2. ULTRA Combined Strategy - 6 Decision Modes**
+
+**New Settings Added:**
+```python
+'decision_mode': 'ultra_safe',           # 6 options (see below)
+'require_pattern': False,                # Pattern confirmation toggle
+'check_support_resistance': True,        # S/R level checking
+'min_indicator_alignment': 5,            # Minimum aligned indicators
+```
+
+**Decision Modes Implemented:**
+
+1. **ULTRA SAFE** (Default)
+   - Both AI and Traditional must agree
+   - Lowest frequency, highest accuracy
+   - Returns combined confidence score
+   - Implementation: main.py lines 1163-1171
+
+2. **AI Priority**
+   - AI makes primary decision
+   - Traditional validates (doesn't strongly disagree)
+   - High AI confidence (80%+) can override
+   - Lower confidence needs Traditional support
+   - Implementation: main.py lines 1173-1190
+
+3. **Traditional Priority**
+   - Traditional makes primary decision
+   - AI validates (doesn't strongly disagree)
+   - Traditional confidence 70%+ preferred
+   - Weak AI disagreement ignored
+   - Implementation: main.py lines 1192-1210
+
+4. **Aggressive**
+   - AI OR Traditional can trigger
+   - Picks highest confidence signal
+   - More signals, higher risk
+   - Combined score when both agree
+   - Implementation: main.py lines 1212-1234
+
+5. **AI Only**
+   - Ignores traditional indicators completely
+   - Pure AI decision making
+   - Respects ai_min_confidence threshold
+   - Implementation: main.py lines 927-934
+
+6. **Traditional Only**
+   - Ignores AI completely
+   - Uses only 13 technical indicators
+   - Legacy indicator scoring system
+   - Implementation: main.py lines 1237-1240
+
+---
+
+#### **3. Settings UI Enhancements**
+
+**templates/settings.html modifications:**
+
+**Added AI Model Controls (lines 547-572):**
+- GPT-4 toggle checkbox
+- Claude toggle checkbox
+- AI Mode dropdown selector
+
+**Added ULTRA Strategy Card (lines 609-659):**
+- Decision Mode dropdown (6 options)
+- Pattern confirmation toggle
+- Support/Resistance checking toggle
+- Minimum indicator alignment slider (1-13 indicators)
+
+**JavaScript Integration:**
+- Auto-save all new settings to backend
+- Auto-load settings on page load
+- Real-time settings updates
+
+---
+
+#### **4. Technical Architecture**
+
+**Decision Flow:**
+
+```
+1. Check if AI enabled
+   ↓
+2. Get AI decision via ensemble (respecting ai_mode)
+   ↓
+3. Check decision_mode setting
+   ↓
+4a. If ai_only → Return AI decision immediately
+   ↓
+4b. If ultra_safe/ai_priority/traditional_priority/aggressive
+   → Store AI decision in local variable
+   → Continue to Traditional analysis
+   ↓
+5. Run Traditional indicator analysis (13 indicators)
+   → Calculate CALL score
+   → Calculate PUT score
+   → Determine Traditional action & confidence
+   ↓
+6. ULTRA Combined Strategy Logic
+   → Compare AI action vs Traditional action
+   → Apply decision_mode rules
+   → Return combined decision
+   ↓
+7a. If traditional_only → Return Traditional decision
+7b. If no mode match → Default legacy behavior
+```
+
+**Key Code Locations:**
+
+- **AI Decision Storage:** main.py lines 924-952
+  - Checks decision_mode
+  - Stores AI decision if combined mode
+  - Routes to appropriate logic path
+
+- **ULTRA Combination Logic:** main.py lines 1155-1245
+  - Compares AI vs Traditional decisions
+  - Applies mode-specific rules
+  - Calculates combined confidence
+  - Returns final decision with reasoning
+
+- **AI Ensemble Enhancement:** ai_config.py lines 547-651
+  - Respects ai_mode parameter
+  - Filters available models
+  - Implements voting rules per mode
+  - Returns decision tuple
+
+---
+
+### 📊 Statistics
+
+**Code Changes:**
+- **ai_config.py:** +85 lines (AI voting system)
+- **main.py:** +172 lines (ULTRA decision logic)
+- **templates/settings.html:** +82 lines (UI controls)
+- **Total:** +301 lines, -38 lines refactored
+
+**New Settings:** 7
+- use_gpt4
+- use_claude
+- ai_mode
+- decision_mode
+- require_pattern
+- check_support_resistance
+- min_indicator_alignment
+
+**Decision Modes:** 6 fully implemented
+
+---
+
+### 🔧 Backward Compatibility
+
+**Preserved Features:**
+- Legacy decision logic as default fallback (main.py line 1242)
+- All existing settings remain functional
+- Traditional indicator system unchanged
+- AI ensemble default behavior maintained
+- No breaking changes to existing functionality
+
+**Migration Path:**
+- Existing bots continue working with default settings
+- New settings default to safe conservative values
+- Users can opt-in to new decision modes
+- All modes can be toggled via settings UI
+
+---
+
+### ✅ Testing Strategy
+
+**Recommended Test Cases:**
+1. Test each decision mode individually
+2. Verify AI-only mode ignores traditional indicators
+3. Verify traditional-only mode ignores AI
+4. Test ULTRA SAFE mode requires both to agree
+5. Test AI Priority allows AI override
+6. Test Traditional Priority respects traditional signals
+7. Test Aggressive mode picks highest confidence
+8. Verify UI controls save/load correctly
+9. Test with different AI modes (ensemble, any, single)
+10. Verify backward compatibility (legacy settings work)
+
+---
+
+### 📝 Commits (Session 5)
+
+**Commit 926a6d6:** "Add ULTRA Combined Strategy with 6 decision modes"
+- Comprehensive implementation of all 6 decision modes
+- AI model controls and settings
+- ULTRA strategy UI enhancements
+- Full backward compatibility
+- 301 lines added across 3 files
+
+---
+
+### 🎯 Key Features Summary
+
+**What's New:**
+✅ Individual GPT-4 and Claude toggles
+✅ AI Mode selector (4 options)
+✅ 6 Decision Modes for AI + Traditional combination
+✅ Pattern confirmation requirement
+✅ Support/Resistance checking toggle
+✅ Minimum indicator alignment control
+✅ Comprehensive settings UI
+✅ Full backward compatibility
+✅ Detailed logging for each decision mode
+
+**What's Preserved:**
+✅ All existing settings and defaults
+✅ Traditional indicator scoring (13 indicators)
+✅ AI ensemble voting system
+✅ Trade history integration
+✅ Chart pattern analysis
+✅ Dual logo branding
+✅ Desktop credentials support
+
+---
+
+**End of Session 5 - October 6, 2025** 🚀
+
+---
+
 _Generated and maintained with [Claude Code](https://claude.com/claude-code)_
-_Last updated: October 6, 2025 - End of Session 4_
+_Last updated: October 6, 2025 - End of Session 5_
