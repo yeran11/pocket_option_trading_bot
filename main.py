@@ -262,6 +262,8 @@ TRADE_HISTORY = []  # List of (timestamp, asset) tuples
 LAST_TRADE_TIME = None
 CONSECUTIVE_TRADES = 0
 LAST_TRADE_RESULT = None  # 'WIN' or 'LOSS'
+ACTIVE_STRATEGY_ID = None  # Track which custom strategy was used
+ACTIVE_STRATEGY_NAME = None
 
 # Bot state
 bot_state = {
@@ -994,6 +996,57 @@ async def enhanced_strategy(candles):
             )
             print(f"✅ AI Response: {ai_action.upper()} @ {ai_confidence}%")
 
+            # 🎯 EVALUATE CUSTOM STRATEGIES
+            custom_strategy_signals = []
+            if strategy_builder and ULTRA_SYSTEMS_AVAILABLE:
+                try:
+                    active_strategies = strategy_builder.get_active_strategies()
+
+                    for strategy_id, strategy in active_strategies.items():
+                        # Check if timeframe alignment is required
+                        mtf_aligned = True
+                        if mtf_analyzer and strategy.get('timeframe_alignment', False):
+                            alignment_data = mtf_analyzer.analyze_trend_alignment(candles, candles_5m, candles_15m)
+                            mtf_aligned = alignment_data.get('aligned', False)
+
+                        # Evaluate strategy with AI decision as input
+                        strategy_action, strategy_confidence, strategy_reason = strategy_builder.evaluate_strategy(
+                            strategy_id,
+                            market_data,
+                            ai_indicators,
+                            market_regime,
+                            mtf_aligned,
+                            ai_decision=(ai_action, ai_confidence, ai_reason)
+                        )
+
+                        if strategy_action:
+                            custom_strategy_signals.append({
+                                'strategy_id': strategy_id,
+                                'strategy_name': strategy['name'],
+                                'action': strategy_action,
+                                'confidence': strategy_confidence,
+                                'reason': strategy_reason
+                            })
+                            print(f"📋 Strategy '{strategy['name']}': {strategy_action.upper()} @ {strategy_confidence:.0f}% - {strategy_reason}")
+
+                    # If any custom strategies triggered, use the highest confidence one
+                    if custom_strategy_signals:
+                        best_strategy = max(custom_strategy_signals, key=lambda x: x['confidence'])
+                        print(f"✨ BEST CUSTOM STRATEGY: {best_strategy['strategy_name']} - {best_strategy['action'].upper()} @ {best_strategy['confidence']:.0f}%")
+
+                        # Override AI decision with custom strategy if confidence is higher
+                        if best_strategy['confidence'] > ai_confidence:
+                            global ACTIVE_STRATEGY_ID, ACTIVE_STRATEGY_NAME
+                            ACTIVE_STRATEGY_ID = best_strategy['strategy_id']
+                            ACTIVE_STRATEGY_NAME = best_strategy['strategy_name']
+                            ai_action = best_strategy['action']
+                            ai_confidence = best_strategy['confidence']
+                            ai_reason = f"Custom Strategy '{best_strategy['strategy_name']}': {best_strategy['reason']}"
+                            print(f"🔄 STRATEGY OVERRIDE: Using custom strategy decision")
+
+                except Exception as e:
+                    print(f"⚠️ Custom strategy evaluation error: {e}")
+
             # ULTRA STRATEGY COMBINATION - Check decision mode
             decision_mode = settings.get('decision_mode', 'ultra_safe')
 
@@ -1689,6 +1742,11 @@ async def check_recent_trades(driver):
                         # 🚀 ULTRA SYSTEMS: Record trade in performance tracker and journal
                         if ULTRA_SYSTEMS_AVAILABLE:
                             try:
+                                # Record custom strategy result if one was used
+                                if ACTIVE_STRATEGY_ID and strategy_builder:
+                                    strategy_builder.record_strategy_result(ACTIVE_STRATEGY_ID, 'win', profit)
+                                    print(f"📊 Custom Strategy '{ACTIVE_STRATEGY_NAME}' result recorded: WIN +${profit:.2f}")
+
                                 if performance_tracker:
                                     performance_tracker.record_trade({
                                         'timestamp': datetime.now().isoformat(),
@@ -1698,7 +1756,7 @@ async def check_recent_trades(driver):
                                         'profit': profit,
                                         'ai_confidence': ai_confidence if 'ai_confidence' in locals() else 0,
                                         'market_regime': market_regime if 'market_regime' in locals() else 'unknown',
-                                        'strategy': settings.get('decision_mode', 'traditional'),
+                                        'strategy': ACTIVE_STRATEGY_NAME if ACTIVE_STRATEGY_NAME else settings.get('decision_mode', 'traditional'),
                                         'entry_price': current_price if 'current_price' in locals() else 0,
                                         'indicators': ai_indicators if 'ai_indicators' in locals() else {}
                                     })
@@ -1772,6 +1830,11 @@ async def check_recent_trades(driver):
                             # 🚀 ULTRA SYSTEMS: Record trade in performance tracker and journal
                             if ULTRA_SYSTEMS_AVAILABLE:
                                 try:
+                                    # Record custom strategy result if one was used
+                                    if ACTIVE_STRATEGY_ID and strategy_builder:
+                                        strategy_builder.record_strategy_result(ACTIVE_STRATEGY_ID, 'loss', -stake)
+                                        print(f"📊 Custom Strategy '{ACTIVE_STRATEGY_NAME}' result recorded: LOSS -${stake:.2f}")
+
                                     if performance_tracker:
                                         performance_tracker.record_trade({
                                             'timestamp': datetime.now().isoformat(),
@@ -1781,7 +1844,7 @@ async def check_recent_trades(driver):
                                             'profit': -stake,
                                             'ai_confidence': ai_confidence if 'ai_confidence' in locals() else 0,
                                             'market_regime': market_regime if 'market_regime' in locals() else 'unknown',
-                                            'strategy': settings.get('decision_mode', 'traditional'),
+                                            'strategy': ACTIVE_STRATEGY_NAME if ACTIVE_STRATEGY_NAME else settings.get('decision_mode', 'traditional'),
                                             'entry_price': current_price if 'current_price' in locals() else 0,
                                             'indicators': ai_indicators if 'ai_indicators' in locals() else {}
                                         })
