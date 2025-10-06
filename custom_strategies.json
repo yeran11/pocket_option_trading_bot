@@ -1,0 +1,83 @@
+{
+  "rsi_oversold_scalp": {
+    "name": "RSI Oversold Scalp",
+    "description": "Buy when RSI oversold + MACD bullish",
+    "entry_conditions": [
+      {
+        "indicator": "rsi",
+        "operator": "<",
+        "value": 30,
+        "action": "call"
+      },
+      {
+        "indicator": "macd_histogram",
+        "operator": ">",
+        "value": 0,
+        "action": "call"
+      }
+    ],
+    "ai_integration": {
+      "mode": "validator",
+      "min_ai_confidence": 70
+    },
+    "risk_management": {
+      "max_trades_per_day": 50,
+      "max_consecutive_losses": 3,
+      "position_size_percent": 2.0
+    },
+    "regime_filter": [
+      "trending_up",
+      "ranging"
+    ],
+    "timeframe_alignment": false,
+    "active": true,
+    "performance": {
+      "total_trades": 0,
+      "wins": 0,
+      "losses": 0,
+      "win_rate": 0.0,
+      "total_profit": 0.0
+    }
+  },
+  "bollinger_breakout": {
+    "name": "Bollinger Band Breakout",
+    "description": "Trade breakouts from Bollinger Bands",
+    "entry_conditions": [
+      {
+        "indicator": "price",
+        "operator": ">",
+        "value": "upper_bb",
+        "action": "call"
+      },
+      {
+        "indicator": "volume_trend",
+        "operator": "==",
+        "value": "increasing",
+        "action": "call"
+      }
+    ],
+    "ai_integration": {
+      "mode": "validator",
+      "min_ai_confidence": 75
+    },
+    "risk_management": {
+      "max_trades_per_day": 30,
+      "max_consecutive_losses": 4,
+      "position_size_percent": 1.5
+    },
+    "regime_filter": [
+      "trending_up",
+      "trending_down",
+      "high_volatility"
+    ],
+    "timeframe_alignment": true,
+    "active": true,
+    "performance": {
+      "total_trades": 0,
+      "wins": 0,
+      "losses": 0,
+      "win_rate": 0.0,
+      "total_profit": 0.0
+    }
+  }
+}
