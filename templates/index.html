@@ -694,6 +694,30 @@
                 </div>
             </div>
 
+            <!-- Pattern Recognition Panel -->
+            <div class="panel">
+                <h2>🕯️ PATTERN DETECTION</h2>
+                <div class="status-bar">
+                    <span>Current Pattern:</span>
+                    <span id="pattern-type" style="color: #ff0;">None</span>
+                </div>
+                <div class="status-bar">
+                    <span>Pattern Strength:</span>
+                    <span id="pattern-strength" style="color: #0ff;">0%</span>
+                </div>
+                <div class="status-bar">
+                    <span>Quality Score:</span>
+                    <span id="pattern-quality" style="color: #0f0;">0/100</span>
+                </div>
+                <div class="status-bar">
+                    <span>Timeframe:</span>
+                    <span id="pattern-timeframe" style="color: #0cc;">-</span>
+                </div>
+                <div id="pattern-recommendation" style="margin-top: 15px; padding: 10px; background: rgba(0,255,255,0.1); border-radius: 5px; text-align: center; display: none;">
+                    <small id="pattern-rec-text" style="color: #0ff;">No pattern detected</small>
+                </div>
+            </div>
+
             <!-- Controls Panel -->
             <div class="panel">
                 <h2>🎮 CONTROLS</h2>
@@ -909,6 +933,63 @@
                             if (strategyName) strategyName.textContent = aiData.current_strategy || 'TRADITIONAL';
                         })
                         .catch(err => console.error('AI status error:', err));
+
+                    // 🕯️ Update Pattern Recognition Display
+                    if (data.pattern_data) {
+                        const patternType = document.getElementById('pattern-type');
+                        const patternStrength = document.getElementById('pattern-strength');
+                        const patternQuality = document.getElementById('pattern-quality');
+                        const patternTimeframe = document.getElementById('pattern-timeframe');
+                        const patternRecommendation = document.getElementById('pattern-recommendation');
+                        const patternRecText = document.getElementById('pattern-rec-text');
+
+                        if (data.pattern_data.pattern_type) {
+                            // Pattern detected!
+                            const displayName = (data.pattern_data.pattern_type || 'none').toUpperCase().replace(/_/g, ' ');
+                            if (patternType) {
+                                patternType.textContent = displayName;
+                                patternType.style.color = displayName.includes('BULLISH') ? '#0f0' : displayName.includes('BEARISH') ? '#f00' : '#ff0';
+                            }
+                            if (patternStrength) {
+                                patternStrength.textContent = (data.pattern_data.pattern_strength || 0) + '%';
+                                const strength = data.pattern_data.pattern_strength || 0;
+                                patternStrength.style.color = strength >= 80 ? '#0f0' : strength >= 60 ? '#ff0' : '#f80';
+                            }
+                            if (patternQuality) {
+                                patternQuality.textContent = (data.pattern_data.pattern_quality || 0) + '/100';
+                                const quality = data.pattern_data.pattern_quality || 0;
+                                patternQuality.style.color = quality >= 80 ? '#0f0' : quality >= 60 ? '#ff0' : '#f80';
+                            }
+                            if (patternTimeframe) {
+                                patternTimeframe.textContent = (data.pattern_data.pattern_timeframe || '1m').toUpperCase();
+                            }
+                            if (patternRecommendation && patternRecText) {
+                                patternRecommendation.style.display = 'block';
+                                const quality = data.pattern_data.pattern_quality || 0;
+                                if (quality >= 80) {
+                                    patternRecText.textContent = '✅ HIGH QUALITY - Strong Signal!';
+                                    patternRecText.style.color = '#0f0';
+                                    patternRecommendation.style.background = 'rgba(0,255,0,0.2)';
+                                } else if (quality >= 60) {
+                                    patternRecText.textContent = '⚠️ MODERATE - Proceed with caution';
+                                    patternRecText.style.color = '#ff0';
+                                    patternRecommendation.style.background = 'rgba(255,255,0,0.1)';
+                                } else {
+                                    patternRecText.textContent = '❌ LOW QUALITY - Skip trade';
+                                    patternRecText.style.color = '#f80';
+                                    patternRecommendation.style.background = 'rgba(255,128,0,0.1)';
+                                }
+                            }
+                        } else {
+                            // No pattern detected
+                            if (patternType) patternType.textContent = 'None';
+                            if (patternStrength) patternStrength.textContent = '0%';
+                            if (patternQuality) patternQuality.textContent = '0/100';
+                            if (patternTimeframe) patternTimeframe.textContent = '-';
+                            if (patternRecommendation) patternRecommendation.style.display = 'none';
+                        }
+                    }
+
 
                     // Remove references to deleted elements
                     // Balance elements were removed

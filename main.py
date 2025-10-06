@@ -82,6 +82,7 @@ try:
     from strategy_builder import get_builder
     from backtesting_engine import get_backtest_engine
     from trade_journal import get_journal
+    from pattern_recognition import get_recognizer
     ULTRA_SYSTEMS_AVAILABLE = True
     print("✅ ULTRA Master Systems loaded successfully!")
 except ImportError as e:
@@ -95,6 +96,7 @@ mtf_analyzer = None
 strategy_builder = None
 backtest_engine = None
 trade_journal = None
+pattern_recognizer = None
 
 if ULTRA_SYSTEMS_AVAILABLE:
     try:
@@ -104,7 +106,8 @@ if ULTRA_SYSTEMS_AVAILABLE:
         strategy_builder = get_builder()
         backtest_engine = get_backtest_engine()
         trade_journal = get_journal()
-        print("✅ All ULTRA systems initialized!")
+        pattern_recognizer = get_recognizer()
+        print("✅ All ULTRA systems initialized! (Including 🕯️ Pattern Recognition)")
     except Exception as e:
         print(f"⚠️ ULTRA systems init error: {e}")
 
@@ -282,6 +285,12 @@ bot_state = {
         'times': [],
         'balances': [],
         'trades': []
+    },
+    'pattern_data': {
+        'pattern_type': None,
+        'pattern_strength': 0,
+        'pattern_quality': 0,
+        'pattern_timeframe': '1m'
     }
 }
 
@@ -933,6 +942,65 @@ async def enhanced_strategy(candles):
                 except Exception as e:
                     print(f"⚠️ Regime Detection error: {e}")
 
+            # 🕯️ CANDLESTICK PATTERN RECOGNITION (Multi-Timeframe)
+            pattern_data = {}
+            pattern_type = None
+            pattern_strength = 0
+            pattern_quality = 0
+            if pattern_recognizer:
+                try:
+                    # Detect patterns across all timeframes
+                    pattern_data = pattern_recognizer.detect_all_patterns_mtf(
+                        candles,
+                        candles_5m,
+                        candles_15m
+                    )
+
+                    strongest = pattern_data.get('strongest_signal', {})
+                    if strongest.get('pattern'):
+                        pattern_type = strongest['pattern']
+                        pattern_strength = strongest.get('strength', 0)
+                        timeframe = strongest.get('timeframe', '1m')
+
+                        print(f"🕯️ PATTERN DETECTED: {pattern_type.upper().replace('_', ' ')} on {timeframe} (Strength: {pattern_strength}%)")
+
+                        # Evaluate pattern quality with context
+                        temp_indicators = {
+                            'rsi': rsi or 50,
+                            'macd_histogram': macd_histogram or 0,
+                            'regime': market_regime
+                        }
+                        quality_eval = pattern_recognizer.evaluate_pattern_quality(
+                            strongest.get('data', {}),
+                            temp_indicators,
+                            market_regime
+                        )
+                        pattern_quality = quality_eval.get('quality_score', 0)
+
+                        print(f"   └─ Quality Score: {pattern_quality}/100 - {quality_eval.get('trade_recommendation', 'neutral').upper()}")
+                        if quality_eval.get('reasons'):
+                            for reason in quality_eval['reasons'][:3]:  # Show top 3 reasons
+                                print(f"      {reason}")
+
+                        # Update bot_state with pattern data for UI
+                        bot_state['pattern_data'] = {
+                            'pattern_type': pattern_type,
+                            'pattern_strength': pattern_strength,
+                            'pattern_quality': pattern_quality,
+                            'pattern_timeframe': timeframe
+                        }
+                    else:
+                        # Clear pattern data if no pattern detected
+                        bot_state['pattern_data'] = {
+                            'pattern_type': None,
+                            'pattern_strength': 0,
+                            'pattern_quality': 0,
+                            'pattern_timeframe': '1m'
+                        }
+
+                except Exception as e:
+                    print(f"⚠️ Pattern Recognition error: {e}")
+
             # Prepare COMPLETE market data for AI
             market_data = {
                 'asset': CURRENT_ASSET or 'Unknown',
@@ -974,10 +1042,17 @@ async def enhanced_strategy(candles):
                 'resistance': resistance or 0,
                 'atr': atr or 0,
 
-                # Chart patterns
+                # Chart patterns (legacy)
                 'pattern_name': pattern_name,
                 'pattern_strength': pattern_strength or 0,
-                'pattern_direction': pattern_direction or 'neutral'
+                'pattern_direction': pattern_direction or 'neutral',
+
+                # 🕯️ Candlestick Patterns (NEW - Multi-Timeframe)
+                'pattern_type': pattern_type,  # bullish_engulfing, bearish_engulfing, doji, hammer, etc.
+                'pattern_strength': pattern_strength,  # 0-100
+                'pattern_quality': pattern_quality,  # 0-100 (quality based on context)
+                'pattern_data': pattern_data,  # Full pattern data for AI context
+                'regime': market_regime  # Current market regime
             }
 
             # Get AI mode and model settings
@@ -1747,6 +1822,17 @@ async def check_recent_trades(driver):
                                     strategy_builder.record_strategy_result(ACTIVE_STRATEGY_ID, 'win', profit)
                                     print(f"📊 Custom Strategy '{ACTIVE_STRATEGY_NAME}' result recorded: WIN +${profit:.2f}")
 
+                                # 🕯️ Record pattern trade result if pattern was used
+                                if pattern_recognizer and pattern_type and 'pattern_quality' in locals():
+                                    pattern_recognizer.record_pattern_trade(
+                                        pattern_type=pattern_type,
+                                        result='win',
+                                        profit=profit,
+                                        quality_score=pattern_quality,
+                                        indicators={'rsi': ai_indicators.get('rsi', 50), 'regime': market_regime}
+                                    )
+                                    print(f"🕯️ Pattern '{pattern_type}' WIN recorded (Quality: {pattern_quality}%)")
+
                                 if performance_tracker:
                                     performance_tracker.record_trade({
                                         'timestamp': datetime.now().isoformat(),
@@ -1834,6 +1920,17 @@ async def check_recent_trades(driver):
                                     if ACTIVE_STRATEGY_ID and strategy_builder:
                                         strategy_builder.record_strategy_result(ACTIVE_STRATEGY_ID, 'loss', -stake)
                                         print(f"📊 Custom Strategy '{ACTIVE_STRATEGY_NAME}' result recorded: LOSS -${stake:.2f}")
+
+                                    # 🕯️ Record pattern trade result if pattern was used
+                                    if pattern_recognizer and pattern_type and 'pattern_quality' in locals():
+                                        pattern_recognizer.record_pattern_trade(
+                                            pattern_type=pattern_type,
+                                            result='loss',
+                                            profit=-stake,
+                                            quality_score=pattern_quality,
+                                            indicators={'rsi': ai_indicators.get('rsi', 50), 'regime': market_regime}
+                                        )
+                                        print(f"🕯️ Pattern '{pattern_type}' LOSS recorded (Quality: {pattern_quality}%)")
 
                                     if performance_tracker:
                                         performance_tracker.record_trade({
@@ -2068,7 +2165,13 @@ def get_status():
         'win_streak': bot_state['win_streak'],
         'current_asset': bot_state['current_asset'],
         'mode': bot_state['mode'],
-        'trades': bot_state['trades']
+        'trades': bot_state['trades'],
+        'pattern_data': bot_state.get('pattern_data', {
+            'pattern_type': None,
+            'pattern_strength': 0,
+            'pattern_quality': 0,
+            'pattern_timeframe': '1m'
+        })
     })
 
 

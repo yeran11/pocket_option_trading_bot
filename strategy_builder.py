@@ -116,6 +116,117 @@ class StrategyBuilder:
                     "win_rate": 0.0,
                     "total_profit": 0.0
                 }
+            },
+            "bullish_engulfing_ai": {
+                "name": "🕯️ Bullish Engulfing + AI",
+                "description": "Trade bullish engulfing patterns at oversold levels with AI confirmation",
+                "entry_conditions": [
+                    {"indicator": "pattern_type", "operator": "==", "value": "bullish_engulfing", "action": "call"},
+                    {"indicator": "pattern_strength", "operator": ">=", "value": 70, "action": "call"},
+                    {"indicator": "rsi", "operator": "<", "value": 40, "action": "call"}
+                ],
+                "ai_integration": {
+                    "mode": "validator",
+                    "min_ai_confidence": 70
+                },
+                "risk_management": {
+                    "max_trades_per_day": 40,
+                    "max_consecutive_losses": 3,
+                    "position_size_percent": 2.5
+                },
+                "regime_filter": ["trending_down", "ranging"],
+                "timeframe_alignment": False,
+                "active": True,
+                "performance": {
+                    "total_trades": 0,
+                    "wins": 0,
+                    "losses": 0,
+                    "win_rate": 0.0,
+                    "total_profit": 0.0
+                }
+            },
+            "bearish_engulfing_ai": {
+                "name": "🕯️ Bearish Engulfing + AI",
+                "description": "Trade bearish engulfing patterns at overbought levels with AI confirmation",
+                "entry_conditions": [
+                    {"indicator": "pattern_type", "operator": "==", "value": "bearish_engulfing", "action": "put"},
+                    {"indicator": "pattern_strength", "operator": ">=", "value": 70, "action": "put"},
+                    {"indicator": "rsi", "operator": ">", "value": 60, "action": "put"}
+                ],
+                "ai_integration": {
+                    "mode": "validator",
+                    "min_ai_confidence": 70
+                },
+                "risk_management": {
+                    "max_trades_per_day": 40,
+                    "max_consecutive_losses": 3,
+                    "position_size_percent": 2.5
+                },
+                "regime_filter": ["trending_up", "ranging"],
+                "timeframe_alignment": False,
+                "active": True,
+                "performance": {
+                    "total_trades": 0,
+                    "wins": 0,
+                    "losses": 0,
+                    "win_rate": 0.0,
+                    "total_profit": 0.0
+                }
+            },
+            "pure_engulfing_scalp": {
+                "name": "🕯️ Pure Engulfing Scalp (No AI)",
+                "description": "Aggressive engulfing pattern scalping without AI - ULTRA FAST",
+                "entry_conditions": [
+                    {"indicator": "pattern_type", "operator": "contains", "value": "engulfing", "action": "auto"},
+                    {"indicator": "pattern_strength", "operator": ">=", "value": 60, "action": "auto"}
+                ],
+                "ai_integration": {
+                    "mode": "none",
+                    "min_ai_confidence": 0
+                },
+                "risk_management": {
+                    "max_trades_per_day": 80,
+                    "max_consecutive_losses": 4,
+                    "position_size_percent": 1.5
+                },
+                "regime_filter": [],
+                "timeframe_alignment": False,
+                "active": False,
+                "performance": {
+                    "total_trades": 0,
+                    "wins": 0,
+                    "losses": 0,
+                    "win_rate": 0.0,
+                    "total_profit": 0.0
+                }
+            },
+            "hammer_reversal": {
+                "name": "🔨 Hammer Reversal Hunter",
+                "description": "Catch reversals with hammer patterns at support",
+                "entry_conditions": [
+                    {"indicator": "pattern_type", "operator": "==", "value": "hammer", "action": "call"},
+                    {"indicator": "pattern_strength", "operator": ">=", "value": 65, "action": "call"},
+                    {"indicator": "rsi", "operator": "<", "value": 35, "action": "call"}
+                ],
+                "ai_integration": {
+                    "mode": "override",
+                    "min_ai_confidence": 70
+                },
+                "risk_management": {
+                    "max_trades_per_day": 30,
+                    "max_consecutive_losses": 3,
+                    "position_size_percent": 2.0
+                },
+                "regime_filter": ["trending_down", "ranging"],
+                "timeframe_alignment": False,
+                "active": False,
+                "performance": {
+                    "total_trades": 0,
+                    "wins": 0,
+                    "losses": 0,
+                    "win_rate": 0.0,
+                    "total_profit": 0.0
+                }
             }
         }
 
@@ -374,6 +485,13 @@ class StrategyBuilder:
                 return str(indicator_value).lower() == str(threshold).lower()
             elif operator == '!=':
                 return str(indicator_value).lower() != str(threshold).lower()
+            elif operator == 'contains':
+                # For pattern matching (e.g., indicator_value='bullish_engulfing', threshold='engulfing')
+                return str(threshold).lower() in str(indicator_value).lower()
+            elif operator == 'is_pattern':
+                # Special operator for pattern detection
+                # indicator_value is the pattern name, threshold is the expected pattern
+                return str(indicator_value).lower() == str(threshold).lower()
             else:
                 return False
         except:

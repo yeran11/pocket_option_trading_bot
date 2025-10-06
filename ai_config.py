@@ -296,6 +296,15 @@ except ImportError:
     PERFORMANCE_TRACKER_AVAILABLE = False
     print("⚠️ Performance tracker not available")
 
+# Import pattern recognition system for candlestick patterns
+try:
+    from pattern_recognition import get_recognizer
+    PATTERN_RECOGNITION_AVAILABLE = True
+    print("✅ Pattern Recognition System loaded - Engulfing, Doji, Hammer, etc.")
+except ImportError:
+    PATTERN_RECOGNITION_AVAILABLE = False
+    print("⚠️ Pattern recognition not available")
+
 # Market Analysis System
 class AITradingBrain:
     def __init__(self):
@@ -303,6 +312,7 @@ class AITradingBrain:
         self.pattern_database = {}
         self.current_market_state = {}
         self.performance_tracker = get_tracker() if PERFORMANCE_TRACKER_AVAILABLE else None
+        self.pattern_recognizer = get_recognizer() if PATTERN_RECOGNITION_AVAILABLE else None
 
     async def analyze_with_gpt4(self, market_data: Dict, indicators: Dict) -> Tuple[str, float, str]:
         """
@@ -402,6 +412,7 @@ class AITradingBrain:
         └─ Current Streak: {market_data.get('streak', 'Unknown')}
 
 {self._get_performance_context() if self.performance_tracker else ''}
+{self._get_pattern_context(market_data, indicators) if self.pattern_recognizer else ''}
 
         🎯 ULTRA DECISION FRAMEWORK:
         Analyze with QUANTUM-LEVEL precision:
@@ -678,6 +689,32 @@ class AITradingBrain:
             context = self.performance_tracker.get_performance_context_for_ai()
             return f"\n{context}\n"
         except Exception as e:
+            return ""
+
+    def _get_pattern_context(self, market_data: Dict, indicators: Dict) -> str:
+        """Get candlestick pattern context for AI prompt"""
+        if not self.pattern_recognizer:
+            return ""
+
+        try:
+            # Get pattern data from indicators (will be added by main.py)
+            pattern_data = indicators.get('pattern_data', {})
+
+            if not pattern_data or not pattern_data.get('strongest_signal', {}).get('pattern'):
+                return ""
+
+            # Get regime for quality evaluation
+            regime = indicators.get('regime', 'unknown')
+
+            # Use pattern recognizer to generate AI context
+            pattern_context = self.pattern_recognizer.get_pattern_context_for_ai(
+                pattern_data, indicators, regime
+            )
+
+            return pattern_context
+
+        except Exception as e:
+            print(f"⚠️ Pattern context error: {e}")
             return ""
 
     def learn_from_trade(self, trade_data: Dict):
