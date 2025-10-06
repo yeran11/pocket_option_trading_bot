@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Strategy Builder - ULTRA Trading Bot</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #000;
+            color: #0ff;
+            font-family: 'Courier New', monospace;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 2px solid #0ff;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #001a1a 0%, #000 100%);
+            box-shadow: 0 0 30px rgba(0,255,255,0.3);
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            text-shadow: 0 0 20px #0ff;
+            margin-bottom: 10px;
+            animation: glow 2s ease-in-out infinite;
+        }
+
+        @keyframes glow {
+            0%, 100% { text-shadow: 0 0 20px #0ff; }
+            50% { text-shadow: 0 0 30px #0ff, 0 0 50px #0ff; }
+        }
+
+        .nav {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .nav-btn {
+            padding: 10px 20px;
+            background: #001a1a;
+            border: 2px solid #0ff;
+            color: #0ff;
+            cursor: pointer;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            transition: all 0.3s;
+        }
+
+        .nav-btn:hover {
+            background: #0ff;
+            color: #000;
+            box-shadow: 0 0 20px #0ff;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 1200px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel {
+            background: #001a1a;
+            border: 2px solid #0ff;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 0 20px rgba(0,255,255,0.2);
+        }
+
+        .panel h2 {
+            color: #0ff;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+            text-shadow: 0 0 10px #0ff;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #0ff;
+            font-weight: bold;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 8px;
+            background: #000;
+            border: 1px solid #0ff;
+            color: #0ff;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .conditions-list {
+            margin-bottom: 15px;
+        }
+
+        .condition-item {
+            background: #000;
+            border: 1px solid #0ff;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .condition-item select, .condition-item input {
+            flex: 1;
+            padding: 5px;
+            background: #001a1a;
+            border: 1px solid #0ff;
+            color: #0ff;
+            border-radius: 3px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            background: #0ff;
+            color: #000;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .btn:hover {
+            background: #00ffff;
+            box-shadow: 0 0 20px #0ff;
+        }
+
+        .btn-danger {
+            background: #f00;
+            color: #fff;
+        }
+
+        .btn-danger:hover {
+            background: #ff0000;
+            box-shadow: 0 0 20px #f00;
+        }
+
+        .btn-small {
+            padding: 5px 10px;
+            font-size: 0.9em;
+        }
+
+        .strategy-card {
+            background: #000;
+            border: 1px solid #0ff;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .strategy-card:hover {
+            border-color: #00ffff;
+            box-shadow: 0 0 15px rgba(0,255,255,0.5);
+        }
+
+        .strategy-card.active {
+            background: #001a1a;
+            border: 2px solid #0ff;
+        }
+
+        .strategy-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .strategy-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+            font-size: 0.9em;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-label {
+            color: #888;
+            font-size: 0.8em;
+        }
+
+        .stat-value {
+            color: #0ff;
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+
+        .toggle {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+
+        .toggle input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: #0ff;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+
+        .backtest-results {
+            background: #000;
+            border: 1px solid #0ff;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px solid #003333;
+        }
+
+        .metric:last-child {
+            border-bottom: none;
+        }
+
+        .metric-value {
+            color: #0ff;
+            font-weight: bold;
+        }
+
+        .metric-value.positive {
+            color: #0f0;
+        }
+
+        .metric-value.negative {
+            color: #f00;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎯 STRATEGY BUILDER</h1>
+        <p>Create, test, and manage custom trading strategies</p>
+    </div>
+
+    <div class="nav">
+        <button class="nav-btn" onclick="window.location.href='/'">📊 Dashboard</button>
+        <button class="nav-btn" onclick="window.location.href='/settings'">⚙️ Settings</button>
+        <button class="nav-btn" onclick="location.reload()">🔄 Refresh</button>
+    </div>
+
+    <div class="container">
+        <!-- Left Panel: Strategy Builder -->
+        <div class="panel">
+            <h2>📝 Create Strategy</h2>
+
+            <div class="form-group">
+                <label>Strategy Name</label>
+                <input type="text" id="strategy-name" placeholder="My Awesome Strategy">
+            </div>
+
+            <div class="form-group">
+                <label>Description</label>
+                <input type="text" id="strategy-desc" placeholder="What makes this strategy special?">
+            </div>
+
+            <h3 style="margin: 20px 0 10px 0; color: #0ff;">Entry Conditions (ALL must be true)</h3>
+            <div class="conditions-list" id="conditions-list">
+                <!-- Conditions will be added here dynamically -->
+            </div>
+            <button class="btn btn-small" onclick="addCondition()">+ Add Condition</button>
+
+            <h3 style="margin: 20px 0 10px 0; color: #0ff;">Risk Management</h3>
+            <div class="form-group">
+                <label>Max Trades Per Day</label>
+                <input type="number" id="max-trades" value="50" min="1" max="200">
+            </div>
+            <div class="form-group">
+                <label>Max Consecutive Losses</label>
+                <input type="number" id="max-losses" value="3" min="1" max="10">
+            </div>
+            <div class="form-group">
+                <label>Position Size (%)</label>
+                <input type="number" id="position-size" value="2" min="0.1" max="10" step="0.1">
+            </div>
+
+            <h3 style="margin: 20px 0 10px 0; color: #0ff;">AI Integration</h3>
+            <div class="form-group">
+                <label>AI Mode</label>
+                <select id="ai-mode">
+                    <option value="none">No AI</option>
+                    <option value="validator">AI Validator (AI must agree)</option>
+                    <option value="override">AI Override (AI can override if confident)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Minimum AI Confidence (%)</label>
+                <input type="number" id="ai-confidence" value="70" min="50" max="95">
+            </div>
+
+            <div style="margin-top: 20px; display: flex; gap: 10px;">
+                <button class="btn" onclick="saveStrategy()">💾 Save Strategy</button>
+                <button class="btn" onclick="backtestStrategy()">🧪 Backtest</button>
+                <button class="btn btn-danger" onclick="clearForm()">🗑️ Clear</button>
+            </div>
+
+            <div id="backtest-results" class="backtest-results" style="display: none;">
+                <h3 style="color: #0ff; margin-bottom: 10px;">Backtest Results</h3>
+                <div id="backtest-content"></div>
+            </div>
+        </div>
+
+        <!-- Right Panel: Strategy List -->
+        <div class="panel">
+            <h2>📋 Your Strategies</h2>
+            <div id="strategies-list">
+                <p style="color: #888;">Loading strategies...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let conditions = [];
+        let strategies = {};
+
+        // Load strategies on page load
+        loadStrategies();
+
+        function addCondition() {
+            const id = Date.now();
+            conditions.push(id);
+
+            const html = `
+                <div class="condition-item" id="condition-${id}">
+                    <select class="indicator">
+                        <option value="rsi">RSI</option>
+                        <option value="ema_cross">EMA Cross</option>
+                        <option value="macd_histogram">MACD Histogram</option>
+                        <option value="stochastic_k">Stochastic %K</option>
+                        <option value="bollinger_position">Bollinger Position</option>
+                        <option value="supertrend">SuperTrend</option>
+                        <option value="price">Price</option>
+                    </select>
+                    <select class="operator">
+                        <option value=">">></option>
+                        <option value="<"><</option>
+                        <option value=">=">>=</option>
+                        <option value="<="><=</option>
+                        <option value="==">==</option>
+                    </select>
+                    <input type="text" class="value" placeholder="Value">
+                    <select class="action">
+                        <option value="call">CALL</option>
+                        <option value="put">PUT</option>
+                    </select>
+                    <button class="btn btn-small btn-danger" onclick="removeCondition(${id})">X</button>
+                </div>
+            `;
+
+            document.getElementById('conditions-list').insertAdjacentHTML('beforeend', html);
+        }
+
+        function removeCondition(id) {
+            document.getElementById(`condition-${id}`).remove();
+            conditions = conditions.filter(c => c !== id);
+        }
+
+        function clearForm() {
+            document.getElementById('strategy-name').value = '';
+            document.getElementById('strategy-desc').value = '';
+            document.getElementById('conditions-list').innerHTML = '';
+            conditions = [];
+            document.getElementById('backtest-results').style.display = 'none';
+        }
+
+        async function saveStrategy() {
+            const name = document.getElementById('strategy-name').value.trim();
+            if (!name) {
+                alert('Please enter a strategy name');
+                return;
+            }
+
+            // Collect conditions
+            const entryConditions = [];
+            document.querySelectorAll('.condition-item').forEach(item => {
+                entryConditions.push({
+                    indicator: item.querySelector('.indicator').value,
+                    operator: item.querySelector('.operator').value,
+                    value: item.querySelector('.value').value,
+                    action: item.querySelector('.action').value
+                });
+            });
+
+            if (entryConditions.length === 0) {
+                alert('Please add at least one entry condition');
+                return;
+            }
+
+            const strategy = {
+                name: name,
+                description: document.getElementById('strategy-desc').value,
+                entry_conditions: entryConditions,
+                risk_management: {
+                    max_trades_per_day: parseInt(document.getElementById('max-trades').value),
+                    max_consecutive_losses: parseInt(document.getElementById('max-losses').value),
+                    position_size_percent: parseFloat(document.getElementById('position-size').value)
+                },
+                ai_integration: {
+                    mode: document.getElementById('ai-mode').value,
+                    min_ai_confidence: parseInt(document.getElementById('ai-confidence').value)
+                },
+                active: true
+            };
+
+            try {
+                const response = await fetch('/api/strategies/create', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(strategy)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert('✅ Strategy saved successfully!');
+                    loadStrategies();
+                    clearForm();
+                } else {
+                    alert('❌ Error: ' + result.message);
+                }
+            } catch (error) {
+                alert('❌ Error saving strategy: ' + error);
+            }
+        }
+
+        async function loadStrategies() {
+            try {
+                const response = await fetch('/api/strategies/list');
+                strategies = await response.json();
+
+                const container = document.getElementById('strategies-list');
+                container.innerHTML = '';
+
+                if (Object.keys(strategies).length === 0) {
+                    container.innerHTML = '<p style="color: #888;">No strategies yet. Create one!</p>';
+                    return;
+                }
+
+                for (const [id, strategy] of Object.entries(strategies)) {
+                    const perf = strategy.performance || {};
+                    const winRate = perf.win_rate || 0;
+
+                    const html = `
+                        <div class="strategy-card ${strategy.active ? 'active' : ''}" onclick="selectStrategy('${id}')">
+                            <div class="strategy-header">
+                                <h3 style="color: #0ff;">${strategy.name}</h3>
+                                <label class="toggle">
+                                    <input type="checkbox" ${strategy.active ? 'checked' : ''} onclick="toggleStrategy(event, '${id}')">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            <p style="color: #888; font-size: 0.9em; margin-bottom: 10px;">${strategy.description || 'No description'}</p>
+                            <div class="strategy-stats">
+                                <div class="stat">
+                                    <div class="stat-label">Win Rate</div>
+                                    <div class="stat-value">${winRate.toFixed(1)}%</div>
+                                </div>
+                                <div class="stat">
+                                    <div class="stat-label">Trades</div>
+                                    <div class="stat-value">${perf.total_trades || 0}</div>
+                                </div>
+                                <div class="stat">
+                                    <div class="stat-label">Profit</div>
+                                    <div class="stat-value ${(perf.total_profit || 0) >= 0 ? 'positive' : 'negative'}">
+                                        ${(perf.total_profit || 0).toFixed(2)}
+                                    </div>
+                                </div>
+                            </div>
+                            <div style="margin-top: 10px; display: flex; gap: 5px;">
+                                <button class="btn btn-small" onclick="event.stopPropagation(); backtestStrategy('${id}')">🧪 Test</button>
+                                <button class="btn btn-small btn-danger" onclick="event.stopPropagation(); deleteStrategy('${id}')">🗑️ Delete</button>
+                            </div>
+                        </div>
+                    `;
+
+                    container.insertAdjacentHTML('beforeend', html);
+                }
+            } catch (error) {
+                console.error('Error loading strategies:', error);
+            }
+        }
+
+        function selectStrategy(id) {
+            // Could load strategy details for editing
+            console.log('Selected strategy:', id);
+        }
+
+        async function toggleStrategy(event, id) {
+            event.stopPropagation();
+            const active = event.target.checked;
+
+            try {
+                const response = await fetch(`/api/strategies/toggle/${id}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({active: active})
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    loadStrategies();
+                }
+            } catch (error) {
+                console.error('Error toggling strategy:', error);
+            }
+        }
+
+        async function deleteStrategy(id) {
+            if (!confirm('Are you sure you want to delete this strategy?')) return;
+
+            try {
+                const response = await fetch(`/api/strategies/delete/${id}`, {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    alert('✅ Strategy deleted');
+                    loadStrategies();
+                }
+            } catch (error) {
+                alert('❌ Error deleting strategy');
+            }
+        }
+
+        async function backtestStrategy(strategyId = null) {
+            let strategy;
+
+            if (strategyId) {
+                // Backtest existing strategy
+                strategy = strategies[strategyId];
+            } else {
+                // Backtest current form
+                const name = document.getElementById('strategy-name').value.trim();
+                if (!name) {
+                    alert('Please enter a strategy name first');
+                    return;
+                }
+
+                const entryConditions = [];
+                document.querySelectorAll('.condition-item').forEach(item => {
+                    entryConditions.push({
+                        indicator: item.querySelector('.indicator').value,
+                        operator: item.querySelector('.operator').value,
+                        value: item.querySelector('.value').value,
+                        action: item.querySelector('.action').value
+                    });
+                });
+
+                strategy = {
+                    name: name,
+                    entry_conditions: entryConditions,
+                    risk_management: {
+                        max_trades_per_day: parseInt(document.getElementById('max-trades').value),
+                        max_consecutive_losses: parseInt(document.getElementById('max-losses').value),
+                        position_size_percent: parseFloat(document.getElementById('position-size').value)
+                    }
+                };
+            }
+
+            try {
+                const response = await fetch('/api/backtest', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(strategy)
+                });
+
+                const results = await response.json();
+
+                if (results.error) {
+                    alert('❌ Backtest error: ' + results.error);
+                    return;
+                }
+
+                // Display results
+                const resultsDiv = document.getElementById('backtest-results');
+                const contentDiv = document.getElementById('backtest-content');
+
+                const winRateClass = results.win_rate >= 60 ? 'positive' : results.win_rate < 50 ? 'negative' : '';
+                const profitClass = results.total_profit >= 0 ? 'positive' : 'negative';
+
+                contentDiv.innerHTML = `
+                    <div class="metric">
+                        <span>Total Trades:</span>
+                        <span class="metric-value">${results.total_trades}</span>
+                    </div>
+                    <div class="metric">
+                        <span>Win Rate:</span>
+                        <span class="metric-value ${winRateClass}">${results.win_rate.toFixed(1)}%</span>
+                    </div>
+                    <div class="metric">
+                        <span>Wins / Losses:</span>
+                        <span class="metric-value">${results.wins} / ${results.losses}</span>
+                    </div>
+                    <div class="metric">
+                        <span>Total Profit:</span>
+                        <span class="metric-value ${profitClass}">$${results.total_profit.toFixed(2)}</span>
+                    </div>
+                    <div class="metric">
+                        <span>Profit %:</span>
+                        <span class="metric-value ${profitClass}">${results.profit_percent.toFixed(1)}%</span>
+                    </div>
+                    <div class="metric">
+                        <span>Max Drawdown:</span>
+                        <span class="metric-value negative">${results.max_drawdown.toFixed(1)}%</span>
+                    </div>
+                    <div class="metric">
+                        <span>Profit Factor:</span>
+                        <span class="metric-value">${results.profit_factor.toFixed(2)}</span>
+                    </div>
+                    <div class="metric">
+                        <span>Avg Profit/Trade:</span>
+                        <span class="metric-value ${results.avg_profit_per_trade >= 0 ? 'positive' : 'negative'}">
+                            $${results.avg_profit_per_trade.toFixed(2)}
+                        </span>
+                    </div>
+                `;
+
+                resultsDiv.style.display = 'block';
+            } catch (error) {
+                alert('❌ Backtest error: ' + error);
+            }
+        }
+
+        // Refresh strategies every 30 seconds
+        setInterval(loadStrategies, 30000);
+    </script>
+</body>
+</html>
