@@ -2159,6 +2159,135 @@ def get_chart_data():
     })
 
 
+# ========================================================================
+# ULTRA SYSTEMS API ENDPOINTS
+# ========================================================================
+
+@app.route('/strategies')
+def strategies_page():
+    """Strategy Builder UI"""
+    return render_template('strategies.html')
+
+
+@app.route('/api/strategies/list', methods=['GET'])
+def get_strategies_list():
+    """Get all strategies"""
+    if strategy_builder:
+        return jsonify(strategy_builder.get_all_strategies())
+    return jsonify({})
+
+
+@app.route('/api/strategies/create', methods=['POST'])
+def create_strategy():
+    """Create a new strategy"""
+    if not strategy_builder:
+        return jsonify({'success': False, 'message': 'Strategy builder not available'})
+
+    try:
+        strategy_data = request.json
+        success, message = strategy_builder.create_strategy(strategy_data)
+        return jsonify({'success': success, 'message': message})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@app.route('/api/strategies/toggle/<strategy_id>', methods=['POST'])
+def toggle_strategy(strategy_id):
+    """Toggle strategy active state"""
+    if not strategy_builder:
+        return jsonify({'success': False})
+
+    try:
+        data = request.json
+        active = data.get('active', False)
+        success, message = strategy_builder.update_strategy(strategy_id, {'active': active})
+        return jsonify({'success': success, 'message': message})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@app.route('/api/strategies/delete/<strategy_id>', methods=['DELETE'])
+def delete_strategy(strategy_id):
+    """Delete a strategy"""
+    if not strategy_builder:
+        return jsonify({'success': False})
+
+    try:
+        success, message = strategy_builder.delete_strategy(strategy_id)
+        return jsonify({'success': success, 'message': message})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@app.route('/api/backtest', methods=['POST'])
+def run_backtest():
+    """Run backtest on a strategy"""
+    if not backtest_engine:
+        return jsonify({'error': 'Backtest engine not available'})
+
+    try:
+        strategy_config = request.json
+
+        # Load historical data
+        historical_candles = backtest_engine.load_historical_data(limit=1000)
+
+        if not historical_candles:
+            return jsonify({'error': 'No historical data available. Need data in data_1m/ folder'})
+
+        # Run backtest
+        results = backtest_engine.backtest_strategy(
+            strategy_config,
+            historical_candles,
+            initial_balance=100.0,
+            payout_percent=85.0
+        )
+
+        return jsonify(results)
+
+    except Exception as e:
+        return jsonify({'error': str(e)})
+
+
+@app.route('/api/performance/stats', methods=['GET'])
+def get_performance_stats():
+    """Get performance statistics"""
+    if not performance_tracker:
+        return jsonify({'error': 'Performance tracker not available'})
+
+    try:
+        stats = performance_tracker.get_all_stats_summary()
+        return jsonify(stats)
+    except Exception as e:
+        return jsonify({'error': str(e)})
+
+
+@app.route('/api/journal/recent', methods=['GET'])
+def get_recent_journal():
+    """Get recent trade journal entries"""
+    if not trade_journal:
+        return jsonify([])
+
+    try:
+        count = request.args.get('count', 20, type=int)
+        entries = trade_journal.get_recent_entries(count)
+        return jsonify(entries)
+    except Exception as e:
+        return jsonify({'error': str(e)})
+
+
+@app.route('/api/journal/report', methods=['GET'])
+def get_monthly_report():
+    """Get monthly performance report"""
+    if not trade_journal:
+        return jsonify({'error': 'Trade journal not available'})
+
+    try:
+        report = trade_journal.generate_monthly_report()
+        return jsonify({'report': report})
+    except Exception as e:
+        return jsonify({'error': str(e)})
+
+
 # Initialize
 add_log("🎯 System initialized - REAL TRADING MODE")
 add_log("⏸️ Stopped - Press START to begin")
