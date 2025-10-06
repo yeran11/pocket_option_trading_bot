@@ -795,6 +795,26 @@ async def enhanced_strategy(candles):
 
     current_price = candles[-1][2]
 
+    # CALCULATE ALL INDICATORS FIRST (for both AI and traditional analysis)
+    ema_fast = await calculate_ema(candles, settings['fast_ema'])
+    ema_slow = await calculate_ema(candles, settings['slow_ema'])
+    ema_fast_prev = await calculate_ema(candles[:-1], settings['fast_ema'])
+    ema_slow_prev = await calculate_ema(candles[:-1], settings['slow_ema'])
+
+    rsi = await calculate_rsi(candles, settings['rsi_period'])
+    upper_bb, middle_bb, lower_bb = await calculate_bollinger_bands(candles, 20, 2)
+    atr = await calculate_atr(candles)
+    support, resistance = await detect_support_resistance(candles)
+
+    # ULTRA POWERFUL INDICATORS
+    macd_line, macd_signal, macd_histogram = await calculate_macd(candles)
+    stoch_k, stoch_d = await calculate_stochastic(candles)
+    supertrend_value, supertrend_direction = await calculate_supertrend(candles)
+    pattern_name, pattern_strength, pattern_direction = await detect_candlestick_patterns(candles)
+
+    if None in [ema_fast, ema_slow, rsi, upper_bb, lower_bb]:
+        return None
+
     # If AI is enabled, use it for analysis
     # Check both AI_ENABLED global and settings value
     ai_enabled_flag = AI_ENABLED or settings.get('ai_enabled', False)
@@ -805,40 +825,81 @@ async def enhanced_strategy(candles):
 
     if ai_enabled_flag and ai_brain_available:
         try:
-            add_log(f"🤖 AI ANALYSIS STARTING...")
-            print(f"🤖 AI Analysis initiated for {CURRENT_ASSET}")
+            add_log(f"🤖🧠 DUAL AI ENSEMBLE ANALYSIS STARTING...")
+            print(f"🤖 AI Ensemble Analysis initiated for {CURRENT_ASSET}")
 
-            # Prepare market data for AI
+            # Get recent trades for AI context
+            recent_trades_list = bot_state.get('trades', [])[-10:]  # Last 10 trades
+
+            # Calculate win streak
+            streak_count = 0
+            streak_type = None
+            for trade in reversed(recent_trades_list):
+                if trade.get('result') == 'WIN':
+                    if streak_type is None or streak_type == 'WIN':
+                        streak_count += 1
+                        streak_type = 'WIN'
+                    else:
+                        break
+                elif trade.get('result') == 'LOSS':
+                    if streak_type is None or streak_type == 'LOSS':
+                        streak_count += 1
+                        streak_type = 'LOSS'
+                    else:
+                        break
+            streak = f"{streak_count}W" if streak_type == 'WIN' else f"{streak_count}L" if streak_type == 'LOSS' else "New"
+
+            # Prepare COMPLETE market data for AI
             market_data = {
                 'asset': CURRENT_ASSET or 'Unknown',
                 'current_price': current_price,
                 'change_1m': ((candles[-1][2] - candles[-2][2]) / candles[-2][2]) * 100 if len(candles) > 1 else 0,
                 'change_5m': ((candles[-1][2] - candles[-5][2]) / candles[-5][2]) * 100 if len(candles) > 5 else 0,
-                'volume': 'Normal',  # Would need real volume data
-                'volatility': 'Medium',
-                'recent_trades': f"{bot_state['wins']}/{bot_state['total_trades']}",
-                'win_rate': (bot_state['wins'] / bot_state['total_trades'] * 100) if bot_state['total_trades'] > 0 else 0
+                'volume': 'Normal',  # TODO: Parse real volume from WebSocket
+                'recent_trades': recent_trades_list,
+                'win_rate': (bot_state['wins'] / bot_state['total_trades'] * 100) if bot_state['total_trades'] > 0 else 0,
+                'total_trades': bot_state['total_trades'],
+                'streak': streak
             }
 
-            # Calculate indicators for AI
-            rsi = await calculate_rsi(candles, settings.get('rsi_period', 14))
-            ema_fast = await calculate_ema(candles, settings.get('fast_ema', 9))
-            ema_slow = await calculate_ema(candles, settings.get('slow_ema', 21))
-            upper_bb, middle_bb, lower_bb = await calculate_bollinger_bands(candles, 20, 2)
-
+            # Prepare ALL indicators for AI (13-point analysis)
             ai_indicators = {
+                # Trend indicators
                 'rsi': rsi or 50,
                 'ema_cross': 'Bullish' if ema_fast and ema_slow and ema_fast > ema_slow else 'Bearish',
+                'supertrend': 'BUY' if supertrend_direction == 1 else 'SELL' if supertrend_direction == -1 else 'Neutral',
+                'adx': 25,  # TODO: Calculate real ADX
+                'di_cross': 'neutral',
+
+                # Momentum indicators
+                'macd_line': macd_line or 0,
+                'macd_signal_line': macd_signal or 0,
+                'macd_histogram': macd_histogram or 0,
+                'stochastic_k': stoch_k or 50,
+                'stochastic_d': stoch_d or 50,
                 'bollinger_position': 'Above' if upper_bb and current_price > upper_bb else 'Below' if lower_bb and current_price < lower_bb else 'Middle',
-                'macd_signal': 'Neutral',  # Would need MACD calculation
-                'stochastic': 50,  # Would need stochastic calculation
-                'volume_trend': 'Normal'
+
+                # Volume & patterns
+                'heikin_ashi': 'neutral',  # TODO: Calculate Heikin Ashi
+                'vwap_position': 'At VWAP',
+                'vwap_deviation': 0,
+                'volume_trend': 'Normal',
+
+                # Support/Resistance
+                'support': support or 0,
+                'resistance': resistance or 0,
+                'atr': atr or 0,
+
+                # Chart patterns
+                'pattern_name': pattern_name,
+                'pattern_strength': pattern_strength or 0,
+                'pattern_direction': pattern_direction or 'neutral'
             }
 
-            print(f"📊 Calling GPT-4 for analysis...")
-            # Get AI decision
-            ai_action, ai_confidence, ai_reason = await ai_brain.analyze_with_gpt4(market_data, ai_indicators)
-            print(f"✅ GPT-4 Response: {ai_action.upper()} @ {ai_confidence}%")
+            print(f"📊 Calling DUAL AI ENSEMBLE (GPT-4 + Claude)...")
+            # Get AI ENSEMBLE decision (both GPT-4 and Claude vote)
+            ai_action, ai_confidence, ai_reason = await ai_brain.analyze_with_ensemble(market_data, ai_indicators)
+            print(f"✅ ENSEMBLE Response: {ai_action.upper()} @ {ai_confidence}%")
 
             # If AI has high confidence, use its decision
             if ai_confidence >= settings.get('ai_min_confidence', 70):
@@ -859,25 +920,7 @@ async def enhanced_strategy(candles):
             print(f"⚠️ AI brain not available (ai_brain={ai_brain})")
 
     # Traditional indicator analysis (fallback or when AI is disabled)
-    # Calculate all indicators
-    ema_fast = await calculate_ema(candles, settings['fast_ema'])
-    ema_slow = await calculate_ema(candles, settings['slow_ema'])
-    ema_fast_prev = await calculate_ema(candles[:-1], settings['fast_ema'])
-    ema_slow_prev = await calculate_ema(candles[:-1], settings['slow_ema'])
-
-    rsi = await calculate_rsi(candles, settings['rsi_period'])
-    upper_bb, middle_bb, lower_bb = await calculate_bollinger_bands(candles, 20, 2)
-    atr = await calculate_atr(candles)
-    support, resistance = await detect_support_resistance(candles)
-
-    # ULTRA POWERFUL NEW INDICATORS
-    macd_line, macd_signal, macd_histogram = await calculate_macd(candles)
-    stoch_k, stoch_d = await calculate_stochastic(candles)
-    supertrend_value, supertrend_direction = await calculate_supertrend(candles)
-    pattern_name, pattern_strength, pattern_direction = await detect_candlestick_patterns(candles)
-
-    if None in [ema_fast, ema_slow, rsi, upper_bb, lower_bb]:
-        return None
+    # NOTE: All indicators already calculated above for AI use
 
     # WEIGHTED SIGNAL SCORING SYSTEM (Ultra Powerful!)
     call_score = 0.0
