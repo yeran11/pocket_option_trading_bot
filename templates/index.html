@@ -718,37 +718,18 @@
                 </div>
             </div>
 
-            <!-- Controls Panel -->
-            <div class="panel">
-                <h2>🎮 CONTROLS</h2>
-                <div class="controls">
-                    <button class="btn-start" id="start-btn" onclick="startBot()">▶️ START</button>
-                    <button class="btn-stop" id="stop-btn" onclick="stopBot()" disabled>⏹️ STOP</button>
-                </div>
-                <div style="margin-top: 15px;">
-                    <button style="width: 100%; padding: 12px; background: linear-gradient(135deg, #00ffff, #0080ff); border: none; border-radius: 5px; color: white; font-weight: bold; cursor: pointer; font-size: 1em;" onclick="window.location.href='/settings'">
+            <!-- Controls Panel - Full Width, Thin -->
+            <div class="panel" style="grid-column: 1/-1; padding: 15px;">
+                <h2 style="margin-bottom: 15px;">🎮 CONTROLS</h2>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <button class="btn-start" id="start-btn" onclick="startBot()" style="flex: 1;">▶️ START</button>
+                    <button class="btn-stop" id="stop-btn" onclick="stopBot()" disabled style="flex: 1;">⏹️ STOP</button>
+                    <button style="flex: 1; padding: 12px; background: linear-gradient(135deg, #00ffff, #0080ff); border: none; border-radius: 5px; color: white; font-weight: bold; cursor: pointer; font-size: 1em;" onclick="window.location.href='/settings'">
                         ⚙️ ADVANCED SETTINGS
                     </button>
-                </div>
-                <div style="margin-top: 10px;">
-                    <button style="width: 100%; padding: 12px; background: linear-gradient(135deg, #ff00ff, #8000ff); border: none; border-radius: 5px; color: white; font-weight: bold; cursor: pointer; font-size: 1em; box-shadow: 0 0 20px rgba(255, 0, 255, 0.5);" onclick="window.location.href='/strategies'">
+                    <button style="flex: 1; padding: 12px; background: linear-gradient(135deg, #ff00ff, #8000ff); border: none; border-radius: 5px; color: white; font-weight: bold; cursor: pointer; font-size: 1em; box-shadow: 0 0 20px rgba(255, 0, 255, 0.5);" onclick="window.location.href='/strategies'">
                         🎯 STRATEGY BUILDER
                     </button>
-                </div>
-                <div class="status-bar" style="margin-top: 20px;">
-                    <span>⚙️ Quick Settings</span>
-                </div>
-                <div class="form-group">
-                    <label>Fast EMA:</label>
-                    <input type="number" id="fast-ema" value="9" min="1" max="50">
-                </div>
-                <div class="form-group">
-                    <label>Slow EMA:</label>
-                    <input type="number" id="slow-ema" value="21" min="1" max="100">
-                </div>
-                <div class="form-group">
-                    <label>Min Confidence:</label>
-                    <input type="number" id="min-confidence" value="4" min="1" max="10">
                 </div>
             </div>
 
