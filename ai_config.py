@@ -288,12 +288,21 @@ AI_STRATEGIES = {
 # Pattern Recognition Database
 WINNING_PATTERNS = {}  # Will be populated with successful trade patterns
 
+# Import performance tracker for AI calibration and context
+try:
+    from performance_tracker import get_tracker
+    PERFORMANCE_TRACKER_AVAILABLE = True
+except ImportError:
+    PERFORMANCE_TRACKER_AVAILABLE = False
+    print("⚠️ Performance tracker not available")
+
 # Market Analysis System
 class AITradingBrain:
     def __init__(self):
         self.performance_history = []
         self.pattern_database = {}
         self.current_market_state = {}
+        self.performance_tracker = get_tracker() if PERFORMANCE_TRACKER_AVAILABLE else None
 
     async def analyze_with_gpt4(self, market_data: Dict, indicators: Dict) -> Tuple[str, float, str]:
         """
@@ -391,6 +400,8 @@ class AITradingBrain:
         ├─ Session Win Rate: {market_data.get('win_rate', 0):.1f}%
         ├─ Total Trades: {market_data.get('total_trades', 0)}
         └─ Current Streak: {market_data.get('streak', 'Unknown')}
+
+{self._get_performance_context() if self.performance_tracker else ''}
 
         🎯 ULTRA DECISION FRAMEWORK:
         Analyze with QUANTUM-LEVEL precision:
@@ -657,6 +668,17 @@ class AITradingBrain:
         except Exception as e:
             print(f"Ensemble Analysis Error: {e}")
             return "hold", 0.0, f"Ensemble analysis failed: {e}"
+
+    def _get_performance_context(self) -> str:
+        """Get performance context from tracker for AI prompt"""
+        if not self.performance_tracker:
+            return ""
+
+        try:
+            context = self.performance_tracker.get_performance_context_for_ai()
+            return f"\n{context}\n"
+        except Exception as e:
+            return ""
 
     def learn_from_trade(self, trade_data: Dict):
         """Learn from completed trades to improve future decisions"""
