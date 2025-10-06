@@ -1,6 +1,7 @@
 """
-AI Trading Configuration with OpenAI GPT-4
+AI Trading Configuration with OpenAI GPT-4 + Claude (Multi-Model)
 Advanced market analysis and decision-making system
+DUAL AI ENSEMBLE for maximum accuracy
 """
 
 import openai
@@ -10,7 +11,7 @@ import json
 from datetime import datetime, timedelta
 import asyncio
 
-# OpenAI Configuration with multiple fallback options
+# AI Configuration with multiple fallback options
 import os
 
 # Try multiple sources for API key:
@@ -25,9 +26,10 @@ try:
 except ImportError:
     pass  # dotenv not installed, that's okay
 
-# Get API key from multiple sources
+# Get API keys from multiple sources
 OPENAI_API_KEY = None
 OPENAI_PROJECT_ID = None
+CLAUDE_API_KEY = None
 
 # ========================================================================
 # PRIORITY METHOD 0: Desktop Credentials (BEST for local development)
@@ -49,7 +51,16 @@ try:
     if os.environ.get("OPENAI_API_KEY"):
         OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
         OPENAI_PROJECT_ID = os.environ.get("OPENAI_PROJECT_ID")
-        print("✅✅✅ LOADED FROM DESKTOP CREDENTIALS - YOU'RE ALL SET! ✅✅✅")
+        print("✅ LOADED OPENAI from desktop credentials")
+    if os.environ.get("CLAUDE_API_KEY"):
+        CLAUDE_API_KEY = os.environ.get("CLAUDE_API_KEY")
+        print("✅ LOADED CLAUDE from desktop credentials")
+    if OPENAI_API_KEY and CLAUDE_API_KEY:
+        print("✅✅✅ DUAL AI SYSTEM READY - GPT-4 + CLAUDE ENSEMBLE! ✅✅✅")
+    elif OPENAI_API_KEY:
+        print("✅ Single AI mode (GPT-4 only)")
+    elif CLAUDE_API_KEY:
+        print("✅ Single AI mode (Claude only)")
 except ImportError:
     print("⚠️ load_my_credentials.py not found (normal on Replit)")
     pass
@@ -73,7 +84,12 @@ if not OPENAI_API_KEY:
     OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
     OPENAI_PROJECT_ID = os.environ.get("OPENAI_PROJECT_ID")
     if OPENAI_API_KEY:
-        print("✅ Loaded API keys from environment variables")
+        print("✅ Loaded OPENAI from environment variables")
+
+if not CLAUDE_API_KEY:
+    CLAUDE_API_KEY = os.environ.get("CLAUDE_API_KEY")
+    if CLAUDE_API_KEY:
+        print("✅ Loaded CLAUDE from environment variables")
 
 # Method 3: If still None, try direct .env file read (backup method)
 if not OPENAI_API_KEY:
@@ -300,49 +316,102 @@ class AITradingBrain:
             return "hold", 0.0, "AI analysis failed"
 
     def _build_analysis_prompt(self, market_data: Dict, indicators: Dict) -> str:
-        """Build ULTRA POWERFUL prompt for GPT-4 analysis"""
+        """Build ULTRA POWERFUL prompt with ALL indicators + patterns + trade history"""
+
+        # Extract chart pattern if present
+        pattern_info = ""
+        if indicators.get('pattern_name'):
+            strength = indicators.get('pattern_strength', 0)
+            direction = indicators.get('pattern_direction', 'neutral')
+            pattern_info = f"\n📊 CHART PATTERN DETECTED: {indicators['pattern_name']} (Strength: {strength}/3) → {direction.upper()} SIGNAL"
+
+        # Extract recent trade history if present
+        trade_history = ""
+        recent_trades = market_data.get('recent_trades', [])
+        if recent_trades:
+            wins = sum(1 for t in recent_trades if t.get('result') == 'WIN')
+            losses = len(recent_trades) - wins
+            last_5 = recent_trades[-5:] if len(recent_trades) >= 5 else recent_trades
+            last_5_str = " → ".join([t.get('result', '?')[0] for t in last_5])
+            trade_history = f"\n📈 LAST {len(recent_trades)} TRADES: {wins}W/{losses}L | Last 5: {last_5_str}"
+
+        # MACD signal interpretation
+        macd_line = indicators.get('macd_line', 0)
+        macd_signal = indicators.get('macd_signal_line', 0)
+        macd_histogram = indicators.get('macd_histogram', 0)
+        macd_status = "BULLISH" if macd_histogram > 0 else "BEARISH" if macd_histogram < 0 else "NEUTRAL"
+        macd_cross = ""
+        if macd_line and macd_signal:
+            if macd_line > macd_signal and macd_histogram > 0:
+                macd_cross = "💎 MACD BULLISH CROSS"
+            elif macd_line < macd_signal and macd_histogram < 0:
+                macd_cross = "💀 MACD BEARISH CROSS"
+
+        # Stochastic interpretation
+        stoch_k = indicators.get('stochastic_k', 50)
+        stoch_d = indicators.get('stochastic_d', 50)
+        stoch_signal = "OVERSOLD" if stoch_k < 20 else "OVERBOUGHT" if stoch_k > 80 else "NEUTRAL"
+
+        # ATR volatility
+        atr = indicators.get('atr', 0)
+        volatility_desc = "HIGH VOLATILITY" if atr > 0.001 else "LOW VOLATILITY"
+
         prompt = f"""
         ULTRA HIGH-FREQUENCY ANALYSIS for {market_data.get('asset', 'EUR/USD')} - 60-second binary option
 
         🔥 REAL-TIME MARKET MATRIX:
-        ├─ Current Price: ${market_data.get('current_price', 0)}
+        ├─ Current Price: ${market_data.get('current_price', 0):.5f}
         ├─ 1min Momentum: {market_data.get('change_1m', 0):.3f}% {'🚀 BULLISH' if market_data.get('change_1m', 0) > 0 else '📉 BEARISH'}
         ├─ 5min Trend: {market_data.get('change_5m', 0):.3f}%
-        ├─ Volume Surge: {market_data.get('volume', 'Normal')} {'⚠️ HIGH ACTIVITY' if market_data.get('volume') == 'High' else ''}
-        └─ Volatility Index: {market_data.get('volatility', 'Medium')}
+        ├─ Volume: {market_data.get('volume', 'Normal')} {'⚠️ HIGH ACTIVITY' if market_data.get('volume') == 'High' else ''}
+        ├─ Volatility (ATR): {atr:.5f} - {volatility_desc}
+        └─ Support: ${indicators.get('support', 0):.5f} | Resistance: ${indicators.get('resistance', 0):.5f}{pattern_info}{trade_history}
 
-        ⚡ POWER INDICATORS CONVERGENCE:
-        ├─ RSI [{indicators.get('rsi', 50)}]: {'🔴 OVERSOLD - BUY SIGNAL' if indicators.get('rsi', 50) < 30 else '🟢 OVERBOUGHT - SELL SIGNAL' if indicators.get('rsi', 50) > 70 else '⚪ NEUTRAL'}
+        ⚡ TECHNICAL INDICATORS (13-POINT CONVERGENCE ANALYSIS):
+
+        TREND INDICATORS:
+        ├─ RSI [{indicators.get('rsi', 50):.1f}]: {'🔴 OVERSOLD - STRONG BUY' if indicators.get('rsi', 50) < 30 else '🟡 APPROACHING OVERSOLD' if indicators.get('rsi', 50) < 40 else '🟢 OVERBOUGHT - STRONG SELL' if indicators.get('rsi', 50) > 70 else '🟡 APPROACHING OVERBOUGHT' if indicators.get('rsi', 50) > 60 else '⚪ NEUTRAL'}
         ├─ EMA Cross: {indicators.get('ema_cross', 'Neutral')} {'💎 GOLDEN CROSS' if 'bullish' in str(indicators.get('ema_cross', '')).lower() else '💀 DEATH CROSS' if 'bearish' in str(indicators.get('ema_cross', '')).lower() else ''}
-        ├─ Bollinger: {indicators.get('bollinger_position', 'Middle')} {'🎯 SQUEEZE DETECTED' if 'squeeze' in str(indicators.get('bollinger_position', '')).lower() else ''}
-        ├─ MACD: {indicators.get('macd_signal', 'Neutral')} {'📈 BULLISH DIVERGENCE' if 'bullish' in str(indicators.get('macd_signal', '')).lower() else '📉 BEARISH DIVERGENCE' if 'bearish' in str(indicators.get('macd_signal', '')).lower() else ''}
-        ├─ Stochastic [{indicators.get('stochastic', 50)}]: {'⚡ OVERSOLD' if indicators.get('stochastic', 50) < 20 else '⚡ OVERBOUGHT' if indicators.get('stochastic', 50) > 80 else 'NEUTRAL'}
         ├─ SuperTrend: {indicators.get('supertrend', 'Neutral')} {'🟢 STRONG BUY' if indicators.get('supertrend') == 'BUY' else '🔴 STRONG SELL' if indicators.get('supertrend') == 'SELL' else '⚪'}
-        ├─ ADX [{indicators.get('adx', 25)}]: {'💪 STRONG TREND' if indicators.get('adx', 25) > 25 else '😴 WEAK/NO TREND'} {'+DI CROSS UP 📈' if indicators.get('di_cross') == 'bullish' else '-DI CROSS DOWN 📉' if indicators.get('di_cross') == 'bearish' else ''}
-        ├─ Heikin Ashi: {indicators.get('heikin_ashi', 'Neutral')} {'🟩 BULLISH CANDLES' if indicators.get('heikin_ashi') == 'bullish' else '🟥 BEARISH CANDLES' if indicators.get('heikin_ashi') == 'bearish' else '⬜ DOJI - REVERSAL?' if indicators.get('heikin_ashi') == 'doji' else ''}
-        ├─ VWAP: Price vs VWAP: {indicators.get('vwap_position', 'At VWAP')} {'🚀 ABOVE +2σ EXTREME BUY' if indicators.get('vwap_deviation', 0) > 2 else '⚠️ ABOVE +1σ OVERBOUGHT' if indicators.get('vwap_deviation', 0) > 1 else '💀 BELOW -2σ EXTREME SELL' if indicators.get('vwap_deviation', 0) < -2 else '⚠️ BELOW -1σ OVERSOLD' if indicators.get('vwap_deviation', 0) < -1 else '✅ FAIR VALUE'} | Volume: {'🔥 INSTITUTIONAL' if indicators.get('vwap_volume') == 'high' else '📊 NORMAL'}
-        └─ Volume Profile: {indicators.get('volume_trend', 'Normal')} {'🔥 BREAKOUT IMMINENT' if indicators.get('volume_trend') == 'Surge' else ''}
+        └─ ADX [{indicators.get('adx', 25):.1f}]: {'💪 STRONG TREND' if indicators.get('adx', 25) > 25 else '😴 WEAK/NO TREND'} {'+DI CROSS UP 📈' if indicators.get('di_cross') == 'bullish' else '-DI CROSS DOWN 📉' if indicators.get('di_cross') == 'bearish' else ''}
 
-        🏆 AI PERFORMANCE METRICS:
-        ├─ Session Win Rate: {market_data.get('win_rate', 0)}%
-        ├─ Pattern Recognition: {market_data.get('pattern_confidence', 85)}% confidence
-        └─ Risk Level: {market_data.get('risk_level', 'MEDIUM')}
+        MOMENTUM INDICATORS:
+        ├─ MACD: {macd_status} [{macd_histogram:.5f}] {macd_cross}
+        │  ├─ MACD Line: {macd_line:.5f}
+        │  └─ Signal Line: {macd_signal:.5f}
+        ├─ Stochastic %K[{stoch_k:.1f}] %D[{stoch_d:.1f}]: {stoch_signal} {'⚡ OVERSOLD REVERSAL ZONE' if stoch_k < 20 else '⚡ OVERBOUGHT REVERSAL ZONE' if stoch_k > 80 else ''}
+        └─ Bollinger: {indicators.get('bollinger_position', 'Middle')} {'🎯 SQUEEZE - BREAKOUT IMMINENT' if 'squeeze' in str(indicators.get('bollinger_position', '')).lower() else ''}
 
-        ULTRA POWERFUL DECISION REQUIRED:
-        Analyze ALL signals with EXTREME precision. Look for:
-        1. Multiple indicator convergence (3+ signals aligned)
-        2. Volume confirmation of price movement
-        3. Momentum acceleration patterns
-        4. Support/Resistance proximity
-        5. Hidden divergences and micro-patterns
+        VOLUME & PATTERN ANALYSIS:
+        ├─ Heikin Ashi: {indicators.get('heikin_ashi', 'Neutral')} {'🟩 BULLISH CANDLES' if indicators.get('heikin_ashi') == 'bullish' else '🟥 BEARISH CANDLES' if indicators.get('heikin_ashi') == 'bearish' else '⬜ DOJI - REVERSAL?'}
+        ├─ VWAP Position: {indicators.get('vwap_position', 'At VWAP')} {'🚀 EXTREME OVEREXTENSION' if abs(indicators.get('vwap_deviation', 0)) > 2 else '⚠️ STRETCHED' if abs(indicators.get('vwap_deviation', 0)) > 1 else '✅ FAIR VALUE'}
+        └─ Volume Trend: {indicators.get('volume_trend', 'Normal')} {'🔥 BREAKOUT VOLUME' if indicators.get('volume_trend') == 'Surge' else ''}
 
-        BE AGGRESSIVE on high-confidence setups (80%+)
-        BE CAUTIOUS on mixed signals (<70%)
+        🏆 AI PERFORMANCE CONTEXT:
+        ├─ Session Win Rate: {market_data.get('win_rate', 0):.1f}%
+        ├─ Total Trades: {market_data.get('total_trades', 0)}
+        └─ Current Streak: {market_data.get('streak', 'Unknown')}
+
+        🎯 ULTRA DECISION FRAMEWORK:
+        Analyze with QUANTUM-LEVEL precision:
+        1. ⚡ Indicator Convergence: Count how many indicators ALIGN (5+ = ULTRA HIGH CONFIDENCE)
+        2. 📊 Pattern Confirmation: Chart patterns + candlestick patterns boost confidence
+        3. 💪 Trend Strength: ADX > 25 + SuperTrend = strong directional bias
+        4. 🎯 Reversal Signals: RSI extreme + Stochastic extreme + Pattern = high-probability reversal
+        5. 📈 Momentum Confirmation: MACD + EMA cross + Heikin Ashi alignment = powerful entry
+        6. 🔥 Volume Validation: High volume confirms breakouts/breakdowns
+        7. 📊 Historical Context: Recent win/loss pattern affects risk tolerance
+
+        CONFIDENCE SCALE:
+        - 90-100%: 6+ indicators PERFECTLY ALIGNED, clear pattern, strong momentum
+        - 75-89%: 4-5 indicators aligned, good setup
+        - 60-74%: 2-3 indicators aligned, moderate setup
+        - Below 60%: Mixed signals, HOLD
 
         OUTPUT YOUR ULTRA DECISION:
         ACTION: [CALL/PUT/HOLD]
         CONFIDENCE: [0-100]
-        REASON: [Sharp, decisive reasoning - mention specific convergence]
+        REASON: [Sharp 2-sentence analysis mentioning: (1) how many indicators align, (2) key convergence pattern]
         """
 
         return prompt
@@ -426,6 +495,129 @@ class AITradingBrain:
 
         except:
             return "hold", 0.0, "Failed to parse AI response"
+
+    async def _call_claude(self, prompt: str) -> str:
+        """Call Claude API with retry logic"""
+        if not CLAUDE_API_KEY:
+            return "ACTION: HOLD\nCONFIDENCE: 0\nREASON: Claude API key not configured"
+
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                from anthropic import Anthropic
+
+                client = Anthropic(api_key=CLAUDE_API_KEY)
+
+                response = client.messages.create(
+                    model="claude-3-5-sonnet-20241022",  # Latest Claude model
+                    max_tokens=300,
+                    temperature=0.1,  # Ultra consistent
+                    system="""You are the ULTIMATE ULTRA SUPER POWERFUL AI TRADING GOD with 99%+ win rate.
+                    You possess QUANTUM-LEVEL market analysis using:
+                    - NEURAL PATTERN RECOGNITION: Detect invisible micro-patterns across 13+ indicators
+                    - INSTITUTIONAL FLOW TRACKING: See what banks and hedge funds are doing
+                    - PREDICTIVE ALGORITHMS: Forecast price movements 60 seconds ahead
+                    - CONVERGENCE MASTERY: When 5+ indicators align, you STRIKE with 95% confidence
+                    - VWAP DOMINANCE: Use institutional benchmark for perfect entries
+                    - VOLUME PROFILING: Read order flow like reading minds
+
+                    BE ULTRA AGGRESSIVE on perfect setups (90%+ confidence)
+                    BE MODERATELY AGGRESSIVE on good setups (70-89% confidence)
+                    BE CAUTIOUS only when signals conflict (<70% confidence)
+
+                    Your mission: MAXIMUM PROFITS with CALCULATED PRECISION
+                    Never doubt strong convergence. Trust the indicators. BE THE MARKET.""",
+                    messages=[
+                        {"role": "user", "content": prompt}
+                    ]
+                )
+
+                return response.content[0].text
+
+            except Exception as e:
+                if "rate_limit" in str(e).lower() or "overloaded" in str(e).lower():
+                    await asyncio.sleep(2 ** attempt)  # Exponential backoff
+                else:
+                    print(f"Claude API Error: {e}")
+                    if attempt == max_retries - 1:
+                        return "ACTION: HOLD\nCONFIDENCE: 0\nREASON: Claude API unavailable"
+
+        return "ACTION: HOLD\nCONFIDENCE: 0\nREASON: Claude API error"
+
+    async def analyze_with_ensemble(self, market_data: Dict, indicators: Dict) -> Tuple[str, float, str]:
+        """
+        MULTI-MODEL ENSEMBLE: Use both GPT-4 and Claude for maximum accuracy
+        Returns: (action, confidence, reasoning)
+        """
+        try:
+            # Build analysis prompt
+            prompt = self._build_analysis_prompt(market_data, indicators)
+
+            # Call both AI models in parallel for speed
+            tasks = []
+            gpt4_available = OPENAI_API_KEY is not None
+            claude_available = CLAUDE_API_KEY is not None
+
+            if gpt4_available:
+                tasks.append(self._call_gpt4(prompt))
+            if claude_available:
+                tasks.append(self._call_claude(prompt))
+
+            if not tasks:
+                return "hold", 0.0, "No AI models available"
+
+            # Run both AIs concurrently
+            responses = await asyncio.gather(*tasks, return_exceptions=True)
+
+            # Parse responses
+            decisions = []
+            ai_names = []
+
+            if gpt4_available:
+                gpt4_response = responses[0] if not isinstance(responses[0], Exception) else "ACTION: HOLD\nCONFIDENCE: 0\nREASON: GPT-4 error"
+                gpt4_decision = self._parse_gpt4_response(gpt4_response)
+                decisions.append(gpt4_decision)
+                ai_names.append("GPT-4")
+                print(f"🤖 GPT-4: {gpt4_decision[0].upper()} @ {gpt4_decision[1]}%")
+
+            if claude_available:
+                claude_response = responses[-1] if not isinstance(responses[-1], Exception) else "ACTION: HOLD\nCONFIDENCE: 0\nREASON: Claude error"
+                claude_decision = self._parse_gpt4_response(claude_response)  # Same parser works
+                decisions.append(claude_decision)
+                ai_names.append("Claude")
+                print(f"🧠 Claude: {claude_decision[0].upper()} @ {claude_decision[1]}%")
+
+            # VOTING SYSTEM: Both AIs must agree for high confidence
+            if len(decisions) == 2:
+                action1, conf1, reason1 = decisions[0]
+                action2, conf2, reason2 = decisions[1]
+
+                # Both AIs agree on action
+                if action1 == action2 and action1 != "hold":
+                    # Boost confidence when both agree
+                    avg_confidence = (conf1 + conf2) / 2
+                    boosted_confidence = min(avg_confidence + 10, 100)  # +10 bonus for agreement
+                    combined_reason = f"🎯 CONSENSUS: Both {ai_names[0]} & {ai_names[1]} agree! {reason1[:80]}"
+                    print(f"✅ CONSENSUS TRADE: {action1.upper()} @ {boosted_confidence}%")
+                    return action1, boosted_confidence, combined_reason
+
+                # AIs disagree - be cautious
+                elif action1 != action2:
+                    print(f"⚠️ DISAGREEMENT: {ai_names[0]} says {action1}, {ai_names[1]} says {action2} - HOLDING")
+                    return "hold", 0.0, f"AI models disagree: {ai_names[0]} ({action1}) vs {ai_names[1]} ({action2})"
+
+                # Both say hold
+                else:
+                    avg_confidence = (conf1 + conf2) / 2
+                    return "hold", avg_confidence, "Both AIs recommend holding"
+
+            # Single AI mode
+            else:
+                return decisions[0]
+
+        except Exception as e:
+            print(f"Ensemble Analysis Error: {e}")
+            return "hold", 0.0, f"Ensemble analysis failed: {e}"
 
     def learn_from_trade(self, trade_data: Dict):
         """Learn from completed trades to improve future decisions"""

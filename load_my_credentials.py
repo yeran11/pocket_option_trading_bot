@@ -80,6 +80,11 @@ def load_desktop_credentials():
                     os.environ['OPENAI_PROJECT_ID'] = credentials['OPENAI_PROJECT_ID']
                     print(f"✅ Loaded OPENAI_PROJECT_ID from desktop")
 
+                if 'CLAUDE_API_KEY' in credentials:
+                    os.environ['CLAUDE_API_KEY'] = credentials['CLAUDE_API_KEY']
+                    api_key_preview = credentials['CLAUDE_API_KEY']
+                    print(f"✅ Loaded CLAUDE_API_KEY from desktop: {api_key_preview[:20]}...{api_key_preview[-4:]} (length: {len(api_key_preview)})")
+
                 print(f"🎉 Desktop credentials loaded successfully from {cred_file}!")
                 return True
 
@@ -96,6 +101,7 @@ def load_desktop_credentials():
     print(f"   2. Add your API keys:")
     print(f"      OPENAI_API_KEY=sk-proj-your-key-here")
     print(f"      OPENAI_PROJECT_ID=proj_your-id-here")
+    print(f"      CLAUDE_API_KEY=sk-ant-api03-your-key-here")
     print(f"\n   Windows CMD:")
     print(f"   cd %USERPROFILE%")
     print(f"   notepad .openai_credentials")
