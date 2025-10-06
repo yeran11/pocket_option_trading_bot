@@ -74,6 +74,40 @@ optimizer = None
 INDICATOR_CONFIG = None
 AI_STRATEGIES = None
 
+# Import NEW ULTRA MASTER SYSTEMS
+try:
+    from performance_tracker import get_tracker
+    from market_regime import get_detector
+    from multi_timeframe import get_analyzer
+    from strategy_builder import get_builder
+    from backtesting_engine import get_backtest_engine
+    from trade_journal import get_journal
+    ULTRA_SYSTEMS_AVAILABLE = True
+    print("✅ ULTRA Master Systems loaded successfully!")
+except ImportError as e:
+    ULTRA_SYSTEMS_AVAILABLE = False
+    print(f"⚠️ Some ULTRA systems not available: {e}")
+
+# Initialize ULTRA systems
+performance_tracker = None
+regime_detector = None
+mtf_analyzer = None
+strategy_builder = None
+backtest_engine = None
+trade_journal = None
+
+if ULTRA_SYSTEMS_AVAILABLE:
+    try:
+        performance_tracker = get_tracker()
+        regime_detector = get_detector()
+        mtf_analyzer = get_analyzer()
+        strategy_builder = get_builder()
+        backtest_engine = get_backtest_engine()
+        trade_journal = get_journal()
+        print("✅ All ULTRA systems initialized!")
+    except Exception as e:
+        print(f"⚠️ ULTRA systems init error: {e}")
+
 def initialize_ai_system():
     """Initialize or reinitialize the AI trading system"""
     global AI_ENABLED, ai_brain, optimizer, INDICATOR_CONFIG, AI_STRATEGIES
@@ -858,6 +892,45 @@ async def enhanced_strategy(candles):
                         break
             streak = f"{streak_count}W" if streak_type == 'WIN' else f"{streak_count}L" if streak_type == 'LOSS' else "New"
 
+            # 🚀 ULTRA MASTER SYSTEMS INTEGRATION
+            market_regime = 'unknown'
+            regime_confidence = 0
+            regime_desc = ''
+            mtf_data = None
+            candles_5m = []
+            candles_15m = []
+
+            # Multi-Timeframe Analysis
+            if mtf_analyzer:
+                try:
+                    mtf_data = mtf_analyzer.get_multi_timeframe_data(candles)
+                    candles_5m = mtf_data.get('5m', [])
+                    candles_15m = mtf_data.get('15m', [])
+                    htf_context = mtf_analyzer.get_higher_timeframe_context(candles_5m, candles_15m)
+                    print(f"📊 Multi-Timeframe: {htf_context}")
+                except Exception as e:
+                    print(f"⚠️ MTF Analysis error: {e}")
+
+            # Market Regime Detection
+            if regime_detector:
+                try:
+                    # Prepare indicators dict for regime detection
+                    regime_indicators = {
+                        'rsi': rsi or 50,
+                        'ema_cross': 'Bullish' if ema_fast and ema_slow and ema_fast > ema_slow else 'Bearish',
+                        'supertrend': 'BUY' if supertrend_direction == 1 else 'SELL' if supertrend_direction == -1 else 'Neutral',
+                        'adx': 25
+                    }
+                    market_regime, regime_confidence, regime_desc = await regime_detector.detect_regime(
+                        candles,
+                        candles_5m,
+                        candles_15m,
+                        regime_indicators
+                    )
+                    print(f"🎯 Market Regime: {market_regime.upper()} ({regime_confidence:.0f}%) - {regime_desc}")
+                except Exception as e:
+                    print(f"⚠️ Regime Detection error: {e}")
+
             # Prepare COMPLETE market data for AI
             market_data = {
                 'asset': CURRENT_ASSET or 'Unknown',
@@ -1613,6 +1686,35 @@ async def check_recent_trades(driver):
                             except:
                                 pass
 
+                        # 🚀 ULTRA SYSTEMS: Record trade in performance tracker and journal
+                        if ULTRA_SYSTEMS_AVAILABLE:
+                            try:
+                                if performance_tracker:
+                                    performance_tracker.record_trade({
+                                        'timestamp': datetime.now().isoformat(),
+                                        'asset': asset,
+                                        'action': action.lower(),
+                                        'result': 'win',
+                                        'profit': profit,
+                                        'ai_confidence': ai_confidence if 'ai_confidence' in locals() else 0,
+                                        'market_regime': market_regime if 'market_regime' in locals() else 'unknown',
+                                        'strategy': settings.get('decision_mode', 'traditional'),
+                                        'entry_price': current_price if 'current_price' in locals() else 0,
+                                        'indicators': ai_indicators if 'ai_indicators' in locals() else {}
+                                    })
+
+                                if trade_journal:
+                                    journal_data = {
+                                        'result': 'win',
+                                        'action': action.lower(),
+                                        'market_regime': market_regime if 'market_regime' in locals() else 'unknown',
+                                        'indicators': ai_indicators if 'ai_indicators' in locals() else {}
+                                    }
+                                    analysis = trade_journal.analyze_trade(journal_data)
+                                    trade_journal.add_entry(journal_data, analysis)
+                            except Exception as e:
+                                print(f"⚠️ ULTRA systems recording error: {e}")
+
                         if len(bot_state['trades']) > 20:
                             bot_state['trades'] = bot_state['trades'][:20]
 
@@ -1666,6 +1768,35 @@ async def check_recent_trades(driver):
                                         optimizer.strategy_performance[current_strategy]['trades'] += 1
                                 except:
                                     pass
+
+                            # 🚀 ULTRA SYSTEMS: Record trade in performance tracker and journal
+                            if ULTRA_SYSTEMS_AVAILABLE:
+                                try:
+                                    if performance_tracker:
+                                        performance_tracker.record_trade({
+                                            'timestamp': datetime.now().isoformat(),
+                                            'asset': asset,
+                                            'action': action.lower(),
+                                            'result': 'loss',
+                                            'profit': -stake,
+                                            'ai_confidence': ai_confidence if 'ai_confidence' in locals() else 0,
+                                            'market_regime': market_regime if 'market_regime' in locals() else 'unknown',
+                                            'strategy': settings.get('decision_mode', 'traditional'),
+                                            'entry_price': current_price if 'current_price' in locals() else 0,
+                                            'indicators': ai_indicators if 'ai_indicators' in locals() else {}
+                                        })
+
+                                    if trade_journal:
+                                        journal_data = {
+                                            'result': 'loss',
+                                            'action': action.lower(),
+                                            'market_regime': market_regime if 'market_regime' in locals() else 'unknown',
+                                            'indicators': ai_indicators if 'ai_indicators' in locals() else {}
+                                        }
+                                        analysis = trade_journal.analyze_trade(journal_data)
+                                        trade_journal.add_entry(journal_data, analysis)
+                                except Exception as e:
+                                    print(f"⚠️ ULTRA systems recording error: {e}")
 
                             if len(bot_state['trades']) > 20:
                                 bot_state['trades'] = bot_state['trades'][:20]
