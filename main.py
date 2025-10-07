@@ -303,8 +303,17 @@ settings = {
     'ai_min_confidence': 70,
     'ai_strategy': 'ULTRA_SCALPING',
 
-    # ULTRA Strategy Combination
-    'decision_mode': 'ultra_safe',  # ultra_safe, ai_priority, traditional_priority, aggressive, ai_only, traditional_only
+    # 🎯 ULTRA DECISION MODE SYSTEM
+    'decision_mode': 'full_power',  # full_power, ai_only, patterns_only, strategy_only, indicators_only
+    'active_strategy_id': None,  # For "strategy_only" mode - which strategy to use exclusively
+
+    # 🕯️ Pattern Recognition Control
+    'pattern_recognition_enabled': True,  # Toggle pattern detection on/off
+
+    # 📊 Custom Strategies Control
+    'custom_strategies_enabled': True,  # Master toggle for all custom strategies
+
+    # Legacy settings (kept for backward compatibility)
     'require_pattern': False,  # Require chart pattern confirmation
     'check_support_resistance': True,  # Check proximity to S/R levels
     'min_indicator_alignment': 5,  # Minimum indicators that must align (out of 13)
@@ -947,7 +956,7 @@ async def enhanced_strategy(candles):
             pattern_type = None
             pattern_strength = 0
             pattern_quality = 0
-            if pattern_recognizer:
+            if pattern_recognizer and settings.get('pattern_recognition_enabled', True):
                 try:
                     # Detect patterns across all timeframes
                     pattern_data = pattern_recognizer.detect_all_patterns_mtf(
@@ -1055,27 +1064,67 @@ async def enhanced_strategy(candles):
                 'regime': market_regime  # Current market regime
             }
 
-            # Get AI mode and model settings
-            ai_mode = settings.get('ai_mode', 'ensemble')
-            use_gpt4 = settings.get('use_gpt4', True)
-            use_claude = settings.get('use_claude', True)
+            # 🎯 DECISION MODE SYSTEM - Determine what systems to use
+            decision_mode = settings.get('decision_mode', 'full_power')
+            ai_enabled = settings.get('ai_enabled', True)
 
-            print(f"📊 Calling AI (Mode: {ai_mode.upper()}, GPT-4: {use_gpt4}, Claude: {use_claude})...")
-            # Get AI ENSEMBLE decision with user settings
-            ai_action, ai_confidence, ai_reason = await ai_brain.analyze_with_ensemble(
-                market_data,
-                ai_indicators,
-                ai_mode=ai_mode,
-                use_gpt4=use_gpt4,
-                use_claude=use_claude
+            # Initialize decision variables
+            ai_action = 'hold'
+            ai_confidence = 0
+            ai_reason = 'AI not used in this mode'
+
+            # AI ANALYSIS (Skip if not needed by decision mode)
+            should_run_ai = (
+                decision_mode in ['full_power', 'ai_only'] and
+                ai_enabled
             )
-            print(f"✅ AI Response: {ai_action.upper()} @ {ai_confidence}%")
 
-            # 🎯 EVALUATE CUSTOM STRATEGIES
+            if should_run_ai:
+                ai_mode = settings.get('ai_mode', 'ensemble')
+                use_gpt4 = settings.get('use_gpt4', True)
+                use_claude = settings.get('use_claude', True)
+
+                print(f"📊 Calling AI (Mode: {ai_mode.upper()}, GPT-4: {use_gpt4}, Claude: {use_claude})...")
+                # Get AI ENSEMBLE decision with user settings
+                ai_action, ai_confidence, ai_reason = await ai_brain.analyze_with_ensemble(
+                    market_data,
+                    ai_indicators,
+                    ai_mode=ai_mode,
+                    use_gpt4=use_gpt4,
+                    use_claude=use_claude
+                )
+                print(f"✅ AI Response: {ai_action.upper()} @ {ai_confidence}%")
+            else:
+                print(f"⏭️  Skipping AI analysis (Decision Mode: {decision_mode.upper()})")
+
+            # 🎯 EVALUATE CUSTOM STRATEGIES (Skip if not needed by decision mode)
             custom_strategy_signals = []
-            if strategy_builder and ULTRA_SYSTEMS_AVAILABLE:
+            custom_strategies_enabled = settings.get('custom_strategies_enabled', True)
+
+            should_run_strategies = (
+                strategy_builder and
+                ULTRA_SYSTEMS_AVAILABLE and
+                custom_strategies_enabled and
+                decision_mode in ['full_power', 'strategy_only']
+            )
+
+            if should_run_strategies:
                 try:
-                    active_strategies = strategy_builder.get_active_strategies()
+                    # Get active strategies (or specific strategy if in strategy_only mode)
+                    if decision_mode == 'strategy_only':
+                        active_strategy_id = settings.get('active_strategy_id')
+                        if active_strategy_id:
+                            strategy = strategy_builder.get_strategy(active_strategy_id)
+                            if strategy:
+                                active_strategies = {active_strategy_id: strategy}
+                            else:
+                                active_strategies = {}
+                                print(f"⚠️  Strategy '{active_strategy_id}' not found")
+                        else:
+                            active_strategies = {}
+                            print(f"⚠️  No strategy selected for 'strategy_only' mode")
+                    else:
+                        active_strategies = strategy_builder.get_active_strategies()
 
                     for strategy_id, strategy in active_strategies.items():
                         # Check if timeframe alignment is required
@@ -1121,35 +1170,133 @@ async def enhanced_strategy(candles):
 
                 except Exception as e:
                     print(f"⚠️ Custom strategy evaluation error: {e}")
+            else:
+                if decision_mode in ['full_power', 'strategy_only']:
+                    print(f"⏭️  No active custom strategies")
 
-            # ULTRA STRATEGY COMBINATION - Check decision mode
-            decision_mode = settings.get('decision_mode', 'ultra_safe')
+            # 🎯 FINAL DECISION LOGIC BASED ON DECISION MODE
+            print(f"\n{'='*60}")
+            print(f"🎯 DECISION MODE: {decision_mode.upper()}")
+            print(f"{'='*60}")
+
+            final_action = 'hold'
+            final_confidence = 0
+            final_reason = 'No signal'
 
             if decision_mode == 'ai_only':
                 # AI ONLY MODE: Use AI decision exclusively
                 if ai_confidence >= settings.get('ai_min_confidence', 70):
-                    add_log(f"🤖 AI ONLY Decision: {ai_action.upper()} - {ai_reason[:100]}... ({ai_confidence}%)")
-                    if ai_action != 'hold':
-                        return ai_action, f'AI ONLY: {ai_reason[:100]}... ({ai_confidence}%)'
+                    final_action = ai_action
+                    final_confidence = ai_confidence
+                    final_reason = f"🤖 AI ONLY: {ai_reason[:100]}"
+                    print(f"✅ AI Decision: {ai_action.upper()} @ {ai_confidence}%")
                 else:
-                    add_log(f"🤖 AI Confidence too low ({ai_confidence}% < {settings.get('ai_min_confidence', 70)}%)")
-            elif decision_mode in ['ultra_safe', 'ai_priority', 'traditional_priority', 'aggressive']:
-                # ULTRA COMBINED MODE: Store AI decision for later validation with traditional
-                # Set flag to run traditional analysis and then combine
-                ai_decision_stored = {
-                    'action': ai_action,
-                    'confidence': ai_confidence,
-                    'reason': ai_reason
-                }
-                # Continue to traditional analysis below
-            else:
-                # Legacy behavior for compatibility
-                if ai_confidence >= settings.get('ai_min_confidence', 70):
-                    add_log(f"🤖 AI Decision: {ai_action.upper()} - {ai_reason[:100]}... ({ai_confidence}%)")
-                    if ai_action != 'hold':
-                        return ai_action, f'AI: {ai_reason[:100]}... ({ai_confidence}%)'
+                    print(f"⏭️  AI Confidence too low ({ai_confidence}% < {settings.get('ai_min_confidence', 70)}%)")
+
+            elif decision_mode == 'patterns_only':
+                # PATTERNS ONLY MODE: Use pattern quality score for decision
+                if pattern_type and pattern_quality >= 70:
+                    # Determine action from pattern type
+                    if 'bullish' in pattern_type or pattern_type == 'hammer':
+                        final_action = 'call'
+                    elif 'bearish' in pattern_type or pattern_type == 'shooting_star':
+                        final_action = 'put'
+                    else:
+                        final_action = 'hold'  # Doji = indecision
+
+                    final_confidence = pattern_quality
+                    final_reason = f"🕯️ PATTERN: {pattern_type.upper()} (Quality: {pattern_quality}%)"
+                    print(f"✅ Pattern Decision: {final_action.upper()} @ {pattern_quality}%")
                 else:
-                    add_log(f"🤖 AI Confidence too low ({ai_confidence}% < {settings.get('ai_min_confidence', 70)}%), using traditional indicators")
+                    print(f"⏭️  No high-quality pattern (Quality: {pattern_quality}% < 70%)")
+
+            elif decision_mode == 'strategy_only':
+                # STRATEGY ONLY MODE: Use selected custom strategy exclusively
+                if custom_strategy_signals:
+                    best_strategy = max(custom_strategy_signals, key=lambda x: x['confidence'])
+                    global ACTIVE_STRATEGY_ID, ACTIVE_STRATEGY_NAME
+                    ACTIVE_STRATEGY_ID = best_strategy['strategy_id']
+                    ACTIVE_STRATEGY_NAME = best_strategy['strategy_name']
+                    final_action = best_strategy['action']
+                    final_confidence = best_strategy['confidence']
+                    final_reason = f"📋 STRATEGY: {best_strategy['strategy_name']} - {best_strategy['reason']}"
+                    print(f"✅ Strategy Decision: {final_action.upper()} @ {final_confidence}%")
+                else:
+                    print(f"⏭️  Strategy did not trigger")
+
+            elif decision_mode == 'full_power':
+                # FULL POWER MODE: Combine AI + Patterns + Strategies (best decision wins)
+                candidates = []
+
+                # Add AI decision
+                if ai_confidence >= settings.get('ai_min_confidence', 70) and ai_action != 'hold':
+                    candidates.append({
+                        'source': '🤖 AI',
+                        'action': ai_action,
+                        'confidence': ai_confidence,
+                        'reason': ai_reason[:100]
+                    })
+
+                # Add pattern decision
+                if pattern_type and pattern_quality >= 70:
+                    if 'bullish' in pattern_type or pattern_type == 'hammer':
+                        pattern_action = 'call'
+                    elif 'bearish' in pattern_type or pattern_type == 'shooting_star':
+                        pattern_action = 'put'
+                    else:
+                        pattern_action = 'hold'
+
+                    if pattern_action != 'hold':
+                        candidates.append({
+                            'source': '🕯️ Pattern',
+                            'action': pattern_action,
+                            'confidence': pattern_quality,
+                            'reason': f"{pattern_type.upper()} (Quality: {pattern_quality}%)"
+                        })
+
+                # Add custom strategy decisions
+                for strategy_signal in custom_strategy_signals:
+                    candidates.append({
+                        'source': f"📋 {strategy_signal['strategy_name']}",
+                        'action': strategy_signal['action'],
+                        'confidence': strategy_signal['confidence'],
+                        'reason': strategy_signal['reason']
+                    })
+
+                # Pick the highest confidence decision
+                if candidates:
+                    best = max(candidates, key=lambda x: x['confidence'])
+                    final_action = best['action']
+                    final_confidence = best['confidence']
+                    final_reason = f"{best['source']}: {best['reason']}"
+
+                    print(f"\n📊 ALL CANDIDATES:")
+                    for c in candidates:
+                        print(f"   {c['source']}: {c['action'].upper()} @ {c['confidence']}%")
+                    print(f"\n✨ WINNER: {best['source']} - {best['action'].upper()} @ {best['confidence']}%")
+
+                    # Track which system was used
+                    if '📋' in best['source']:
+                        for sig in custom_strategy_signals:
+                            if sig['strategy_name'] in best['source']:
+                                ACTIVE_STRATEGY_ID = sig['strategy_id']
+                                ACTIVE_STRATEGY_NAME = sig['strategy_name']
+                                break
+                else:
+                    print(f"⏭️  No signals from any system")
+
+            elif decision_mode == 'indicators_only':
+                # INDICATORS ONLY MODE: Fall through to traditional indicator analysis below
+                # This will be handled by the existing traditional indicator logic
+                print(f"⏭️  Using traditional indicators (legacy code below)")
+                # Don't return here, let it continue to traditional analysis
+
+            print(f"{'='*60}\n")
+
+            # If we have a final decision from the new decision modes, return it
+            if final_action != 'hold' and decision_mode != 'indicators_only':
+                add_log(f"🎯 {decision_mode.upper()}: {final_action.upper()} - {final_reason} ({final_confidence}%)")
+                return final_action, final_reason
         except Exception as e:
             import traceback
             error_trace = traceback.format_exc()

@@ -617,12 +617,11 @@
                     <label class="setting-label">Decision Mode</label>
                     <div class="setting-control">
                         <select id="decision_mode">
-                            <option value="ultra_safe">ULTRA SAFE: AI + Traditional both agree</option>
-                            <option value="ai_priority">AI Priority: AI decides, Traditional validates</option>
-                            <option value="traditional_priority">Traditional Priority: Traditional + AI validation</option>
-                            <option value="aggressive">Aggressive: AI OR Traditional</option>
-                            <option value="ai_only">AI Only: Ignore traditional indicators</option>
-                            <option value="traditional_only">Traditional Only: Ignore AI</option>
+                            <option value="full_power">🚀 FULL POWER: AI + Patterns + Strategies (Best Wins)</option>
+                            <option value="ai_only">🤖 AI ONLY: Pure GPT-4 + Claude Analysis</option>
+                            <option value="patterns_only">🕯️ PATTERNS ONLY: Candlestick Patterns Only</option>
+                            <option value="strategy_only">📋 STRATEGY ONLY: Use Selected Custom Strategy</option>
+                            <option value="indicators_only">📊 INDICATORS ONLY: Traditional Technical Analysis</option>
                         </select>
                     </div>
                 </div>
@@ -654,6 +653,81 @@
                     <div class="setting-control">
                         <input type="number" id="min_indicator_alignment" value="5" min="2" max="10">
                         <span>/ 13 indicators</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Active Systems Dashboard -->
+            <div class="settings-card" style="grid-column: 1 / -1; background: linear-gradient(135deg, rgba(0,255,255,0.05), rgba(255,0,255,0.05));">
+                <div class="card-title">
+                    🎯 ACTIVE SYSTEMS DASHBOARD
+                    <span class="status-badge" style="background: rgba(0, 255, 255, 0.2); color: cyan;">CONTROL CENTER</span>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 15px;">
+                    <!-- AI Analysis Toggle -->
+                    <div style="padding: 15px; background: rgba(0, 255, 255, 0.1); border-radius: 8px; border: 1px solid rgba(0, 255, 255, 0.3);">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <div style="font-weight: bold; color: #0ff; font-size: 1.1em;">🤖 AI Analysis</div>
+                                <div style="font-size: 0.85em; color: #0cc; margin-top: 5px;">GPT-4 + Claude Ensemble</div>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="ai_enabled_dash" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Pattern Recognition Toggle -->
+                    <div style="padding: 15px; background: rgba(255, 215, 0, 0.1); border-radius: 8px; border: 1px solid rgba(255, 215, 0, 0.3);">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <div style="font-weight: bold; color: #ffd700; font-size: 1.1em;">🕯️ Pattern Recognition</div>
+                                <div style="font-size: 0.85em; color: #cc0; margin-top: 5px;">Engulfing, Doji, Hammer, etc.</div>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="pattern_recognition_enabled" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Custom Strategies Toggle -->
+                    <div style="padding: 15px; background: rgba(255, 0, 255, 0.1); border-radius: 8px; border: 1px solid rgba(255, 0, 255, 0.3);">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <div style="font-weight: bold; color: #f0f; font-size: 1.1em;">📋 Custom Strategies</div>
+                                <div style="font-size: 0.85em; color: #c0c; margin-top: 5px;">User-defined trading rules</div>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="custom_strategies_enabled" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Strategy Selector (for strategy_only mode) -->
+                <div id="strategy_selector" style="margin-top: 20px; padding: 15px; background: rgba(255,255,255,0.05); border-radius: 8px; display: none;">
+                    <div style="margin-bottom: 10px; font-weight: bold; color: #0ff;">📋 Select Strategy (for "Strategy Only" mode):</div>
+                    <select id="active_strategy_id" style="width: 100%; padding: 10px; background: rgba(0,0,0,0.5); color: #0ff; border: 1px solid #0ff; border-radius: 5px;">
+                        <option value="">Loading strategies...</option>
+                    </select>
+                </div>
+
+                <!-- Active Strategies List -->
+                <div style="margin-top: 20px;">
+                    <div style="font-weight: bold; color: #0cc; margin-bottom: 10px; font-size: 1.1em;">📊 Custom Strategy Status:</div>
+                    <div id="custom_strategies_list" style="display: grid; gap: 10px;">
+                        <div style="text-align: center; padding: 20px; color: #666;">
+                            Loading strategies...
+                        </div>
+                    </div>
+                    <div style="margin-top: 15px; text-align: center;">
+                        <button onclick="window.location.href='/strategies'" style="padding: 10px 20px; background: linear-gradient(135deg, #ff00ff, #8000ff); border: none; border-radius: 5px; color: white; font-weight: bold; cursor: pointer; box-shadow: 0 0 15px rgba(255,0,255,0.4);">
+                            🎯 Open Strategy Builder
+                        </button>
                     </div>
                 </div>
             </div>
@@ -1638,11 +1712,152 @@
         // Track if user is changing settings
         let isChangingSettings = false;
 
+        // 🎯 Load Custom Strategies
+        async function loadCustomStrategies() {
+            try {
+                const response = await fetch('/api/strategies/list');
+                const strategies = await response.json();
+
+                // Populate strategy selector dropdown
+                const selector = document.getElementById('active_strategy_id');
+                selector.innerHTML = '<option value="">-- Select a strategy --</option>';
+
+                for (const [id, strategy] of Object.entries(strategies)) {
+                    const option = document.createElement('option');
+                    option.value = id;
+                    option.textContent = strategy.name;
+                    selector.appendChild(option);
+                }
+
+                // Populate strategies list
+                const listContainer = document.getElementById('custom_strategies_list');
+                listContainer.innerHTML = '';
+
+                const sortedStrategies = Object.entries(strategies).sort((a, b) => {
+                    return (b[1].active ? 1 : 0) - (a[1].active ? 1 : 0);
+                });
+
+                for (const [id, strategy] of sortedStrategies) {
+                    const div = document.createElement('div');
+                    div.style.cssText = `
+                        padding: 12px;
+                        background: rgba(255,255,255,0.05);
+                        border-radius: 6px;
+                        border: 1px solid rgba(0,255,255,0.2);
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                    `;
+
+                    const perf = strategy.performance || {};
+                    const winRate = perf.win_rate || 0;
+                    const totalTrades = perf.total_trades || 0;
+
+                    div.innerHTML = `
+                        <div>
+                            <div style="font-weight: bold; color: ${strategy.active ? '#0f0' : '#666'};">
+                                ${strategy.active ? '✅' : '⏸️'} ${strategy.name}
+                            </div>
+                            <div style="font-size: 0.85em; color: #0cc; margin-top: 3px;">
+                                ${strategy.description || 'No description'}
+                            </div>
+                            <div style="font-size: 0.8em; color: #888; margin-top: 5px;">
+                                📊 Win Rate: ${winRate.toFixed(1)}% | Trades: ${totalTrades}
+                            </div>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" ${strategy.active ? 'checked' : ''}
+                                   onchange="toggleStrategy('${id}', this.checked)">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    `;
+
+                    listContainer.appendChild(div);
+                }
+
+                if (sortedStrategies.length === 0) {
+                    listContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">No custom strategies created yet.</div>';
+                }
+
+            } catch (error) {
+                console.error('Error loading strategies:', error);
+                document.getElementById('custom_strategies_list').innerHTML =
+                    '<div style="text-align: center; padding: 20px; color: #f00;">Error loading strategies</div>';
+            }
+        }
+
+        // Toggle strategy active status
+        async function toggleStrategy(strategyId, active) {
+            try {
+                const response = await fetch(`/api/strategies/toggle/${strategyId}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({active: active})
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    showModal('success', 'Success', `Strategy ${active ? 'activated' : 'deactivated'} successfully!`);
+                    loadCustomStrategies(); // Reload list
+                } else {
+                    showModal('error', 'Error', result.message || 'Failed to toggle strategy');
+                }
+            } catch (error) {
+                console.error('Error toggling strategy:', error);
+                showModal('error', 'Error', 'Failed to toggle strategy');
+            }
+        }
+
+        // Handle decision mode change
+        function handleDecisionModeChange() {
+            const decisionMode = document.getElementById('decision_mode').value;
+            const strategySelector = document.getElementById('strategy_selector');
+
+            // Show strategy selector only if mode is "strategy_only"
+            if (decisionMode === 'strategy_only') {
+                strategySelector.style.display = 'block';
+            } else {
+                strategySelector.style.display = 'none';
+            }
+        }
+
+        // Sync dashboard toggles with main AI toggle
+        function syncDashboardToggles() {
+            const aiEnabled = document.getElementById('ai_enabled');
+            const aiEnabledDash = document.getElementById('ai_enabled_dash');
+
+            if (aiEnabled && aiEnabledDash) {
+                aiEnabledDash.checked = aiEnabled.checked;
+
+                // Add change handlers to keep them in sync
+                aiEnabled.addEventListener('change', () => {
+                    aiEnabledDash.checked = aiEnabled.checked;
+                });
+
+                aiEnabledDash.addEventListener('change', () => {
+                    aiEnabled.checked = aiEnabledDash.checked;
+                });
+            }
+        }
+
         // Load settings on page load
         window.onload = () => {
             loadSettings();
             setupToggleHandlers();
             setInterval(loadIndicatorPerformance, 5000); // Update performance every 5 seconds
+
+            // 🎯 Load custom strategies
+            loadCustomStrategies();
+
+            // Handle decision mode change
+            const decisionModeSelect = document.getElementById('decision_mode');
+            if (decisionModeSelect) {
+                decisionModeSelect.addEventListener('change', handleDecisionModeChange);
+                handleDecisionModeChange(); // Initial check
+            }
+
+            // Sync dashboard toggles
+            syncDashboardToggles();
 
             // Refresh AI status every 3 seconds, but not while user is changing settings
             setInterval(async () => {
