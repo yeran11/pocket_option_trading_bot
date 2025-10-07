@@ -778,6 +778,90 @@ async def calculate_supertrend(candles, atr_period=10, multiplier=3):
     return supertrend, trend
 
 
+async def calculate_heikin_ashi(candles):
+    """
+    Calculate Heikin Ashi candles and detect trend signals
+
+    Heikin Ashi Formula:
+    - HA Close = (Open + High + Low + Close) / 4
+    - HA Open = (Previous HA Open + Previous HA Close) / 2
+    - HA High = Max(High, HA Open, HA Close)
+    - HA Low = Min(Low, HA Open, HA Close)
+
+    Returns: (trend, consecutive_count, signal_strength)
+    """
+    if len(candles) < 10:
+        return 'neutral', 0, 0
+
+    ha_candles = []
+
+    # First HA candle - use real values
+    first = candles[0]
+    ha_open = (first[1] + first[2]) / 2  # (Open + Close) / 2
+    ha_close = (first[1] + first[3] + first[4] + first[2]) / 4  # (O+H+L+C)/4
+    ha_high = max(first[3], ha_open, ha_close)
+    ha_low = min(first[4], ha_open, ha_close)
+    ha_candles.append([ha_open, ha_close, ha_high, ha_low])
+
+    # Calculate rest of HA candles
+    for candle in candles[1:]:
+        prev_ha = ha_candles[-1]
+
+        # HA Open = (Prev HA Open + Prev HA Close) / 2
+        ha_open = (prev_ha[0] + prev_ha[1]) / 2
+
+        # HA Close = (O + H + L + C) / 4
+        ha_close = (candle[1] + candle[3] + candle[4] + candle[2]) / 4
+
+        # HA High = Max(H, HA Open, HA Close)
+        ha_high = max(candle[3], ha_open, ha_close)
+
+        # HA Low = Min(L, HA Open, HA Close)
+        ha_low = min(candle[4], ha_open, ha_close)
+
+        ha_candles.append([ha_open, ha_close, ha_high, ha_low])
+
+    # Analyze last 5 HA candles for trend
+    recent_ha = ha_candles[-5:]
+    bullish_count = sum(1 for ha in recent_ha if ha[1] > ha[0])  # Close > Open
+    bearish_count = sum(1 for ha in recent_ha if ha[1] < ha[0])  # Close < Open
+
+    # Get consecutive candles of same color
+    consecutive = 1
+    last_ha = ha_candles[-1]
+    is_bullish = last_ha[1] > last_ha[0]
+
+    for ha in reversed(ha_candles[-6:-1]):
+        if is_bullish and ha[1] > ha[0]:
+            consecutive += 1
+        elif not is_bullish and ha[1] < ha[0]:
+            consecutive += 1
+        else:
+            break
+
+    # Determine trend and strength
+    if bullish_count >= 4:
+        trend = 'bullish'
+        strength = min(100, bullish_count * 20 + consecutive * 10)
+    elif bearish_count >= 4:
+        trend = 'bearish'
+        strength = min(100, bearish_count * 20 + consecutive * 10)
+    else:
+        trend = 'neutral'
+        strength = 0
+
+    # Check for doji (small body)
+    last_ha = ha_candles[-1]
+    body = abs(last_ha[1] - last_ha[0])
+    total_range = last_ha[2] - last_ha[3]
+
+    if total_range > 0 and body / total_range < 0.1:
+        trend = 'doji'
+        strength = 60  # Doji indicates potential reversal
+
+    return trend, consecutive, strength
+
+
 async def detect_candlestick_patterns(candles):
     """
     Detect powerful candlestick patterns
@@ -876,6 +960,13 @@ async def enhanced_strategy(candles):
     stoch_k, stoch_d = await calculate_stochastic(candles)
     supertrend_value, supertrend_direction = await calculate_supertrend(candles)
     pattern_name, pattern_strength, pattern_direction = await detect_candlestick_patterns(candles)
+
+    # 🕯️ Heikin Ashi calculation
+    heikin_ashi_trend = 'neutral'
+    heikin_ashi_consecutive = 0
+    heikin_ashi_strength = 0
+    if settings.get('heikin_ashi_enabled', True):
+        heikin_ashi_trend, heikin_ashi_consecutive, heikin_ashi_strength = await calculate_heikin_ashi(candles)
 
     if None in [ema_fast, ema_slow, rsi, upper_bb, lower_bb]:
         return None
@@ -1043,7 +1134,9 @@ async def enhanced_strategy(candles):
                 'bollinger_position': 'Above' if upper_bb and current_price > upper_bb else 'Below' if lower_bb and current_price < lower_bb else 'Middle',
 
                 # Volume & patterns
-                'heikin_ashi': 'neutral',  # TODO: Calculate Heikin Ashi
+                'heikin_ashi': heikin_ashi_trend,
+                'heikin_ashi_consecutive': heikin_ashi_consecutive,
+                'heikin_ashi_strength': heikin_ashi_strength,
                 'vwap_position': 'At VWAP',
                 'vwap_deviation': 0,
                 'volume_trend': 'Normal',
