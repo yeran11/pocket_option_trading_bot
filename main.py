@@ -862,6 +862,154 @@ async def calculate_heikin_ashi(candles):
     return trend, consecutive, strength
 
 
+async def calculate_adx(candles, period=14):
+    """
+    Calculate ADX (Average Directional Index) with +DI and -DI
+
+    ADX measures trend strength (0-100):
+    - 0-25: Weak or no trend (ranging market)
+    - 25-50: Strong trend
+    - 50-75: Very strong trend
+    - 75-100: Extremely strong trend
+
+    +DI and -DI show direction:
+    - +DI > -DI: Uptrend
+    - -DI > +DI: Downtrend
+    - DI Crossover: Potential entry signal
+
+    Returns: (adx_value, plus_di, minus_di, di_cross_signal)
+    """
+    if len(candles) < period * 2:
+        return 25, 50, 50, 'neutral'
+
+    # Step 1: Calculate True Range (TR) and Directional Movement (+DM, -DM)
+    tr_list = []
+    plus_dm_list = []
+    minus_dm_list = []
+
+    for i in range(1, len(candles)):
+        prev_candle = candles[i-1]
+        curr_candle = candles[i]
+
+        # Extract OHLC
+        prev_high = prev_candle[3]
+        prev_low = prev_candle[4]
+        prev_close = prev_candle[2]
+        curr_high = curr_candle[3]
+        curr_low = curr_candle[4]
+
+        # True Range = max of:
+        # 1. Current High - Current Low
+        # 2. |Current High - Previous Close|
+        # 3. |Current Low - Previous Close|
+        tr = max(
+            curr_high - curr_low,
+            abs(curr_high - prev_close),
+            abs(curr_low - prev_close)
+        )
+        tr_list.append(tr)
+
+        # Directional Movement
+        high_diff = curr_high - prev_high
+        low_diff = prev_low - curr_low
+
+        # +DM: Positive if current high > previous high
+        plus_dm = high_diff if high_diff > low_diff and high_diff > 0 else 0
+
+        # -DM: Positive if previous low > current low
+        minus_dm = low_diff if low_diff > high_diff and low_diff > 0 else 0
+
+        plus_dm_list.append(plus_dm)
+        minus_dm_list.append(minus_dm)
+
+    # Step 2: Smooth TR, +DM, -DM using Wilder's smoothing
+    # First value = sum of first 'period' values
+    # Subsequent values = (previous_smooth * (period-1) + current_value) / period
+
+    def wilders_smoothing(values, period):
+        if len(values) < period:
+            return []
+
+        smoothed = []
+        # First smoothed value
+        first_smooth = sum(values[:period]) / period
+        smoothed.append(first_smooth)
+
+        # Subsequent smoothed values
+        for i in range(period, len(values)):
+            smooth = (smoothed[-1] * (period - 1) + values[i]) / period
+            smoothed.append(smooth)
+
+        return smoothed
+
+    smoothed_tr = wilders_smoothing(tr_list, period)
+    smoothed_plus_dm = wilders_smoothing(plus_dm_list, period)
+    smoothed_minus_dm = wilders_smoothing(minus_dm_list, period)
+
+    if not smoothed_tr or len(smoothed_tr) < period:
+        return 25, 50, 50, 'neutral'
+
+    # Step 3: Calculate +DI and -DI
+    plus_di_list = []
+    minus_di_list = []
+
+    for i in range(len(smoothed_tr)):
+        if smoothed_tr[i] != 0:
+            plus_di = 100 * (smoothed_plus_dm[i] / smoothed_tr[i])
+            minus_di = 100 * (smoothed_minus_dm[i] / smoothed_tr[i])
+        else:
+            plus_di = 0
+            minus_di = 0
+
+        plus_di_list.append(plus_di)
+        minus_di_list.append(minus_di)
+
+    # Step 4: Calculate DX (Directional Index)
+    dx_list = []
+
+    for i in range(len(plus_di_list)):
+        di_sum = plus_di_list[i] + minus_di_list[i]
+        if di_sum != 0:
+            dx = 100 * abs(plus_di_list[i] - minus_di_list[i]) / di_sum
+        else:
+            dx = 0
+        dx_list.append(dx)
+
+    # Step 5: Calculate ADX (smoothed DX)
+    adx_list = wilders_smoothing(dx_list, period)
+
+    if not adx_list:
+        return 25, 50, 50, 'neutral'
+
+    # Get latest values
+    adx_value = adx_list[-1]
+    plus_di = plus_di_list[-1]
+    minus_di = minus_di_list[-1]
+
+    # Step 6: Detect DI Crossover signals
+    di_cross_signal = 'neutral'
+
+    if len(plus_di_list) >= 2 and len(minus_di_list) >= 2:
+        prev_plus_di = plus_di_list[-2]
+        prev_minus_di = minus_di_list[-2]
+
+        # Bullish crossover: +DI crosses above -DI
+        if prev_plus_di <= prev_minus_di and plus_di > minus_di:
+            di_cross_signal = 'bullish_cross'
+
+        # Bearish crossover: -DI crosses above +DI
+        elif prev_minus_di <= prev_plus_di and minus_di > plus_di:
+            di_cross_signal = 'bearish_cross'
+
+        # Continuation signals
+        elif plus_di > minus_di:
+            di_cross_signal = 'bullish'
+        elif minus_di > plus_di:
+            di_cross_signal = 'bearish'
+
+    return round(adx_value, 2), round(plus_di, 2), round(minus_di, 2), di_cross_signal
+
+
 async def detect_candlestick_patterns(candles):
     """
     Detect powerful candlestick patterns
@@ -967,6 +1115,27 @@ async def enhanced_strategy(candles):
     heikin_ashi_strength = 0
     if settings.get('heikin_ashi_enabled', True):
         heikin_ashi_trend, heikin_ashi_consecutive, heikin_ashi_strength = await calculate_heikin_ashi(candles)
+
+    # 📊 ADX (Average Directional Index) calculation
+    adx_value = 25
+    plus_di = 50
+    minus_di = 50
+    di_cross_signal = 'neutral'
+    if settings.get('adx_enabled', True):
+        adx_value, plus_di, minus_di, di_cross_signal = await calculate_adx(candles, settings.get('adx_period', 14))
+
+        # Log ADX values for visibility
+        adx_strength = "WEAK" if adx_value < 25 else "STRONG" if adx_value < 50 else "VERY STRONG" if adx_value < 75 else "EXTREMELY STRONG"
+        trend_direction = "BULLISH" if plus_di > minus_di else "BEARISH"
+
+        print(f"📊 ADX: {adx_value:.1f} ({adx_strength} TREND)")
+        print(f"   ├─ +DI: {plus_di:.1f} | -DI: {minus_di:.1f}")
+        print(f"   ├─ Direction: {trend_direction} ({di_cross_signal.upper()})")
+
+        if di_cross_signal == 'bullish_cross':
+            print(f"   └─ ✅ BULLISH CROSSOVER! +DI crossed above -DI - Strong BUY signal!")
+        elif di_cross_signal == 'bearish_cross':
+            print(f"   └─ ⚠️ BEARISH CROSSOVER! -DI crossed above +DI - Strong SELL signal!")
 
     if None in [ema_fast, ema_slow, rsi, upper_bb, lower_bb]:
         return None
@@ -1122,8 +1291,10 @@ async def enhanced_strategy(candles):
                 'rsi': rsi or 50,
                 'ema_cross': 'Bullish' if ema_fast and ema_slow and ema_fast > ema_slow else 'Bearish',
                 'supertrend': 'BUY' if supertrend_direction == 1 else 'SELL' if supertrend_direction == -1 else 'Neutral',
-                'adx': 25,  # TODO: Calculate real ADX
-                'di_cross': 'neutral',
+                'adx': adx_value,
+                'plus_di': plus_di,
+                'minus_di': minus_di,
+                'di_cross': di_cross_signal,
 
                 # Momentum indicators
                 'macd_line': macd_line or 0,
