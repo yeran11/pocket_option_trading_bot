@@ -1157,11 +1157,9 @@
         }
 
         function startBot() {
-            const settings = {
-                fast_ema: parseInt(document.getElementById('fast-ema').value),
-                slow_ema: parseInt(document.getElementById('slow-ema').value),
-                min_confidence: parseInt(document.getElementById('min-confidence').value)
-            };
+            // Send empty settings object - backend will use current settings
+            // (Settings are now managed in Settings page, not on dashboard)
+            const settings = {};
 
             fetch('/api/start', {
                 method: 'POST',
@@ -1176,7 +1174,10 @@
                     addLog('❌ Error: ' + data.error);
                 }
             })
-            .catch(e => addLog('❌ Error: ' + e));
+            .catch(e => {
+                console.error('Start error:', e);
+                addLog('❌ Error starting bot: ' + e.message);
+            });
         }
 
         function stopBot() {
