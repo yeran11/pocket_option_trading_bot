@@ -853,6 +853,8 @@ async def enhanced_strategy(candles):
     """
     Advanced AI-enhanced strategy with multiple indicators
     """
+    global ACTIVE_STRATEGY_ID, ACTIVE_STRATEGY_NAME
+
     if len(candles) < 50:
         return None
 
@@ -1160,7 +1162,6 @@ async def enhanced_strategy(candles):
 
                         # Override AI decision with custom strategy if confidence is higher
                         if best_strategy['confidence'] > ai_confidence:
-                            global ACTIVE_STRATEGY_ID, ACTIVE_STRATEGY_NAME
                             ACTIVE_STRATEGY_ID = best_strategy['strategy_id']
                             ACTIVE_STRATEGY_NAME = best_strategy['strategy_name']
                             ai_action = best_strategy['action']
@@ -1214,7 +1215,6 @@ async def enhanced_strategy(candles):
                 # STRATEGY ONLY MODE: Use selected custom strategy exclusively
                 if custom_strategy_signals:
                     best_strategy = max(custom_strategy_signals, key=lambda x: x['confidence'])
-                    global ACTIVE_STRATEGY_ID, ACTIVE_STRATEGY_NAME
                     ACTIVE_STRATEGY_ID = best_strategy['strategy_id']
                     ACTIVE_STRATEGY_NAME = best_strategy['strategy_name']
                     final_action = best_strategy['action']
