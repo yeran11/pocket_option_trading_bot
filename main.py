@@ -1010,6 +1010,186 @@ async def calculate_adx(candles, period=14):
     return round(adx_value, 2), round(plus_di, 2), round(minus_di, 2), di_cross_signal
 
 
+async def calculate_synthetic_volume(candles):
+    """
+    Calculate synthetic volume for binary options (Pocket Option doesn't provide real volume)
+
+    Synthetic volume is calculated based on:
+    1. Price movement (range of the candle)
+    2. Volatility (how much price moved vs average)
+    3. Body size (strength of directional movement)
+
+    Returns: list of volume values (one per candle)
+    """
+    if len(candles) < 20:
+        # Return normalized volume of 1.0 for each candle if not enough data
+        return [1.0] * len(candles)
+
+    volumes = []
+
+    for i in range(len(candles)):
+        candle = candles[i]
+        open_price = candle[1]
+        close_price = candle[2]
+        high = candle[3]
+        low = candle[4]
+
+        # 1. Range-based volume (price movement)
+        price_range = high - low
+        if price_range == 0:
+            price_range = 0.00001  # Avoid division by zero
+
+        # 2. Body strength (directional conviction)
+        body = abs(close_price - open_price)
+        body_ratio = body / price_range if price_range > 0 else 0.5
+
+        # 3. Volatility factor (compare to recent average range)
+        if i >= 14:
+            recent_candles = candles[i-14:i]
+            avg_range = sum([c[3] - c[4] for c in recent_candles]) / 14
+            volatility_factor = price_range / avg_range if avg_range > 0 else 1.0
+        else:
+            volatility_factor = 1.0
+
+        # Synthetic volume formula
+        # Higher volume when: larger range, stronger body, higher volatility
+        synthetic_vol = price_range * (1 + body_ratio) * volatility_factor
+
+        volumes.append(synthetic_vol)
+
+    # Normalize volumes to have a mean of 1.0
+    if len(volumes) > 0:
+        avg_vol = sum(volumes) / len(volumes)
+        if avg_vol > 0:
+            volumes = [v / avg_vol for v in volumes]
+
+    return volumes
+
+
+async def analyze_volume_trend(volumes, period=14):
+    """
+    Analyze volume trend to detect accumulation/distribution
+
+    Returns: (trend, strength, signal)
+    - trend: 'increasing', 'decreasing', 'stable'
+    - strength: 0-100 (how strong the trend is)
+    - signal: 'high_volume', 'low_volume', 'normal'
+    """
+    if len(volumes) < period * 2:
+        return 'stable', 0, 'normal'
+
+    recent_volumes = volumes[-period:]
+    older_volumes = volumes[-period*2:-period]
+
+    recent_avg = sum(recent_volumes) / len(recent_volumes)
+    older_avg = sum(older_volumes) / len(older_volumes)
+
+    # Calculate trend
+    if recent_avg > older_avg * 1.2:
+        trend = 'increasing'
+        strength = min(100, int((recent_avg / older_avg - 1) * 100))
+    elif recent_avg < older_avg * 0.8:
+        trend = 'decreasing'
+        strength = min(100, int((1 - recent_avg / older_avg) * 100))
+    else:
+        trend = 'stable'
+        strength = 0
+
+    # Determine current volume level
+    current_vol = volumes[-1]
+    avg_vol = sum(volumes[-period:]) / period
+
+    if current_vol > avg_vol * 1.5:
+        signal = 'high_volume'
+    elif current_vol < avg_vol * 0.5:
+        signal = 'low_volume'
+    else:
+        signal = 'normal'
+
+    return trend, strength, signal
+
+
+async def calculate_vwap(candles, volumes):
+    """
+    Calculate VWAP (Volume Weighted Average Price) with standard deviation bands
+
+    VWAP = Sum(Typical Price * Volume) / Sum(Volume)
+    Typical Price = (High + Low + Close) / 3
+
+    Returns: (vwap, upper_band_1, lower_band_1, upper_band_2, lower_band_2, position, deviation)
+    """
+    if len(candles) < 20 or len(volumes) < 20:
+        return None, None, None, None, None, 'At VWAP', 0
+
+    # Use last 100 candles for VWAP calculation (or all if less than 100)
+    period = min(100, len(candles))
+    recent_candles = candles[-period:]
+    recent_volumes = volumes[-period:]
+
+    # Calculate VWAP
+    typical_prices = []
+    pv_sum = 0  # Price * Volume sum
+    volume_sum = 0
+
+    for i in range(len(recent_candles)):
+        candle = recent_candles[i]
+        volume = recent_volumes[i]
+
+        # Typical price (HLC/3)
+        typical_price = (candle[3] + candle[4] + candle[2]) / 3
+        typical_prices.append(typical_price)
+
+        pv_sum += typical_price * volume
+        volume_sum += volume
+
+    vwap = pv_sum / volume_sum if volume_sum > 0 else recent_candles[-1][2]
+
+    # Calculate standard deviation for bands
+    squared_diff_sum = 0
+    for i in range(len(recent_candles)):
+        typical_price = typical_prices[i]
+        volume = recent_volumes[i]
+        squared_diff_sum += ((typical_price - vwap) ** 2) * volume
+
+    variance = squared_diff_sum / volume_sum if volume_sum > 0 else 0
+    std_dev = variance ** 0.5
+
+    # VWAP bands (1 and 2 standard deviations)
+    upper_band_1 = vwap + std_dev
+    lower_band_1 = vwap - std_dev
+    upper_band_2 = vwap + (std_dev * 2)
+    lower_band_2 = vwap - (std_dev * 2)
+
+    # Determine position relative to VWAP
+    current_price = candles[-1][2]
+
+    if current_price > upper_band_2:
+        position = 'Far Above VWAP'
+        deviation = 2.0
+    elif current_price > upper_band_1:
+        position = 'Above VWAP'
+        deviation = (current_price - vwap) / std_dev if std_dev > 0 else 0
+    elif current_price < lower_band_2:
+        position = 'Far Below VWAP'
+        deviation = -2.0
+    elif current_price < lower_band_1:
+        position = 'Below VWAP'
+        deviation = (current_price - vwap) / std_dev if std_dev > 0 else 0
+    else:
+        position = 'At VWAP'
+        deviation = (current_price - vwap) / std_dev if std_dev > 0 else 0
+
+    return (
+        round(vwap, 5),
+        round(upper_band_1, 5),
+        round(lower_band_1, 5),
+        round(upper_band_2, 5),
+        round(lower_band_2, 5),
+        position,
+        round(deviation, 2)
+    )
+
+
 async def detect_candlestick_patterns(candles):
     """
     Detect powerful candlestick patterns
@@ -1136,6 +1316,43 @@ async def enhanced_strategy(candles):
             print(f"   └─ ✅ BULLISH CROSSOVER! +DI crossed above -DI - Strong BUY signal!")
         elif di_cross_signal == 'bearish_cross':
             print(f"   └─ ⚠️ BEARISH CROSSOVER! -DI crossed above +DI - Strong SELL signal!")
+
+    # 📊 VOLUME & VWAP calculation (Synthetic Volume for Binary Options)
+    volumes = []
+    volume_trend = 'stable'
+    volume_strength = 0
+    volume_signal = 'normal'
+    vwap_value = None
+    vwap_upper_1 = None
+    vwap_lower_1 = None
+    vwap_upper_2 = None
+    vwap_lower_2 = None
+    vwap_position = 'At VWAP'
+    vwap_deviation = 0
+
+    if settings.get('vwap_enabled', True):
+        # Calculate synthetic volume
+        volumes = await calculate_synthetic_volume(candles)
+
+        # Analyze volume trend
+        volume_trend, volume_strength, volume_signal = await analyze_volume_trend(volumes)
+
+        # Calculate VWAP
+        vwap_value, vwap_upper_1, vwap_lower_1, vwap_upper_2, vwap_lower_2, vwap_position, vwap_deviation = await calculate_vwap(candles, volumes)
+
+        # Log Volume & VWAP for visibility
+        print(f"📊 VOLUME: {volume_signal.upper()} (Trend: {volume_trend.upper()}, Strength: {volume_strength})")
+        if vwap_value:
+            print(f"📊 VWAP: {vwap_value:.5f} | Current: {current_price:.5f}")
+            print(f"   ├─ Position: {vwap_position}")
+            print(f"   ├─ Deviation: {vwap_deviation:.2f} σ")
+            print(f"   ├─ Bands: [{vwap_lower_2:.5f} | {vwap_lower_1:.5f} | {vwap_value:.5f} | {vwap_upper_1:.5f} | {vwap_upper_2:.5f}]")
+
+            # VWAP trading signals
+            if vwap_position == 'Far Below VWAP' and volume_signal == 'high_volume':
+                print(f"   └─ ✅ VWAP BOUNCE OPPORTUNITY! Price far below + high volume")
+            elif vwap_position == 'Far Above VWAP' and volume_signal == 'high_volume':
+                print(f"   └─ ⚠️ VWAP REVERSAL RISK! Price far above + high volume")
 
     if None in [ema_fast, ema_slow, rsi, upper_bb, lower_bb]:
         return None
@@ -1308,9 +1525,16 @@ async def enhanced_strategy(candles):
                 'heikin_ashi': heikin_ashi_trend,
                 'heikin_ashi_consecutive': heikin_ashi_consecutive,
                 'heikin_ashi_strength': heikin_ashi_strength,
-                'vwap_position': 'At VWAP',
-                'vwap_deviation': 0,
-                'volume_trend': 'Normal',
+                'vwap_position': vwap_position,
+                'vwap_deviation': vwap_deviation,
+                'vwap_value': vwap_value,
+                'vwap_upper_band_1': vwap_upper_1,
+                'vwap_lower_band_1': vwap_lower_1,
+                'vwap_upper_band_2': vwap_upper_2,
+                'vwap_lower_band_2': vwap_lower_2,
+                'volume_trend': volume_trend,
+                'volume_signal': volume_signal,
+                'volume_strength': volume_strength,
 
                 # Support/Resistance
                 'support': support or 0,
