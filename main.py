@@ -2436,6 +2436,86 @@ def check_trade_limits():
     return True, "Within limits"
 
 
+async def set_expiry_time(driver, expiry_seconds):
+    """Set the expiry time in Pocket Option's interface before placing trade"""
+    try:
+        # Convert seconds to format Pocket Option uses
+        if expiry_seconds >= 60:
+            expiry_minutes = expiry_seconds // 60
+            expiry_text_options = [
+                f"{expiry_minutes}m",
+                f"{expiry_minutes} min",
+                f"{expiry_minutes}min",
+                str(expiry_minutes)
+            ]
+        else:
+            expiry_text_options = [
+                f"{expiry_seconds}s",
+                f"{expiry_seconds} sec",
+                f"{expiry_seconds}sec",
+                str(expiry_seconds)
+            ]
+
+        # Try multiple selector strategies for Pocket Option's expiry dropdown
+        expiry_selectors = [
+            '.deals-time-picker__value',
+            '.time-picker',
+            '.expiration-select',
+            '[class*="time-picker"]',
+            '[class*="expiry"]',
+            '.deals__expiration-time'
+        ]
+
+        expiry_button = None
+        for selector in expiry_selectors:
+            try:
+                expiry_button = driver.find_element(By.CSS_SELECTOR, selector)
+                if expiry_button:
+                    break
+            except:
+                continue
+
+        if not expiry_button:
+            # Fallback: try finding by visible text
+            try:
+                expiry_button = driver.find_element(By.XPATH, "//*[contains(@class, 'time') or contains(@class, 'expir')]")
+            except:
+                return False
+
+        # Click to open dropdown
+        expiry_button.click()
+        await asyncio.sleep(0.3)
+
+        # Try to find and click the expiry option
+        for expiry_text in expiry_text_options:
+            try:
+                option_selectors = [
+                    f"//div[text()='{expiry_text}']",
+                    f"//li[text()='{expiry_text}']",
+                    f"//span[text()='{expiry_text}']",
+                    f"//button[text()='{expiry_text}']",
+                    f"//*[contains(text(), '{expiry_text}')]"
+                ]
+
+                for selector in option_selectors:
+                    try:
+                        option = driver.find_element(By.XPATH, selector)
+                        option.click()
+                        add_log(f"✅ Expiry set to {expiry_seconds}s")
+                        await asyncio.sleep(0.2)
+                        return True
+                    except:
+                        continue
+            except:
+                continue
+
+        return False
+
+    except Exception as e:
+        add_log(f"⚠️ Expiry setting error: {e}")
+        return False
+
+
 async def create_order(driver, action, asset, reason="", expiry=60):
     """Create trading order with AI-chosen expiry time"""
     global ACTIONS, BOT_TRADE_IDS, TRADE_HISTORY, LAST_TRADE_TIME, CONSECUTIVE_TRADES
@@ -2457,6 +2537,12 @@ async def create_order(driver, action, asset, reason="", expiry=60):
         ok_payout = await check_payout(driver, asset)
         if not ok_payout:
             return False
+
+        # 🆕 SET EXPIRY TIME BEFORE CLICKING CALL/PUT
+        if settings.get('ai_dynamic_expiry_enabled', True):
+            expiry_set = await set_expiry_time(driver, expiry)
+            if not expiry_set:
+                add_log(f"⚠️ Using manual expiry (auto-set failed for {expiry}s)")
 
         driver.find_element(by=By.CLASS_NAME, value=f'btn-{action}').click()
         ACTIONS[asset] = datetime.now()
