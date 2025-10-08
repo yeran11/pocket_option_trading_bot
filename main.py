@@ -423,6 +423,13 @@ settings = {
     'reversal_indicator_boost': 2,  # Confidence boost per confirming indicator (%)
     'reversal_weight': 25,  # Weight for reversal signals in decision system
 
+    # ⏰ AI Dynamic Expiry Selection
+    'ai_dynamic_expiry_enabled': True,  # Enable AI to choose expiry time
+    'ai_expiry_min': 30,  # Minimum allowed expiry (seconds)
+    'ai_expiry_max': 300,  # Maximum allowed expiry (seconds)
+    'ai_expiry_default': 60,  # Default/fallback expiry (seconds)
+    'ai_expiry_allowed': [30, 60, 90, 120, 180, 300],  # Available expiry options
+
     # Trading Settings
     'min_confidence': 4,
     'min_payout': 85,
@@ -1692,15 +1699,25 @@ async def enhanced_strategy(candles):
                 use_claude = settings.get('use_claude', True)
 
                 print(f"📊 Calling AI (Mode: {ai_mode.upper()}, GPT-4: {use_gpt4}, Claude: {use_claude})...")
-                # Get AI ENSEMBLE decision with user settings
-                ai_action, ai_confidence, ai_reason = await ai_brain.analyze_with_ensemble(
+                # Get AI ENSEMBLE decision with user settings (NOW WITH DYNAMIC EXPIRY!)
+                ai_action, ai_confidence, ai_reason, ai_expiry = await ai_brain.analyze_with_ensemble(
                     market_data,
                     ai_indicators,
                     ai_mode=ai_mode,
                     use_gpt4=use_gpt4,
                     use_claude=use_claude
                 )
-                print(f"✅ AI Response: {ai_action.upper()} @ {ai_confidence}%")
+
+                # Validate and apply AI expiry selection
+                if settings.get('ai_dynamic_expiry_enabled', True):
+                    # Validate expiry is within allowed range
+                    allowed_expiries = settings.get('ai_expiry_allowed', [30, 60, 90, 120, 180, 300])
+                    if ai_expiry not in allowed_expiries:
+                        ai_expiry = min(allowed_expiries, key=lambda x: abs(x - ai_expiry))
+                    print(f"✅ AI Response: {ai_action.upper()} @ {ai_confidence}% ⏰ EXPIRY: {ai_expiry}s (AI-chosen)")
+                else:
+                    ai_expiry = settings.get('ai_expiry_default', 60)
+                    print(f"✅ AI Response: {ai_action.upper()} @ {ai_confidence}% ⏰ EXPIRY: {ai_expiry}s (default)")
             else:
                 print(f"⏭️  Skipping AI analysis (Decision Mode: {decision_mode.upper()})")
 
@@ -1788,6 +1805,7 @@ async def enhanced_strategy(candles):
             final_action = 'hold'
             final_confidence = 0
             final_reason = 'No signal'
+            final_expiry = settings.get('ai_expiry_default', 60)  # Default expiry
 
             if decision_mode == 'ai_only':
                 # AI ONLY MODE: Use AI decision exclusively
@@ -1795,7 +1813,8 @@ async def enhanced_strategy(candles):
                     final_action = ai_action
                     final_confidence = ai_confidence
                     final_reason = f"🤖 AI ONLY: {ai_reason[:100]}"
-                    print(f"✅ AI Decision: {ai_action.upper()} @ {ai_confidence}%")
+                    final_expiry = ai_expiry  # Use AI-chosen expiry
+                    print(f"✅ AI Decision: {ai_action.upper()} @ {ai_confidence}% ⏰ {final_expiry}s")
                 else:
                     print(f"⏭️  AI Confidence too low ({ai_confidence}% < {settings.get('ai_min_confidence', 70)}%)")
 
@@ -1839,7 +1858,8 @@ async def enhanced_strategy(candles):
                         'source': '🤖 AI',
                         'action': ai_action,
                         'confidence': ai_confidence,
-                        'reason': ai_reason[:100]
+                        'reason': ai_reason[:100],
+                        'expiry': ai_expiry  # Include AI-chosen expiry
                     })
 
                 # Add pattern decision
@@ -1902,11 +1922,14 @@ async def enhanced_strategy(candles):
                     final_action = best['action']
                     final_confidence = best['confidence']
                     final_reason = f"{best['source']}: {best['reason']}"
+                    # Use expiry from winner if available (AI provides it), otherwise use default
+                    final_expiry = best.get('expiry', settings.get('ai_expiry_default', 60))
 
                     print(f"\n📊 ALL CANDIDATES:")
                     for c in candidates:
-                        print(f"   {c['source']}: {c['action'].upper()} @ {c['confidence']}%")
-                    print(f"\n✨ WINNER: {best['source']} - {best['action'].upper()} @ {best['confidence']}%")
+                        expiry_str = f" ⏰ {c['expiry']}s" if 'expiry' in c else ""
+                        print(f"   {c['source']}: {c['action'].upper()} @ {c['confidence']}%{expiry_str}")
+                    print(f"\n✨ WINNER: {best['source']} - {best['action'].upper()} @ {best['confidence']}% ⏰ {final_expiry}s")
 
                     # Track which system was used
                     if '📋' in best['source']:
@@ -1928,8 +1951,8 @@ async def enhanced_strategy(candles):
 
             # If we have a final decision from the new decision modes, return it
             if final_action != 'hold' and decision_mode != 'indicators_only':
-                add_log(f"🎯 {decision_mode.upper()}: {final_action.upper()} - {final_reason} ({final_confidence}%)")
-                return final_action, final_reason
+                add_log(f"🎯 {decision_mode.upper()}: {final_action.upper()} - {final_reason} ({final_confidence}%) ⏰ Expiry: {final_expiry}s")
+                return final_action, final_reason, final_expiry  # NOW RETURNS EXPIRY TOO!
         except Exception as e:
             import traceback
             error_trace = traceback.format_exc()
@@ -2413,11 +2436,11 @@ def check_trade_limits():
     return True, "Within limits"
 
 
-async def create_order(driver, action, asset, reason=""):
-    """Create trading order"""
+async def create_order(driver, action, asset, reason="", expiry=60):
+    """Create trading order with AI-chosen expiry time"""
     global ACTIONS, BOT_TRADE_IDS, TRADE_HISTORY, LAST_TRADE_TIME, CONSECUTIVE_TRADES
 
-    if ACTIONS.get(asset) and ACTIONS[asset] + timedelta(seconds=PERIOD * 2) > datetime.now():
+    if ACTIONS.get(asset) and ACTIONS[asset] + timedelta(seconds=expiry * 2) > datetime.now():
         return False
 
     # Check trade frequency limits
@@ -2449,7 +2472,7 @@ async def create_order(driver, action, asset, reason=""):
         LAST_TRADE_TIME = datetime.now()
         CONSECUTIVE_TRADES += 1
 
-        add_log(f"{'📈' if action == 'call' else '📉'} {action.upper()} on {asset} - {reason}")
+        add_log(f"{'📈' if action == 'call' else '📉'} {action.upper()} on {asset} ⏰ {expiry}s - {reason}")
         return True
     except Exception as e:
         add_log(f"❌ Can't create order: {e}")
@@ -2860,8 +2883,15 @@ async def check_indicators(driver):
         if not result:
             continue
 
-        action, reason = result
-        order_created = await create_order(driver, action, asset, reason)
+        # Unpack result (now includes expiry!)
+        if len(result) == 3:
+            action, reason, expiry = result
+        else:
+            # Backward compatibility
+            action, reason = result
+            expiry = settings.get('ai_expiry_default', 60)
+
+        order_created = await create_order(driver, action, asset, reason, expiry)
 
         if order_created:
             await asyncio.sleep(1)
