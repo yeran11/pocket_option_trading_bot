@@ -1099,6 +1099,139 @@
                 </div>
             </div>
 
+            <!-- OTC Market Anomaly Detection -->
+            <div class="settings-card">
+                <div class="card-title">🎰 OTC Market Anomaly Detection
+                    <span class="status-badge" style="background: rgba(255, 215, 0, 0.2); color: gold;">ADVANCED</span>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Enable OTC Strategy</label>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="otc_strategy_enabled" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span>Weight: <input type="number" id="otc_weight" value="30" min="0" max="100" style="width: 60px;">%</span>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Minimum Confidence</label>
+                    <div class="setting-control">
+                        <input type="number" id="otc_min_confidence" value="75" min="50" max="100">
+                        <span style="color: #0cc; font-size: 0.9em;">% threshold</span>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Priority Boost</label>
+                    <div class="setting-control">
+                        <input type="number" id="otc_priority_boost" value="5" min="0" max="20">
+                        <span style="color: #0cc; font-size: 0.9em;">% signal boost</span>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Detection Methods</label>
+                    <div style="margin-top: 10px; display: grid; gap: 8px;">
+                        <div class="setting-control">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="otc_detect_synthetic" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <span style="color: #0cc;">Synthetic Patterns (sine, stairs)</span>
+                        </div>
+                        <div class="setting-control">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="otc_detect_artificial_levels" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <span style="color: #0cc;">Artificial S/R Levels</span>
+                        </div>
+                        <div class="setting-control">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="otc_detect_micro_reversion" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <span style="color: #0cc;">Micro Reversions</span>
+                        </div>
+                        <div class="setting-control">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="otc_detect_sequences" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <span style="color: #0cc;">Price Sequences</span>
+                        </div>
+                        <div class="setting-control">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="otc_detect_time_anomaly" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <span style="color: #0cc;">Time-Based Anomalies</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reversal Catcher - 7 Indicator Confluence -->
+            <div class="settings-card">
+                <div class="card-title">🔄 Reversal Catcher - 7 Indicators
+                    <span class="status-badge" style="background: rgba(255, 0, 255, 0.2); color: #f0f;">ULTRA POWER</span>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Enable Reversal Catcher</label>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="reversal_catcher_enabled" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span>Weight: <input type="number" id="reversal_weight" value="25" min="0" max="100" style="width: 60px;">%</span>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Sensitivity Level</label>
+                    <div class="setting-control">
+                        <select id="reversal_sensitivity">
+                            <option value="low">Low (Conservative - 5+ indicators)</option>
+                            <option value="medium" selected>Medium (Balanced - 4+ indicators)</option>
+                            <option value="high">High (Aggressive - 3+ indicators)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Minimum Confidence</label>
+                    <div class="setting-control">
+                        <input type="number" id="reversal_min_confidence" value="65" min="50" max="100">
+                        <span style="color: #0cc; font-size: 0.9em;">% threshold</span>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Indicator Boost Per Confirmation</label>
+                    <div class="setting-control">
+                        <input type="number" id="reversal_indicator_boost" value="2" min="1" max="10">
+                        <span style="color: #0cc; font-size: 0.9em;">% per indicator</span>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Active Indicators (7 Total)</label>
+                    <div style="margin-top: 10px; font-size: 0.85em; color: #888;">
+                        ✓ RSI Divergence<br>
+                        ✓ Volume Spike<br>
+                        ✓ Pin Bar/Hammer<br>
+                        ✓ Momentum Shift<br>
+                        ✓ Support/Resistance<br>
+                        ✓ Fibonacci Levels<br>
+                        ✓ Market Structure
+                    </div>
+                </div>
+            </div>
+
             <!-- Trading Settings -->
             <div class="settings-card">
                 <div class="card-title">⚙️ Trading Parameters</div>
@@ -1420,6 +1553,25 @@
                     }
                 }
 
+                // Handle nested otc_detection_types
+                if (currentSettings.otc_detection_types) {
+                    const detectionTypes = currentSettings.otc_detection_types;
+                    const mappings = {
+                        'synthetic_pattern': 'otc_detect_synthetic',
+                        'artificial_level': 'otc_detect_artificial_levels',
+                        'micro_reversion': 'otc_detect_micro_reversion',
+                        'sequence_pattern': 'otc_detect_sequences',
+                        'time_anomaly': 'otc_detect_time_anomaly'
+                    };
+
+                    for (const [backendKey, uiId] of Object.entries(mappings)) {
+                        const element = document.getElementById(uiId);
+                        if (element && detectionTypes.hasOwnProperty(backendKey)) {
+                            element.checked = detectionTypes[backendKey];
+                        }
+                    }
+                }
+
                 // Update AI status
                 const aiStatus = await fetch('/api/ai-status').then(r => r.json());
                 updateAIStatus(aiStatus);
@@ -1481,6 +1633,22 @@
                     }
                 }
             });
+
+            // Build nested otc_detection_types structure
+            newSettings.otc_detection_types = {
+                'synthetic_pattern': newSettings.otc_detect_synthetic || false,
+                'artificial_level': newSettings.otc_detect_artificial_levels || false,
+                'micro_reversion': newSettings.otc_detect_micro_reversion || false,
+                'sequence_pattern': newSettings.otc_detect_sequences || false,
+                'time_anomaly': newSettings.otc_detect_time_anomaly || false
+            };
+
+            // Remove flat detection method fields (keep only nested structure)
+            delete newSettings.otc_detect_synthetic;
+            delete newSettings.otc_detect_artificial_levels;
+            delete newSettings.otc_detect_micro_reversion;
+            delete newSettings.otc_detect_sequences;
+            delete newSettings.otc_detect_time_anomaly;
 
             try {
                 const response = await fetch('/api/settings', {
