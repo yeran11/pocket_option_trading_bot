@@ -84,6 +84,7 @@ try:
     from trade_journal import get_journal
     from pattern_recognition import get_recognizer
     from otc_anomaly_strategy import create_otc_strategy
+    from reversal_catcher import create_reversal_catcher
     ULTRA_SYSTEMS_AVAILABLE = True
     print("✅ ULTRA Master Systems loaded successfully!")
 except ImportError as e:
@@ -99,6 +100,7 @@ backtest_engine = None
 trade_journal = None
 pattern_recognizer = None
 otc_strategy = None
+reversal_catcher = None
 
 if ULTRA_SYSTEMS_AVAILABLE:
     try:
@@ -110,7 +112,8 @@ if ULTRA_SYSTEMS_AVAILABLE:
         trade_journal = get_journal()
         pattern_recognizer = get_recognizer()
         otc_strategy = create_otc_strategy()
-        print("✅ All ULTRA systems initialized! (Including 🕯️ Pattern Recognition + 🎰 OTC Anomaly Detection)")
+        reversal_catcher = create_reversal_catcher(sensitivity='medium')
+        print("✅ All ULTRA systems initialized! (Including 🕯️ Patterns + 🎰 OTC + 🔄 Reversal Catcher)")
     except Exception as e:
         print(f"⚠️ ULTRA systems init error: {e}")
 
@@ -412,6 +415,13 @@ settings = {
         'time_anomaly': True  # Time-based patterns
     },
     'otc_weight': 30,  # High weight for OTC signals (they're specialized)
+
+    # 🔄 Reversal Catcher - 7 Indicator Confluence System
+    'reversal_catcher_enabled': True,  # Enable reversal detection
+    'reversal_sensitivity': 'medium',  # high (3+ indicators), medium (4+), low (5+)
+    'reversal_min_confidence': 65,  # Minimum confidence for reversal signals (65%)
+    'reversal_indicator_boost': 2,  # Confidence boost per confirming indicator (%)
+    'reversal_weight': 25,  # Weight for reversal signals in decision system
 
     # Trading Settings
     'min_confidence': 4,
@@ -1549,6 +1559,41 @@ async def enhanced_strategy(candles):
                 except Exception as e:
                     print(f"⚠️ OTC Anomaly Detection error: {e}")
 
+            # 🔄 REVERSAL CATCHER - 7 INDICATOR CONFLUENCE SYSTEM
+            reversal_signal = None
+            reversal_confidence = 0
+            reversal_details = {}
+            if reversal_catcher and settings.get('reversal_catcher_enabled', True):
+                try:
+                    # Feed price data to reversal catcher
+                    # Use synthetic volume from VWAP calculation
+                    current_volume = volumes[-1] if volumes and len(volumes) > 0 else 1.0
+
+                    reversal_signal, reversal_confidence, reversal_details = reversal_catcher.add_price(
+                        price=current_price,
+                        volume=current_volume,
+                        timestamp=datetime.now()
+                    )
+
+                    if reversal_signal and reversal_confidence > 0:
+                        confirming_indicators = reversal_details.get('indicators', [])
+                        total_confirming = reversal_details.get('total_confirming', 0)
+                        conflicting = reversal_details.get('conflicting', 0)
+
+                        print(f"🔄 REVERSAL DETECTED: {reversal_signal.upper()} @ {reversal_confidence:.1%}")
+                        print(f"   ├─ Confirming Indicators: {total_confirming}/7")
+                        print(f"   ├─ Conflicting: {conflicting}")
+                        print(f"   └─ Top Signals:")
+
+                        # Show top 3 indicators
+                        for ind in confirming_indicators[:3]:
+                            ind_name = ind['name'].replace('_', ' ').title()
+                            ind_type = ind['details'].get('type', 'N/A').replace('_', ' ').title()
+                            print(f"      • {ind_name}: {ind['strength']:.1%} ({ind_type})")
+
+                except Exception as e:
+                    print(f"⚠️ Reversal Catcher error: {e}")
+
             # Prepare COMPLETE market data for AI
             market_data = {
                 'asset': CURRENT_ASSET or 'Unknown',
@@ -1617,7 +1662,13 @@ async def enhanced_strategy(candles):
                 'is_otc_market': is_otc_market,
                 'otc_signal': otc_signal,  # CALL/PUT or None
                 'otc_confidence': otc_confidence * 100 if otc_confidence else 0,  # 0-100
-                'otc_details': otc_details  # Full OTC detection details
+                'otc_details': otc_details,  # Full OTC detection details
+
+                # 🔄 Reversal Catcher - 7 Indicator Confluence
+                'reversal_signal': reversal_signal,  # CALL/PUT or None
+                'reversal_confidence': reversal_confidence * 100 if reversal_confidence else 0,  # 0-100
+                'reversal_confirming': reversal_details.get('total_confirming', 0),  # How many indicators agree
+                'reversal_details': reversal_details  # Full reversal detection details
             }
 
             # 🎯 DECISION MODE SYSTEM - Determine what systems to use
@@ -1828,6 +1879,21 @@ async def enhanced_strategy(candles):
                         'action': otc_signal.lower(),
                         'confidence': boosted_confidence,
                         'reason': f"OTC Market Exploit ({len([k for k in otc_details.keys() if k != 'final_decision'])} patterns detected)"
+                    })
+
+                # Add Reversal Catcher signal (if reversal detected with high confidence)
+                min_reversal_confidence = settings.get('reversal_min_confidence', 65)
+                if reversal_signal and reversal_confidence >= min_reversal_confidence / 100:
+                    reversal_conf_percent = reversal_confidence * 100
+                    confirming_count = reversal_details.get('total_confirming', 0)
+                    # Reversal signals get boost for multiple confirming indicators
+                    boost = min(confirming_count * 2, 10)  # Up to +10% for 5+ indicators
+                    boosted_confidence = min(reversal_conf_percent + boost, 95)
+                    candidates.append({
+                        'source': '🔄 Reversal Catcher',
+                        'action': reversal_signal.lower(),
+                        'confidence': boosted_confidence,
+                        'reason': f"7-Indicator Confluence ({confirming_count}/7 indicators agree)"
                     })
 
                 # Pick the highest confidence decision
@@ -2554,6 +2620,13 @@ async def check_recent_trades(driver):
                                     otc_strategy.record_trade_result(otc_signal, 'WIN', pattern_type_str)
                                     print(f"🎰 OTC Anomaly '{pattern_type_str}' WIN recorded (Confidence: {otc_confidence*100:.0f}%)")
 
+                                # 🔄 Record Reversal trade result if reversal signal was used
+                                if reversal_catcher and reversal_signal and 'reversal_details' in locals():
+                                    confirming_inds = reversal_details.get('indicators', [])
+                                    ind_names = [ind['name'] for ind in confirming_inds]
+                                    reversal_catcher.record_trade_result(reversal_signal, 'WIN', ind_names)
+                                    print(f"🔄 Reversal '{reversal_signal}' WIN recorded ({reversal_details.get('total_confirming', 0)}/7 indicators, Confidence: {reversal_confidence*100:.0f}%)")
+
                                 if performance_tracker:
                                     performance_tracker.record_trade({
                                         'timestamp': datetime.now().isoformat(),
@@ -2659,6 +2732,13 @@ async def check_recent_trades(driver):
                                         pattern_type_str = ', '.join(detected_patterns) if detected_patterns else 'combined'
                                         otc_strategy.record_trade_result(otc_signal, 'LOSS', pattern_type_str)
                                         print(f"🎰 OTC Anomaly '{pattern_type_str}' LOSS recorded (Confidence: {otc_confidence*100:.0f}%)")
+
+                                    # 🔄 Record Reversal trade result if reversal signal was used
+                                    if reversal_catcher and reversal_signal and 'reversal_details' in locals():
+                                        confirming_inds = reversal_details.get('indicators', [])
+                                        ind_names = [ind['name'] for ind in confirming_inds]
+                                        reversal_catcher.record_trade_result(reversal_signal, 'LOSS', ind_names)
+                                        print(f"🔄 Reversal '{reversal_signal}' LOSS recorded ({reversal_details.get('total_confirming', 0)}/7 indicators, Confidence: {reversal_confidence*100:.0f}%)")
 
                                     if performance_tracker:
                                         performance_tracker.record_trade({
