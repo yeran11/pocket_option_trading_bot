@@ -83,6 +83,7 @@ try:
     from backtesting_engine import get_backtest_engine
     from trade_journal import get_journal
     from pattern_recognition import get_recognizer
+    from otc_anomaly_strategy import create_otc_strategy
     ULTRA_SYSTEMS_AVAILABLE = True
     print("✅ ULTRA Master Systems loaded successfully!")
 except ImportError as e:
@@ -97,6 +98,7 @@ strategy_builder = None
 backtest_engine = None
 trade_journal = None
 pattern_recognizer = None
+otc_strategy = None
 
 if ULTRA_SYSTEMS_AVAILABLE:
     try:
@@ -107,7 +109,8 @@ if ULTRA_SYSTEMS_AVAILABLE:
         backtest_engine = get_backtest_engine()
         trade_journal = get_journal()
         pattern_recognizer = get_recognizer()
-        print("✅ All ULTRA systems initialized! (Including 🕯️ Pattern Recognition)")
+        otc_strategy = create_otc_strategy()
+        print("✅ All ULTRA systems initialized! (Including 🕯️ Pattern Recognition + 🎰 OTC Anomaly Detection)")
     except Exception as e:
         print(f"⚠️ ULTRA systems init error: {e}")
 
@@ -396,6 +399,19 @@ settings = {
     'vwap_volume_confirm': True,
     'vwap_deviation_alert': 2,
     'vwap_weight': 25,
+
+    # 🎰 OTC Market Anomaly Detection
+    'otc_strategy_enabled': True,  # Enable OTC-specific pattern detection
+    'otc_min_confidence': 75,  # Minimum confidence for OTC signals (75%)
+    'otc_priority_boost': 5,  # Confidence boost for OTC signals on OTC markets
+    'otc_detection_types': {  # Enable/disable specific OTC detection methods
+        'synthetic_pattern': True,  # Sine waves, staircases
+        'artificial_level': True,  # Artificial S/R levels
+        'micro_reversion': True,  # Extreme move reversions
+        'sequence_pattern': True,  # Repeating price sequences
+        'time_anomaly': True  # Time-based patterns
+    },
+    'otc_weight': 30,  # High weight for OTC signals (they're specialized)
 
     # Trading Settings
     'min_confidence': 4,
@@ -1489,6 +1505,50 @@ async def enhanced_strategy(candles):
                 except Exception as e:
                     print(f"⚠️ Pattern Recognition error: {e}")
 
+            # 🎰 OTC MARKET ANOMALY DETECTION
+            otc_signal = None
+            otc_confidence = 0
+            otc_details = {}
+            is_otc_market = False
+            if otc_strategy and settings.get('otc_strategy_enabled', True):
+                try:
+                    # Check if current asset is OTC
+                    is_otc_market = otc_strategy.is_otc_asset(CURRENT_ASSET or '')
+
+                    if is_otc_market:
+                        # Run OTC anomaly detection
+                        otc_signal, otc_confidence, otc_details = otc_strategy.analyze_otc_tick(
+                            price=current_price,
+                            timestamp=datetime.now(),
+                            asset_name=CURRENT_ASSET
+                        )
+
+                        if otc_signal and otc_confidence > 0:
+                            print(f"🎰 OTC ANOMALY DETECTED: {otc_signal.upper()} @ {otc_confidence:.1%}")
+                            print(f"   ├─ Detections: {otc_details.get('final_decision', {}).get('signal_count', 0)}")
+
+                            # Show individual detection types
+                            if 'synthetic_pattern' in otc_details:
+                                sp = otc_details['synthetic_pattern']
+                                print(f"   ├─ 🔮 Synthetic Pattern: {sp['direction']} @ {sp['confidence']:.1%}")
+                            if 'artificial_level' in otc_details:
+                                al = otc_details['artificial_level']
+                                print(f"   ├─ 🎯 Artificial Level: {al['direction']} @ {al['confidence']:.1%}")
+                            if 'micro_reversion' in otc_details:
+                                mr = otc_details['micro_reversion']
+                                print(f"   ├─ ⚡ Micro Reversion: {mr['direction']} @ {mr['confidence']:.1%}")
+                            if 'sequence_pattern' in otc_details:
+                                seq = otc_details['sequence_pattern']
+                                print(f"   ├─ 🔄 Sequence Pattern: {seq['direction']} @ {seq['confidence']:.1%}")
+                            if 'time_anomaly' in otc_details:
+                                ta = otc_details['time_anomaly']
+                                print(f"   └─ ⏰ Time Anomaly: {ta['direction']} @ {ta['confidence']:.1%}")
+                        else:
+                            print(f"🎰 OTC Market Detected - No significant anomalies (waiting for high-probability setup)")
+
+                except Exception as e:
+                    print(f"⚠️ OTC Anomaly Detection error: {e}")
+
             # Prepare COMPLETE market data for AI
             market_data = {
                 'asset': CURRENT_ASSET or 'Unknown',
@@ -1551,7 +1611,13 @@ async def enhanced_strategy(candles):
                 'pattern_strength': pattern_strength,  # 0-100
                 'pattern_quality': pattern_quality,  # 0-100 (quality based on context)
                 'pattern_data': pattern_data,  # Full pattern data for AI context
-                'regime': market_regime  # Current market regime
+                'regime': market_regime,  # Current market regime
+
+                # 🎰 OTC Market Anomaly Detection
+                'is_otc_market': is_otc_market,
+                'otc_signal': otc_signal,  # CALL/PUT or None
+                'otc_confidence': otc_confidence * 100 if otc_confidence else 0,  # 0-100
+                'otc_details': otc_details  # Full OTC detection details
             }
 
             # 🎯 DECISION MODE SYSTEM - Determine what systems to use
@@ -1749,6 +1815,19 @@ async def enhanced_strategy(candles):
                         'action': strategy_signal['action'],
                         'confidence': strategy_signal['confidence'],
                         'reason': strategy_signal['reason']
+                    })
+
+                # Add OTC anomaly signal (if market is OTC and signal is strong)
+                min_otc_confidence = settings.get('otc_min_confidence', 75)
+                if otc_signal and otc_confidence >= min_otc_confidence / 100 and is_otc_market:
+                    otc_conf_percent = otc_confidence * 100
+                    # OTC signals on OTC markets get priority boost
+                    boosted_confidence = min(otc_conf_percent + 5, 95)  # +5% boost for OTC specialty
+                    candidates.append({
+                        'source': '🎰 OTC Anomaly',
+                        'action': otc_signal.lower(),
+                        'confidence': boosted_confidence,
+                        'reason': f"OTC Market Exploit ({len([k for k in otc_details.keys() if k != 'final_decision'])} patterns detected)"
                     })
 
                 # Pick the highest confidence decision
@@ -2468,6 +2547,13 @@ async def check_recent_trades(driver):
                                     )
                                     print(f"🕯️ Pattern '{pattern_type}' WIN recorded (Quality: {pattern_quality}%)")
 
+                                # 🎰 Record OTC trade result if OTC signal was used
+                                if otc_strategy and is_otc_market and otc_signal and 'otc_details' in locals():
+                                    detected_patterns = [k for k in otc_details.keys() if k != 'final_decision']
+                                    pattern_type_str = ', '.join(detected_patterns) if detected_patterns else 'combined'
+                                    otc_strategy.record_trade_result(otc_signal, 'WIN', pattern_type_str)
+                                    print(f"🎰 OTC Anomaly '{pattern_type_str}' WIN recorded (Confidence: {otc_confidence*100:.0f}%)")
+
                                 if performance_tracker:
                                     performance_tracker.record_trade({
                                         'timestamp': datetime.now().isoformat(),
@@ -2566,6 +2652,13 @@ async def check_recent_trades(driver):
                                             indicators={'rsi': ai_indicators.get('rsi', 50), 'regime': market_regime}
                                         )
                                         print(f"🕯️ Pattern '{pattern_type}' LOSS recorded (Quality: {pattern_quality}%)")
+
+                                    # 🎰 Record OTC trade result if OTC signal was used
+                                    if otc_strategy and is_otc_market and otc_signal and 'otc_details' in locals():
+                                        detected_patterns = [k for k in otc_details.keys() if k != 'final_decision']
+                                        pattern_type_str = ', '.join(detected_patterns) if detected_patterns else 'combined'
+                                        otc_strategy.record_trade_result(otc_signal, 'LOSS', pattern_type_str)
+                                        print(f"🎰 OTC Anomaly '{pattern_type_str}' LOSS recorded (Confidence: {otc_confidence*100:.0f}%)")
 
                                     if performance_tracker:
                                         performance_tracker.record_trade({
