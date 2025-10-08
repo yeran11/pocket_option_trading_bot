@@ -314,10 +314,10 @@ class AITradingBrain:
         self.performance_tracker = get_tracker() if PERFORMANCE_TRACKER_AVAILABLE else None
         self.pattern_recognizer = get_recognizer() if PATTERN_RECOGNITION_AVAILABLE else None
 
-    async def analyze_with_gpt4(self, market_data: Dict, indicators: Dict) -> Tuple[str, float, str]:
+    async def analyze_with_gpt4(self, market_data: Dict, indicators: Dict) -> Tuple[str, float, str, int]:
         """
         Use GPT-4 to analyze market conditions and provide trading decision
-        Returns: (action, confidence, reasoning)
+        Returns: (action, confidence, reasoning, expiry_seconds)
         """
         try:
             # Prepare market context for GPT-4
@@ -332,7 +332,7 @@ class AITradingBrain:
 
         except Exception as e:
             print(f"AI Analysis Error: {e}")
-            return "hold", 0.0, "AI analysis failed"
+            return "hold", 0.0, "AI analysis failed", 60
 
     def _build_analysis_prompt(self, market_data: Dict, indicators: Dict) -> str:
         """Build ULTRA POWERFUL prompt with ALL indicators + patterns + trade history"""
@@ -432,10 +432,38 @@ class AITradingBrain:
         - 60-74%: 2-3 indicators aligned, moderate setup
         - Below 60%: Mixed signals, HOLD
 
+        ⏰ EXPIRY TIME SELECTION (CRITICAL FOR SUCCESS):
+        Available expiry options: 30s, 60s, 90s, 120s, 180s, 300s
+
+        Choose based on:
+        1. MARKET REGIME & TIMEFRAME ALIGNMENT:
+           - All 3 timeframes aligned (1m+5m+15m) + strong trend → 180-300s (ride momentum)
+           - 1-2 timeframes aligned → 60-120s (moderate conviction)
+           - No alignment / ranging → 30-60s (quick in/out)
+
+        2. SIGNAL TYPE & PATTERN:
+           - OTC Staircase/Sine Wave → Match pattern duration (usually 120-180s)
+           - Reversal with 5+ confirmations → 120-180s (reversals develop over time)
+           - VWAP 2σ bounce + high volume → 60-90s (quick mean reversion)
+           - Breakout + volume surge → 180-300s (breakouts extend)
+           - Support/Resistance bounce → 90-120s (standard bounce duration)
+           - Pin bar / Hammer reversal → 60-120s (reversal confirmation time)
+
+        3. CONFIDENCE & VOLATILITY:
+           - 90-100% confidence + low volatility → 180-300s (high conviction, let it play)
+           - 70-89% confidence + normal volatility → 60-120s (standard)
+           - 60-74% confidence or high volatility → 30-60s (reduce exposure)
+
+        4. INDICATOR CONVERGENCE:
+           - 6+ indicators aligned → 180-300s (ULTRA high probability, maximize time)
+           - 4-5 indicators aligned → 90-180s (strong setup, medium duration)
+           - 2-3 indicators aligned → 60-90s (moderate setup, shorter time)
+
         OUTPUT YOUR ULTRA DECISION:
         ACTION: [CALL/PUT/HOLD]
         CONFIDENCE: [0-100]
-        REASON: [Sharp 2-sentence analysis mentioning: (1) how many indicators align, (2) key convergence pattern]
+        EXPIRY: [30/60/90/120/180/300] (in seconds - choose ONE value based on analysis above)
+        REASON: [Sharp 2-sentence analysis mentioning: (1) how many indicators align, (2) key convergence pattern, (3) why this expiry duration]
         """
 
         return prompt
@@ -458,7 +486,7 @@ class AITradingBrain:
                         You possess QUANTUM-LEVEL market analysis using:
                         - NEURAL PATTERN RECOGNITION: Detect invisible micro-patterns across 13+ indicators
                         - INSTITUTIONAL FLOW TRACKING: See what banks and hedge funds are doing
-                        - PREDICTIVE ALGORITHMS: Forecast price movements 60 seconds ahead
+                        - PREDICTIVE ALGORITHMS: Forecast price movements with precision timing
                         - CONVERGENCE MASTERY: When 5+ indicators align, you STRIKE with 95% confidence
                         - VWAP DOMINANCE: Use institutional benchmark for perfect entries
                         - VOLUME PROFILING: Read order flow like reading minds
@@ -474,6 +502,15 @@ class AITradingBrain:
                           * When 5+ indicators agree = 80-90% win rate (ULTRA HIGH PROBABILITY)
                           * Reversals with confluence are MORE RELIABLE than single indicator signals
                           * TRUST reversal signals with 4+ confirmations - this is MULTIPLE independent validations!
+                        - ⏰ EXPIRY TIME MASTERY: You choose OPTIMAL expiry duration for each trade
+                          * SHORT EXPIRY (30-60s): Quick reversals, ranging markets, low confidence setups
+                          * MEDIUM EXPIRY (60-120s): Standard setups, moderate momentum, normal volatility
+                          * LONG EXPIRY (120-300s): Strong trends, high confidence, multiple TF alignment
+                          * OTC PATTERNS: Match expiry to pattern duration (staircases, sine waves)
+                          * REVERSAL SETUPS: 90-180s (reversals need time to develop)
+                          * BREAKOUTS: 180-300s (momentum plays out over time)
+                          * VWAP BOUNCES: 60-90s (mean reversion is quick)
+                          * Match expiry to EXPECTED MOVE COMPLETION TIME!
 
                         BE ULTRA AGGRESSIVE on perfect setups (90%+ confidence)
                         BE MODERATELY AGGRESSIVE on good setups (70-89% confidence)
@@ -504,13 +541,16 @@ class AITradingBrain:
 
         return "ACTION: HOLD\nCONFIDENCE: 0\nREASON: API error"
 
-    def _parse_gpt4_response(self, response: str) -> Tuple[str, float, str]:
-        """Parse GPT-4 response into trading decision"""
+    def _parse_gpt4_response(self, response: str) -> Tuple[str, float, str, int]:
+        """Parse GPT-4 response into trading decision with expiry time
+        Returns: (action, confidence, reason, expiry_seconds)
+        """
         try:
             lines = response.strip().split('\n')
             action = "hold"
             confidence = 0.0
             reason = "No clear signal"
+            expiry = 60  # Default fallback
 
             for line in lines:
                 if "ACTION:" in line:
@@ -526,13 +566,26 @@ class AITradingBrain:
                     conf_text = line.split("CONFIDENCE:")[1].strip()
                     confidence = float(''.join(filter(str.isdigit, conf_text)))
 
+                elif "EXPIRY:" in line:
+                    expiry_text = line.split("EXPIRY:")[1].strip()
+                    # Extract number from text (could be "120s" or "120" or "120 seconds")
+                    expiry_num = ''.join(filter(str.isdigit, expiry_text))
+                    if expiry_num:
+                        expiry = int(expiry_num)
+                        # Validate expiry is in allowed range
+                        allowed_expiries = [30, 60, 90, 120, 180, 300]
+                        if expiry not in allowed_expiries:
+                            # Find closest allowed expiry
+                            expiry = min(allowed_expiries, key=lambda x: abs(x - expiry))
+
                 elif "REASON:" in line:
                     reason = line.split("REASON:")[1].strip()
 
-            return action, confidence, reason
+            return action, confidence, reason, expiry
 
-        except:
-            return "hold", 0.0, "Failed to parse AI response"
+        except Exception as e:
+            print(f"⚠️ Parse error: {e}")
+            return "hold", 0.0, "Failed to parse AI response", 60
 
     async def _call_claude(self, prompt: str) -> str:
         """Call Claude API with retry logic"""
@@ -554,7 +607,7 @@ class AITradingBrain:
                     You possess QUANTUM-LEVEL market analysis using:
                     - NEURAL PATTERN RECOGNITION: Detect invisible micro-patterns across 13+ indicators
                     - INSTITUTIONAL FLOW TRACKING: See what banks and hedge funds are doing
-                    - PREDICTIVE ALGORITHMS: Forecast price movements 60 seconds ahead
+                    - PREDICTIVE ALGORITHMS: Forecast price movements with precision timing
                     - CONVERGENCE MASTERY: When 5+ indicators align, you STRIKE with 95% confidence
                     - VWAP DOMINANCE: Use institutional benchmark for perfect entries
                     - VOLUME PROFILING: Read order flow like reading minds
@@ -570,6 +623,15 @@ class AITradingBrain:
                       * When 5+ indicators agree = 80-90% win rate (ULTRA HIGH PROBABILITY)
                       * Reversals with confluence are MORE RELIABLE than single indicator signals
                       * TRUST reversal signals with 4+ confirmations - this is MULTIPLE independent validations!
+                    - ⏰ EXPIRY TIME MASTERY: You choose OPTIMAL expiry duration for each trade
+                      * SHORT EXPIRY (30-60s): Quick reversals, ranging markets, low confidence setups
+                      * MEDIUM EXPIRY (60-120s): Standard setups, moderate momentum, normal volatility
+                      * LONG EXPIRY (120-300s): Strong trends, high confidence, multiple TF alignment
+                      * OTC PATTERNS: Match expiry to pattern duration (staircases, sine waves)
+                      * REVERSAL SETUPS: 90-180s (reversals need time to develop)
+                      * BREAKOUTS: 180-300s (momentum plays out over time)
+                      * VWAP BOUNCES: 60-90s (mean reversion is quick)
+                      * Match expiry to EXPECTED MOVE COMPLETION TIME!
 
                     BE ULTRA AGGRESSIVE on perfect setups (90%+ confidence)
                     BE MODERATELY AGGRESSIVE on good setups (70-89% confidence)
@@ -596,10 +658,10 @@ class AITradingBrain:
 
         return "ACTION: HOLD\nCONFIDENCE: 0\nREASON: Claude API error"
 
-    async def analyze_with_ensemble(self, market_data: Dict, indicators: Dict, ai_mode: str = 'ensemble', use_gpt4: bool = True, use_claude: bool = True) -> Tuple[str, float, str]:
+    async def analyze_with_ensemble(self, market_data: Dict, indicators: Dict, ai_mode: str = 'ensemble', use_gpt4: bool = True, use_claude: bool = True) -> Tuple[str, float, str, int]:
         """
         MULTI-MODEL ENSEMBLE: Use both GPT-4 and Claude for maximum accuracy
-        Returns: (action, confidence, reasoning)
+        Returns: (action, confidence, reasoning, expiry_seconds)
 
         Args:
             market_data: Market information
@@ -629,7 +691,7 @@ class AITradingBrain:
                 tasks.append(self._call_claude(prompt))
 
             if not tasks:
-                return "hold", 0.0, "No AI models available"
+                return "hold", 0.0, "No AI models available", 60
 
             # Run both AIs concurrently
             responses = await asyncio.gather(*tasks, return_exceptions=True)
@@ -639,23 +701,23 @@ class AITradingBrain:
             ai_names = []
 
             if gpt4_available:
-                gpt4_response = responses[0] if not isinstance(responses[0], Exception) else "ACTION: HOLD\nCONFIDENCE: 0\nREASON: GPT-4 error"
+                gpt4_response = responses[0] if not isinstance(responses[0], Exception) else "ACTION: HOLD\nCONFIDENCE: 0\nREASON: GPT-4 error\nEXPIRY: 60"
                 gpt4_decision = self._parse_gpt4_response(gpt4_response)
                 decisions.append(gpt4_decision)
                 ai_names.append("GPT-4")
-                print(f"🤖 GPT-4: {gpt4_decision[0].upper()} @ {gpt4_decision[1]}%")
+                print(f"🤖 GPT-4: {gpt4_decision[0].upper()} @ {gpt4_decision[1]}% ⏰ {gpt4_decision[3]}s")
 
             if claude_available:
-                claude_response = responses[-1] if not isinstance(responses[-1], Exception) else "ACTION: HOLD\nCONFIDENCE: 0\nREASON: Claude error"
+                claude_response = responses[-1] if not isinstance(responses[-1], Exception) else "ACTION: HOLD\nCONFIDENCE: 0\nREASON: Claude error\nEXPIRY: 60"
                 claude_decision = self._parse_gpt4_response(claude_response)  # Same parser works
                 decisions.append(claude_decision)
                 ai_names.append("Claude")
-                print(f"🧠 Claude: {claude_decision[0].upper()} @ {claude_decision[1]}%")
+                print(f"🧠 Claude: {claude_decision[0].upper()} @ {claude_decision[1]}% ⏰ {claude_decision[3]}s")
 
             # VOTING SYSTEM: Behavior depends on ai_mode
             if len(decisions) == 2:
-                action1, conf1, reason1 = decisions[0]
-                action2, conf2, reason2 = decisions[1]
+                action1, conf1, reason1, expiry1 = decisions[0]
+                action2, conf2, reason2, expiry2 = decisions[1]
 
                 if ai_mode == 'ensemble':
                     # ENSEMBLE MODE: Both must agree
@@ -663,44 +725,49 @@ class AITradingBrain:
                         # Boost confidence when both agree
                         avg_confidence = (conf1 + conf2) / 2
                         boosted_confidence = min(avg_confidence + 10, 100)  # +10 bonus for agreement
+                        # Use higher expiry when both agree (more conviction = more time)
+                        consensus_expiry = max(expiry1, expiry2)
                         combined_reason = f"🎯 CONSENSUS: Both {ai_names[0]} & {ai_names[1]} agree! {reason1[:80]}"
-                        print(f"✅ CONSENSUS TRADE: {action1.upper()} @ {boosted_confidence}%")
-                        return action1, boosted_confidence, combined_reason
+                        print(f"✅ CONSENSUS TRADE: {action1.upper()} @ {boosted_confidence}% ⏰ {consensus_expiry}s")
+                        return action1, boosted_confidence, combined_reason, consensus_expiry
                     elif action1 != action2:
                         print(f"⚠️ DISAGREEMENT: {ai_names[0]} says {action1}, {ai_names[1]} says {action2} - HOLDING")
-                        return "hold", 0.0, f"AI models disagree: {ai_names[0]} ({action1}) vs {ai_names[1]} ({action2})"
+                        return "hold", 0.0, f"AI models disagree: {ai_names[0]} ({action1}) vs {ai_names[1]} ({action2})", 60
                     else:
                         avg_confidence = (conf1 + conf2) / 2
-                        return "hold", avg_confidence, "Both AIs recommend holding"
+                        avg_expiry = int((expiry1 + expiry2) / 2)
+                        return "hold", avg_confidence, "Both AIs recommend holding", avg_expiry
 
                 elif ai_mode == 'any':
                     # ANY MODE: Either AI can trigger (pick highest confidence)
                     if action1 != "hold" or action2 != "hold":
                         # Pick the non-hold action with highest confidence
                         if action1 != "hold" and action2 == "hold":
-                            print(f"✅ {ai_names[0]} TRIGGERS: {action1.upper()} @ {conf1}%")
-                            return action1, conf1, f"ANY MODE: {ai_names[0]} - {reason1[:80]}"
+                            print(f"✅ {ai_names[0]} TRIGGERS: {action1.upper()} @ {conf1}% ⏰ {expiry1}s")
+                            return action1, conf1, f"ANY MODE: {ai_names[0]} - {reason1[:80]}", expiry1
                         elif action2 != "hold" and action1 == "hold":
-                            print(f"✅ {ai_names[1]} TRIGGERS: {action2.upper()} @ {conf2}%")
-                            return action2, conf2, f"ANY MODE: {ai_names[1]} - {reason2[:80]}"
+                            print(f"✅ {ai_names[1]} TRIGGERS: {action2.upper()} @ {conf2}% ⏰ {expiry2}s")
+                            return action2, conf2, f"ANY MODE: {ai_names[1]} - {reason2[:80]}", expiry2
                         elif action1 == action2:
                             # Both agree, boost confidence
                             avg_confidence = (conf1 + conf2) / 2
                             boosted_confidence = min(avg_confidence + 10, 100)
-                            print(f"✅ BOTH AGREE: {action1.upper()} @ {boosted_confidence}%")
-                            return action1, boosted_confidence, f"ANY MODE (CONSENSUS): {reason1[:80]}"
+                            consensus_expiry = max(expiry1, expiry2)
+                            print(f"✅ BOTH AGREE: {action1.upper()} @ {boosted_confidence}% ⏰ {consensus_expiry}s")
+                            return action1, boosted_confidence, f"ANY MODE (CONSENSUS): {reason1[:80]}", consensus_expiry
                         else:
                             # Different actions, pick highest confidence
                             if conf1 >= conf2:
-                                print(f"✅ {ai_names[0]} HIGHER CONFIDENCE: {action1.upper()} @ {conf1}%")
-                                return action1, conf1, f"ANY MODE: {ai_names[0]} (higher conf) - {reason1[:80]}"
+                                print(f"✅ {ai_names[0]} HIGHER CONFIDENCE: {action1.upper()} @ {conf1}% ⏰ {expiry1}s")
+                                return action1, conf1, f"ANY MODE: {ai_names[0]} (higher conf) - {reason1[:80]}", expiry1
                             else:
-                                print(f"✅ {ai_names[1]} HIGHER CONFIDENCE: {action2.upper()} @ {conf2}%")
-                                return action2, conf2, f"ANY MODE: {ai_names[1]} (higher conf) - {reason2[:80]}"
+                                print(f"✅ {ai_names[1]} HIGHER CONFIDENCE: {action2.upper()} @ {conf2}% ⏰ {expiry2}s")
+                                return action2, conf2, f"ANY MODE: {ai_names[1]} (higher conf) - {reason2[:80]}", expiry2
                     else:
                         # Both recommend hold
                         avg_confidence = (conf1 + conf2) / 2
-                        return "hold", avg_confidence, "Both AIs recommend holding"
+                        avg_expiry = int((expiry1 + expiry2) / 2)
+                        return "hold", avg_confidence, "Both AIs recommend holding", avg_expiry
 
             # Single AI mode
             else:
@@ -708,7 +775,7 @@ class AITradingBrain:
 
         except Exception as e:
             print(f"Ensemble Analysis Error: {e}")
-            return "hold", 0.0, f"Ensemble analysis failed: {e}"
+            return "hold", 0.0, f"Ensemble analysis failed: {e}", 60
 
     def _get_performance_context(self) -> str:
         """Get performance context from tracker for AI prompt"""

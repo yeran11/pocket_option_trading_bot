@@ -1232,6 +1232,87 @@
                 </div>
             </div>
 
+            <!-- AI Dynamic Expiry Selection -->
+            <div class="settings-card">
+                <div class="card-title">⏰ AI Dynamic Expiry Selection
+                    <span class="status-badge" style="background: rgba(255, 215, 0, 0.2); color: #ffd700;">ULTRA MASTER</span>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Enable AI Expiry Selection</label>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="ai_dynamic_expiry_enabled" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span class="help-text">AI chooses optimal expiry time (30s-300s) based on indicators, patterns, and market conditions</span>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Allowed Expiry Times</label>
+                    <div class="setting-control">
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            <label style="display: flex; align-items: center; gap: 5px;">
+                                <input type="checkbox" class="ai-expiry-option" data-value="30" checked> 30s
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 5px;">
+                                <input type="checkbox" class="ai-expiry-option" data-value="60" checked> 60s
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 5px;">
+                                <input type="checkbox" class="ai-expiry-option" data-value="90" checked> 90s
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 5px;">
+                                <input type="checkbox" class="ai-expiry-option" data-value="120" checked> 120s (2m)
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 5px;">
+                                <input type="checkbox" class="ai-expiry-option" data-value="180" checked> 180s (3m)
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 5px;">
+                                <input type="checkbox" class="ai-expiry-option" data-value="300" checked> 300s (5m)
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Minimum Expiry</label>
+                    <div class="setting-control">
+                        <input type="number" id="ai_expiry_min" value="30" min="30" max="300" style="width: 80px;"> seconds
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Maximum Expiry</label>
+                    <div class="setting-control">
+                        <input type="number" id="ai_expiry_max" value="300" min="30" max="300" style="width: 80px;"> seconds
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label class="setting-label">Default/Fallback Expiry</label>
+                    <div class="setting-control">
+                        <input type="number" id="ai_expiry_default" value="60" min="30" max="300" style="width: 80px;"> seconds
+                        <span class="help-text">Used when dynamic expiry is disabled or AI fails to choose</span>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div style="background: rgba(255, 215, 0, 0.1); padding: 15px; border-radius: 8px; border: 1px solid rgba(255, 215, 0, 0.3);">
+                        <strong style="color: #ffd700;">🧠 HOW AI CHOOSES EXPIRY:</strong><br><br>
+                        <strong>SHORT (30-60s):</strong> Quick reversals, ranging markets, low confidence<br>
+                        <strong>MEDIUM (60-120s):</strong> Standard setups, moderate momentum<br>
+                        <strong>LONG (120-300s):</strong> Strong trends, high confidence, multiple TF alignment<br><br>
+                        <strong>PATTERN-BASED:</strong><br>
+                        • OTC Staircase/Sine → Match pattern duration (120-180s)<br>
+                        • Reversal w/ 5+ confirmations → 120-180s (time to develop)<br>
+                        • VWAP 2σ bounce → 60-90s (quick mean reversion)<br>
+                        • Breakout + volume → 180-300s (momentum extends)<br>
+                        • Pin bar/Hammer → 60-120s (reversal confirmation)
+                    </div>
+                </div>
+            </div>
+
             <!-- Trading Settings -->
             <div class="settings-card">
                 <div class="card-title">⚙️ Trading Parameters</div>
@@ -1572,6 +1653,21 @@
                     }
                 }
 
+                // Handle AI expiry allowed times
+                if (currentSettings.ai_expiry_allowed && Array.isArray(currentSettings.ai_expiry_allowed)) {
+                    // First uncheck all
+                    document.querySelectorAll('.ai-expiry-option').forEach(checkbox => {
+                        checkbox.checked = false;
+                    });
+                    // Then check the allowed ones
+                    currentSettings.ai_expiry_allowed.forEach(value => {
+                        const checkbox = document.querySelector(`.ai-expiry-option[data-value="${value}"]`);
+                        if (checkbox) {
+                            checkbox.checked = true;
+                        }
+                    });
+                }
+
                 // Update AI status
                 const aiStatus = await fetch('/api/ai-status').then(r => r.json());
                 updateAIStatus(aiStatus);
@@ -1649,6 +1745,13 @@
             delete newSettings.otc_detect_micro_reversion;
             delete newSettings.otc_detect_sequences;
             delete newSettings.otc_detect_time_anomaly;
+
+            // Build AI allowed expiry times array from checkboxes
+            const allowedExpiries = [];
+            document.querySelectorAll('.ai-expiry-option:checked').forEach(checkbox => {
+                allowedExpiries.push(parseInt(checkbox.dataset.value));
+            });
+            newSettings.ai_expiry_allowed = allowedExpiries.length > 0 ? allowedExpiries : [30, 60, 90, 120, 180, 300];
 
             try {
                 const response = await fetch('/api/settings', {
