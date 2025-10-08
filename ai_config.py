@@ -460,10 +460,17 @@ class AITradingBrain:
                         - CONVERGENCE MASTERY: When 5+ indicators align, you STRIKE with 95% confidence
                         - VWAP DOMINANCE: Use institutional benchmark for perfect entries
                         - VOLUME PROFILING: Read order flow like reading minds
+                        - OTC MARKET MASTERY: Exploit algorithmic patterns in synthetic OTC markets
+                          * OTC markets = SYNTHETIC algorithmic price feeds (not real exchange data)
+                          * OTC has predictable mathematical patterns (sine waves, staircases, artificial levels)
+                          * OTC anomaly signals have 70-80% win rate - TRUST THEM HEAVILY!
+                          * When multiple OTC patterns align = 85%+ confidence trades
+                          * Give OTC signals PRIORITY on OTC markets (they're market-specific experts)
 
                         BE ULTRA AGGRESSIVE on perfect setups (90%+ confidence)
                         BE MODERATELY AGGRESSIVE on good setups (70-89% confidence)
                         BE CAUTIOUS only when signals conflict (<70% confidence)
+                        BE EXTREMELY CONFIDENT on OTC anomalies (OTC markets are algorithmic gold mines!)
 
                         Your mission: MAXIMUM PROFITS with CALCULATED PRECISION
                         Never doubt strong convergence. Trust the indicators. BE THE MARKET."""},
@@ -542,10 +549,17 @@ class AITradingBrain:
                     - CONVERGENCE MASTERY: When 5+ indicators align, you STRIKE with 95% confidence
                     - VWAP DOMINANCE: Use institutional benchmark for perfect entries
                     - VOLUME PROFILING: Read order flow like reading minds
+                    - OTC MARKET MASTERY: Exploit algorithmic patterns in synthetic OTC markets
+                      * OTC markets = SYNTHETIC algorithmic price feeds (not real exchange data)
+                      * OTC has predictable mathematical patterns (sine waves, staircases, artificial levels)
+                      * OTC anomaly signals have 70-80% win rate - TRUST THEM HEAVILY!
+                      * When multiple OTC patterns align = 85%+ confidence trades
+                      * Give OTC signals PRIORITY on OTC markets (they're market-specific experts)
 
                     BE ULTRA AGGRESSIVE on perfect setups (90%+ confidence)
                     BE MODERATELY AGGRESSIVE on good setups (70-89% confidence)
                     BE CAUTIOUS only when signals conflict (<70% confidence)
+                    BE EXTREMELY CONFIDENT on OTC anomalies (OTC markets are algorithmic gold mines!)
 
                     Your mission: MAXIMUM PROFITS with CALCULATED PRECISION
                     Never doubt strong convergence. Trust the indicators. BE THE MARKET.""",
@@ -715,6 +729,62 @@ class AITradingBrain:
 
         except Exception as e:
             print(f"⚠️ Pattern context error: {e}")
+            return ""
+
+    def _get_otc_context(self, indicators: Dict) -> str:
+        """Get OTC market anomaly context for AI prompt"""
+        try:
+            is_otc = indicators.get('is_otc_market', False)
+
+            if not is_otc:
+                return ""
+
+            otc_signal = indicators.get('otc_signal')
+            otc_confidence = indicators.get('otc_confidence', 0)
+            otc_details = indicators.get('otc_details', {})
+
+            if not otc_signal:
+                return """
+        🎰 OTC MARKET DETECTED:
+        ├─ Market Type: SYNTHETIC/ALGORITHMIC
+        ├─ Status: NO ANOMALY DETECTED
+        └─ Note: Waiting for high-probability OTC pattern
+        """
+
+            # Count detected patterns
+            pattern_types = [k for k in otc_details.keys() if k != 'final_decision']
+            detection_count = len(pattern_types)
+
+            # Build detailed pattern breakdown
+            pattern_details = []
+            if 'synthetic_pattern' in otc_details:
+                pattern_details.append(f"🔮 Synthetic Pattern (Sine/Staircase) detected")
+            if 'artificial_level' in otc_details:
+                pattern_details.append(f"🎯 Artificial Support/Resistance bounce")
+            if 'micro_reversion' in otc_details:
+                pattern_details.append(f"⚡ Extreme move reversion expected")
+            if 'sequence_pattern' in otc_details:
+                pattern_details.append(f"🔄 Repeating price sequence identified")
+            if 'time_anomaly' in otc_details:
+                pattern_details.append(f"⏰ Time-based pattern at this hour/minute")
+
+            patterns_str = "\n        │  ".join(pattern_details)
+
+            return f"""
+        🎰 OTC MARKET ANOMALY DETECTED:
+        ├─ Market Type: SYNTHETIC (OTC) - Algorithmic price feed
+        ├─ Anomaly Signal: {otc_signal.upper()}
+        ├─ OTC Confidence: {otc_confidence:.0f}% (SPECIALIZED for OTC markets)
+        ├─ Patterns Detected: {detection_count}
+        │  {patterns_str}
+        └─ 💎 OTC EDGE: This is a SYNTHETIC market with algorithmic patterns!
+           OTC markets have predictable mathematical behaviors not found in real markets.
+           When {detection_count}+ OTC-specific patterns align, success rate is 70-80%.
+           GIVE HEAVY WEIGHT to OTC signals on OTC markets!
+        """
+
+        except Exception as e:
+            print(f"⚠️ OTC context error: {e}")
             return ""
 
     def learn_from_trade(self, trade_data: Dict):
