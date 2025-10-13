@@ -132,6 +132,11 @@ LAST_TRADE_RESULT = None  # 'WIN' or 'LOSS'
 ACTIVE_STRATEGY_ID = None  # Track which custom strategy was used
 ACTIVE_STRATEGY_NAME = None
 
+# Trade context tracking (for enhanced trade display)
+LAST_TRADE_EXPIRY = 60  # Expiry time in seconds
+LAST_TRADE_REASON = ""  # Reason/indicators used
+LAST_TRADE_CONFIDENCE = 0  # Confidence level
+
 # Bot state
 bot_state = {
     'running': False,
@@ -1145,7 +1150,7 @@ async def enhanced_strategy(candles):
     """
     Advanced AI-enhanced strategy with multiple indicators
     """
-    global ACTIVE_STRATEGY_ID, ACTIVE_STRATEGY_NAME
+    global ACTIVE_STRATEGY_ID, ACTIVE_STRATEGY_NAME, LAST_TRADE_CONFIDENCE
 
     if len(candles) < 50:
         return None
@@ -1391,6 +1396,7 @@ async def enhanced_strategy(candles):
 
                 ACTIVE_STRATEGY_ID = best_strategy['strategy_id']
                 ACTIVE_STRATEGY_NAME = best_strategy['strategy_name']
+                LAST_TRADE_CONFIDENCE = best_strategy['confidence']
 
                 add_log(f"📋 {best_strategy['strategy_name']}: {best_strategy['action'].upper()} - {best_strategy['reason']} ({best_strategy['confidence']:.0f}%)")
                 return best_strategy['action'], best_strategy['reason'], 60  # 60s default expiry
@@ -1947,6 +1953,7 @@ async def set_expiry_time(driver, expiry_seconds):
 async def create_order(driver, action, asset, reason="", expiry=60):
     """Create trading order with AI-chosen expiry time"""
     global ACTIONS, BOT_TRADE_IDS, TRADE_HISTORY, LAST_TRADE_TIME, CONSECUTIVE_TRADES
+    global LAST_TRADE_EXPIRY, LAST_TRADE_REASON
 
     if ACTIONS.get(asset) and ACTIONS[asset] + timedelta(seconds=expiry * 2) > datetime.now():
         return False
@@ -1985,6 +1992,10 @@ async def create_order(driver, action, asset, reason="", expiry=60):
         TRADE_HISTORY.append((datetime.now(), asset))
         LAST_TRADE_TIME = datetime.now()
         CONSECUTIVE_TRADES += 1
+
+        # Store trade context for enhanced trade display
+        LAST_TRADE_EXPIRY = expiry
+        LAST_TRADE_REASON = reason
 
         add_log(f"{'📈' if action == 'call' else '📉'} {action.upper()} on {asset} ⏰ {expiry}s - {reason}")
         return True
@@ -2088,8 +2099,11 @@ async def check_recent_trades(driver):
                 # Check if win, draw, or loss
                 if '$0' != last_split[4] and '$\u202f0' != last_split[4]:  # WIN
                     profit_str = last_split[4].replace('$', '').replace(',', '').replace('\u202f', '')
+                    # Extract stake from the trade (it's in last_split[3])
+                    stake_str = last_split[3].replace('$', '').replace(',', '').replace('\u202f', '')
                     try:
                         profit = float(profit_str)
+                        stake = float(stake_str) if stake_str else 0
 
                         bot_state['wins'] += 1
                         bot_state['win_streak'] += 1
@@ -2099,7 +2113,12 @@ async def check_recent_trades(driver):
                             'action': action,
                             'result': 'WIN',
                             'profit': profit,
-                            'time': trade_time
+                            'time': trade_time,
+                            'stake': stake,
+                            'strategy': ACTIVE_STRATEGY_NAME or 'Traditional Indicators',
+                            'confidence': LAST_TRADE_CONFIDENCE,
+                            'expiry': LAST_TRADE_EXPIRY,
+                            'reason': LAST_TRADE_REASON
                         }
                         bot_state['trades'].insert(0, trade_info)
 
@@ -2213,7 +2232,12 @@ async def check_recent_trades(driver):
                                 'action': action,
                                 'result': 'LOSS',
                                 'profit': -stake,
-                                'time': trade_time
+                                'time': trade_time,
+                                'stake': stake,
+                                'strategy': ACTIVE_STRATEGY_NAME or 'Traditional Indicators',
+                                'confidence': LAST_TRADE_CONFIDENCE,
+                                'expiry': LAST_TRADE_EXPIRY,
+                                'reason': LAST_TRADE_REASON
                             }
                             bot_state['trades'].insert(0, trade_info)
 
