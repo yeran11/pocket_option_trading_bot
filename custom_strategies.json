@@ -71,7 +71,7 @@
       "high_volatility"
     ],
     "timeframe_alignment": true,
-    "active": false,
+    "active": true,
     "performance": {
       "total_trades": 0,
       "wins": 0,
