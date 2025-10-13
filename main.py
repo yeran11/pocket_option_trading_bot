@@ -67,14 +67,13 @@ print("✅ Creating Flask application...")
 
 app = Flask(__name__)
 
-# Import AI Trading System
-AI_ENABLED = False
-ai_brain = None
-optimizer = None
-INDICATOR_CONFIG = None
-AI_STRATEGIES = None
+# ========================================
+# CUSTOM STRATEGY ONLY MODE
+# AI and built-in strategies removed
+# Only using strategy_builder for custom strategies
+# ========================================
 
-# Import NEW ULTRA MASTER SYSTEMS
+# Import ESSENTIAL SYSTEMS for Custom Strategies
 try:
     from performance_tracker import get_tracker
     from market_regime import get_detector
@@ -82,27 +81,21 @@ try:
     from strategy_builder import get_builder
     from backtesting_engine import get_backtest_engine
     from trade_journal import get_journal
-    from pattern_recognition import get_recognizer
-    from otc_anomaly_strategy import create_otc_strategy
-    from reversal_catcher import create_reversal_catcher
-    ULTRA_SYSTEMS_AVAILABLE = True
-    print("✅ ULTRA Master Systems loaded successfully!")
+    STRATEGY_SYSTEMS_AVAILABLE = True
+    print("✅ Custom Strategy Systems loaded successfully!")
 except ImportError as e:
-    ULTRA_SYSTEMS_AVAILABLE = False
-    print(f"⚠️ Some ULTRA systems not available: {e}")
+    STRATEGY_SYSTEMS_AVAILABLE = False
+    print(f"⚠️ Strategy systems not available: {e}")
 
-# Initialize ULTRA systems
+# Initialize Strategy Support Systems
 performance_tracker = None
 regime_detector = None
 mtf_analyzer = None
 strategy_builder = None
 backtest_engine = None
 trade_journal = None
-pattern_recognizer = None
-otc_strategy = None
-reversal_catcher = None
 
-if ULTRA_SYSTEMS_AVAILABLE:
+if STRATEGY_SYSTEMS_AVAILABLE:
     try:
         performance_tracker = get_tracker()
         regime_detector = get_detector()
@@ -110,149 +103,14 @@ if ULTRA_SYSTEMS_AVAILABLE:
         strategy_builder = get_builder()
         backtest_engine = get_backtest_engine()
         trade_journal = get_journal()
-        pattern_recognizer = get_recognizer()
-        otc_strategy = create_otc_strategy()
-        reversal_catcher = create_reversal_catcher(sensitivity='medium')
-        print("✅ All ULTRA systems initialized! (Including 🕯️ Patterns + 🎰 OTC + 🔄 Reversal Catcher)")
+        print("✅ Strategy support systems initialized! 📋 Custom Strategies Ready")
     except Exception as e:
-        print(f"⚠️ ULTRA systems init error: {e}")
+        print(f"⚠️ Strategy systems init error: {e}")
 
-def initialize_ai_system():
-    """Initialize or reinitialize the AI trading system"""
-    global AI_ENABLED, ai_brain, optimizer, INDICATOR_CONFIG, AI_STRATEGIES
-
-    # Helper function for logging when add_log may not be available
-    def safe_log(msg):
-        print(msg)
-        if 'add_log' in globals():
-            add_log(msg)
-
-    try:
-        print("🔄 Starting AI system initialization...")
-
-        # Ensure paths are set up - try multiple locations
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-
-        # Try multiple paths for ai_config.py
-        possible_paths = [
-            os.path.join(current_dir, 'ai_config.py'),  # Same directory
-            os.path.join(os.path.dirname(current_dir), 'ai_config.py'),  # Parent directory
-            os.path.join('/home/runner/workspace', 'ai_config.py'),  # Absolute path
-            os.path.join('/home/runner/workspace/pocket_option_trading_bot', 'ai_config.py'),  # Absolute bot path
-        ]
-
-        # Add all paths to sys.path
-        for path_dir in [current_dir, os.path.dirname(current_dir), '/home/runner/workspace', '/home/runner/workspace/pocket_option_trading_bot']:
-            if path_dir not in sys.path:
-                sys.path.insert(0, path_dir)
-
-        print(f"📂 Current dir: {current_dir}")
-        print(f"📂 Looking for ai_config.py in multiple locations...")
-
-        # Try to import the AI config module
-        try:
-            # Find the first existing ai_config.py
-            ai_config_path = None
-            for path in possible_paths:
-                if os.path.exists(path):
-                    ai_config_path = path
-                    break
-
-            print(f"🔍 Checking for ai_config at paths: {possible_paths}")
-
-            if not ai_config_path:
-                print(f"❌ ai_config.py not found in any location")
-                safe_log("❌ AI config file not found in any location")
-                return False
-
-            print(f"✅ Found ai_config.py at {ai_config_path}")
-
-            # Import the module
-            import importlib.util
-            spec = importlib.util.spec_from_file_location("ai_config", ai_config_path)
-            if spec is None:
-                print("❌ Failed to create module spec")
-                safe_log("❌ Failed to load AI module specification")
-                return False
-
-            ai_config = importlib.util.module_from_spec(spec)
-            if ai_config is None:
-                print("❌ Failed to create module from spec")
-                safe_log("❌ Failed to create AI module")
-                return False
-
-            spec.loader.exec_module(ai_config)
-            print("✅ Successfully imported ai_config module")
-
-            # Get the classes and configs
-            AITradingBrain = ai_config.AITradingBrain
-            SelfOptimizer = ai_config.SelfOptimizer
-            INDICATOR_CONFIG = ai_config.INDICATOR_CONFIG
-            AI_STRATEGIES = ai_config.AI_STRATEGIES
-
-            # Also get the API key from the module
-            OPENAI_API_KEY = ai_config.OPENAI_API_KEY
-            OPENAI_PROJECT_ID = ai_config.OPENAI_PROJECT_ID
-
-            # Diagnostic: Check API key value
-            if OPENAI_API_KEY:
-                print(f"🔑 API Key loaded: {OPENAI_API_KEY[:15]}...{OPENAI_API_KEY[-8:]} (length: {len(OPENAI_API_KEY)})")
-            else:
-                print(f"⚠️ API Key is: {OPENAI_API_KEY}")
-
-            print("✅ Successfully loaded AI classes and configs")
-
-        except Exception as import_error:
-            error_msg = str(import_error)
-            print(f"❌ Failed to import ai_config: {error_msg}")
-            safe_log(f"❌ AI module import error: {error_msg[:100]}")
-            import traceback
-            traceback.print_exc()
-            return False
-
-        # Check if API key is valid before initializing
-        if not OPENAI_API_KEY or OPENAI_API_KEY == "your-api-key-here" or len(OPENAI_API_KEY) < 20:
-            print("❌ Invalid or missing OpenAI API key")
-            safe_log("❌ AI initialization failed - Invalid API key")
-            return False
-
-        # Initialize the AI objects
-        print("🔧 Creating AI brain and optimizer instances...")
-        try:
-            ai_brain = AITradingBrain()
-            optimizer = SelfOptimizer()
-            AI_ENABLED = True
-            print("✅ AI Trading System loaded successfully")
-            safe_log("✅ AI Trading System initialized successfully")
-        except Exception as init_error:
-            print(f"❌ Failed to initialize AI objects: {init_error}")
-            safe_log(f"❌ AI initialization error: {str(init_error)[:100]}")
-            return False
-
-        if ai_brain:
-            try:
-                ai_brain.load_patterns()
-                pattern_count = len(ai_brain.pattern_database) if hasattr(ai_brain, 'pattern_database') else 0
-                print(f"📊 Loaded {pattern_count} patterns")
-                safe_log(f"📊 AI loaded with {pattern_count} learned patterns")
-            except Exception as pattern_error:
-                print(f"📊 Starting with fresh pattern database: {pattern_error}")
-                safe_log("📊 AI starting with fresh pattern database")
-
-        return True
-
-    except Exception as e:
-        error_msg = str(e)
-        print(f"❌ Failed to initialize AI: {error_msg}")
-        safe_log(f"❌ AI initialization failed: {error_msg[:100]}")
-        import traceback
-        traceback.print_exc()
-        AI_ENABLED = False
-        ai_brain = None
-        optimizer = None
-        return False
-
-# AI initialization will happen after add_log is defined
+# ===================================================================
+# AI SYSTEM REMOVED - Custom Strategies Only
+# AI will be added back in a future update
+# ===================================================================
 
 # Global variables
 DRIVER = None
@@ -484,27 +342,16 @@ def add_log(msg):
     print(f"[{ts}] {msg}")
 
 
-# Try to initialize AI on startup now that add_log is available
+# ===================================================================
+# Custom Strategy Mode - No AI initialization needed
+# ===================================================================
 print("\n" + "=" * 80)
-print("🤖 INITIALIZING AI TRADING SYSTEM")
+print("📋 CUSTOM STRATEGY MODE - BOT READY")
 print("=" * 80)
-if not ai_brain:
-    success = initialize_ai_system()
-    if success:
-        print("=" * 80)
-        print("✅ AI SYSTEM READY - GPT-4 TRADING GOD ONLINE!")
-        print(f"   AI_ENABLED: {AI_ENABLED}")
-        print(f"   ai_brain: {ai_brain is not None}")
-        print(f"   optimizer: {optimizer is not None}")
-        print("=" * 80 + "\n")
-    else:
-        print("=" * 80)
-        print("❌ AI SYSTEM FAILED TO INITIALIZE")
-        print("   Check errors above for details")
-        print("=" * 80 + "\n")
-else:
-    print("✅ AI already initialized")
-    print("=" * 80 + "\n")
+print("✅ Strategy Builder: Ready")
+print("✅ Performance Tracker: Ready")
+print("✅ Indicators: Ready")
+print("=" * 80 + "\n")
 
 
 # ==================== CHROME DRIVER MANAGEMENT ====================
@@ -3151,44 +2998,10 @@ def get_settings():
 @app.route('/api/settings', methods=['POST'])
 def update_settings():
     """Update bot settings"""
-    global settings, AI_ENABLED, ai_brain, optimizer
+    global settings
     try:
         new_settings = request.json
         settings.update(new_settings)
-
-        # Update AI status if changed
-        if 'ai_enabled' in new_settings:
-            should_enable = new_settings['ai_enabled']
-            settings['ai_enabled'] = should_enable
-
-            if should_enable:
-                # Try to initialize AI if not already initialized
-                if not ai_brain:
-                    print(f"🔄 AI not initialized, attempting to initialize...")
-                    success = initialize_ai_system()
-                    if success:
-                        AI_ENABLED = True
-                        add_log("🤖 AI System ENABLED - ULTRA SUPER POWERFUL MODE ACTIVATED!")
-                        add_log("🚀 GPT-4 TRADING GOD ONLINE - 99% WIN RATE TARGET!")
-                        print(f"✅ AI initialization successful, AI_ENABLED={AI_ENABLED}")
-                    else:
-                        AI_ENABLED = False
-                        settings['ai_enabled'] = False  # Revert if initialization failed
-                        add_log("❌ AI System failed to initialize - check console for details")
-                        print(f"❌ AI initialization failed, returning error")
-                        return jsonify({
-                            'success': False,
-                            'error': 'AI initialization failed. Check if ai_config.py exists in parent directory and OpenAI API key is valid.',
-                            'details': 'Check server console for detailed error logs'
-                        })
-                else:
-                    AI_ENABLED = True
-                    add_log("🤖 AI System ENABLED - ULTRA SUPER POWERFUL MODE!")
-                    if ai_brain:
-                        ai_brain.load_patterns()
-            else:
-                AI_ENABLED = False
-                add_log("🤖 AI System DISABLED - Using traditional indicators only")
 
         add_log(f"⚙️ Settings updated successfully")
         return jsonify({'success': True, 'message': 'Settings updated'})
@@ -3200,41 +3013,43 @@ def update_settings():
 
 @app.route('/api/ai-status', methods=['GET'])
 def get_ai_status():
-    """Get AI system status"""
-    global AI_ENABLED, ai_brain
-
-    # The actual current state
-    ai_is_enabled = AI_ENABLED and ai_brain is not None
-
-    # Get the active strategy
-    current_strat = settings.get('active_strategy', 'AI_ENHANCED')
-    if current_strat == 'AI_ENHANCED' and settings.get('ai_strategy'):
-        current_strat = settings.get('ai_strategy', 'ULTRA_SCALPING')
-
+    """Get system status (AI removed - custom strategies only)"""
     return jsonify({
-        'ai_enabled': ai_is_enabled,
-        'ai_available': ai_brain is not None,
-        'patterns_learned': len(ai_brain.pattern_database) if ai_brain and hasattr(ai_brain, 'pattern_database') else 0,
-        'current_strategy': current_strat,
-        'ai_module_loaded': ai_brain is not None,
-        'settings_enabled': settings.get('ai_enabled', False),
-        'global_enabled': AI_ENABLED
+        'ai_enabled': False,
+        'ai_available': False,
+        'patterns_learned': 0,
+        'current_strategy': 'Custom Strategies Only',
+        'ai_module_loaded': False,
+        'settings_enabled': False,
+        'global_enabled': False,
+        'mode': 'CUSTOM_STRATEGIES_ONLY'
     })
 
 
 @app.route('/api/indicator-performance', methods=['GET'])
 def get_indicator_performance():
-    """Get performance metrics for each indicator"""
-    if optimizer:
-        return jsonify(optimizer.indicator_performance)
+    """Get performance metrics for indicators (from performance tracker)"""
+    if performance_tracker:
+        try:
+            stats = performance_tracker.get_performance_stats()
+            return jsonify(stats)
+        except:
+            pass
     return jsonify({})
 
 
 @app.route('/api/strategy-stats', methods=['GET'])
 def get_strategy_stats():
-    """Get strategy performance statistics"""
-    if optimizer:
-        return jsonify(optimizer.strategy_performance)
+    """Get custom strategy performance statistics"""
+    if strategy_builder:
+        try:
+            strategies = strategy_builder.get_active_strategies()
+            stats = {}
+            for sid, strategy in strategies.items():
+                stats[sid] = strategy.get('performance', {})
+            return jsonify(stats)
+        except:
+            pass
     return jsonify({})
 
 
