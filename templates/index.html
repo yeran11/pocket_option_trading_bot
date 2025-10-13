@@ -479,7 +479,7 @@
             border: 1px solid #0ff;
             border-radius: 5px;
             padding: 15px;
-            max-height: 400px;
+            max-height: 500px;
             overflow-y: auto;
         }
 
@@ -487,11 +487,17 @@
             background: #001a1a;
             border: 1px solid #0ff;
             border-radius: 5px;
-            padding: 10px;
-            margin: 5px 0;
+            padding: 12px;
+            margin: 8px 0;
             display: flex;
-            justify-content: space-between;
-            align-items: center;
+            flex-direction: column;
+            transition: all 0.3s ease;
+        }
+
+        .trade-item:hover {
+            background: rgba(0, 255, 255, 0.05);
+            transform: translateX(5px);
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
         }
 
         .trade-win {
@@ -970,13 +976,40 @@
 
                         const profit = trade.profit || 0;
                         const time = trade.time || 'Unknown time';
+                        const stake = trade.stake || 0;
+                        const strategy = trade.strategy || 'Unknown';
+                        const confidence = trade.confidence || 0;
+                        const expiry = trade.expiry || 60;
+                        const reason = trade.reason || 'No details';
 
+                        // Create enhanced trade display with all information
                         div.innerHTML = `
-                            <div>
-                                <strong>${trade.asset}</strong> - ${trade.action} - ${time}
-                            </div>
-                            <div class="${trade.result === 'WIN' ? 'profit' : 'loss'}">
-                                ${trade.result} ${profit >= 0 ? '+' : ''}$${profit.toFixed(2)}
+                            <div style="flex: 1;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                    <div>
+                                        <strong style="font-size: 1.1em; color: #0ff;">${trade.asset}</strong>
+                                        <span style="margin-left: 10px; color: ${trade.action === 'call' ? '#0f0' : '#f00'}; font-weight: bold;">
+                                            ${trade.action === 'call' ? '📈 CALL' : '📉 PUT'}
+                                        </span>
+                                    </div>
+                                    <div class="${trade.result === 'WIN' ? 'profit' : 'loss'}" style="font-size: 1.2em;">
+                                        ${trade.result} ${profit >= 0 ? '+' : ''}$${profit.toFixed(2)}
+                                    </div>
+                                </div>
+                                <div style="font-size: 0.85em; color: #0cc; line-height: 1.5;">
+                                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 5px; margin-top: 8px;">
+                                        <div>💰 Stake: <span style="color: #0ff;">$${stake.toFixed(2)}</span></div>
+                                        <div>⏱️ Expiry: <span style="color: #0ff;">${expiry}s</span></div>
+                                        <div>🎯 Strategy: <span style="color: #0ff;">${strategy}</span></div>
+                                        <div>📊 Confidence: <span style="color: ${confidence >= 70 ? '#0f0' : confidence >= 50 ? '#ff0' : '#f00'};">${confidence.toFixed(0)}%</span></div>
+                                    </div>
+                                    <div style="margin-top: 6px; padding: 5px; background: rgba(0, 255, 255, 0.05); border-radius: 3px; border-left: 2px solid #0cc;">
+                                        💡 ${reason}
+                                    </div>
+                                    <div style="margin-top: 4px; color: #0aa; font-size: 0.8em;">
+                                        🕐 ${time}
+                                    </div>
+                                </div>
                             </div>
                         `;
 
