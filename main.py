@@ -67,14 +67,13 @@ print("✅ Creating Flask application...")
 
 app = Flask(__name__)
 
-# Import AI Trading System
-AI_ENABLED = False
-ai_brain = None
-optimizer = None
-INDICATOR_CONFIG = None
-AI_STRATEGIES = None
+# ========================================
+# CUSTOM STRATEGY ONLY MODE
+# AI and built-in strategies removed
+# Only using strategy_builder for custom strategies
+# ========================================
 
-# Import NEW ULTRA MASTER SYSTEMS
+# Import ESSENTIAL SYSTEMS for Custom Strategies
 try:
     from performance_tracker import get_tracker
     from market_regime import get_detector
@@ -82,27 +81,21 @@ try:
     from strategy_builder import get_builder
     from backtesting_engine import get_backtest_engine
     from trade_journal import get_journal
-    from pattern_recognition import get_recognizer
-    from otc_anomaly_strategy import create_otc_strategy
-    from reversal_catcher import create_reversal_catcher
-    ULTRA_SYSTEMS_AVAILABLE = True
-    print("✅ ULTRA Master Systems loaded successfully!")
+    STRATEGY_SYSTEMS_AVAILABLE = True
+    print("✅ Custom Strategy Systems loaded successfully!")
 except ImportError as e:
-    ULTRA_SYSTEMS_AVAILABLE = False
-    print(f"⚠️ Some ULTRA systems not available: {e}")
+    STRATEGY_SYSTEMS_AVAILABLE = False
+    print(f"⚠️ Strategy systems not available: {e}")
 
-# Initialize ULTRA systems
+# Initialize Strategy Support Systems
 performance_tracker = None
 regime_detector = None
 mtf_analyzer = None
 strategy_builder = None
 backtest_engine = None
 trade_journal = None
-pattern_recognizer = None
-otc_strategy = None
-reversal_catcher = None
 
-if ULTRA_SYSTEMS_AVAILABLE:
+if STRATEGY_SYSTEMS_AVAILABLE:
     try:
         performance_tracker = get_tracker()
         regime_detector = get_detector()
@@ -110,149 +103,14 @@ if ULTRA_SYSTEMS_AVAILABLE:
         strategy_builder = get_builder()
         backtest_engine = get_backtest_engine()
         trade_journal = get_journal()
-        pattern_recognizer = get_recognizer()
-        otc_strategy = create_otc_strategy()
-        reversal_catcher = create_reversal_catcher(sensitivity='medium')
-        print("✅ All ULTRA systems initialized! (Including 🕯️ Patterns + 🎰 OTC + 🔄 Reversal Catcher)")
+        print("✅ Strategy support systems initialized! 📋 Custom Strategies Ready")
     except Exception as e:
-        print(f"⚠️ ULTRA systems init error: {e}")
+        print(f"⚠️ Strategy systems init error: {e}")
 
-def initialize_ai_system():
-    """Initialize or reinitialize the AI trading system"""
-    global AI_ENABLED, ai_brain, optimizer, INDICATOR_CONFIG, AI_STRATEGIES
-
-    # Helper function for logging when add_log may not be available
-    def safe_log(msg):
-        print(msg)
-        if 'add_log' in globals():
-            add_log(msg)
-
-    try:
-        print("🔄 Starting AI system initialization...")
-
-        # Ensure paths are set up - try multiple locations
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-
-        # Try multiple paths for ai_config.py
-        possible_paths = [
-            os.path.join(current_dir, 'ai_config.py'),  # Same directory
-            os.path.join(os.path.dirname(current_dir), 'ai_config.py'),  # Parent directory
-            os.path.join('/home/runner/workspace', 'ai_config.py'),  # Absolute path
-            os.path.join('/home/runner/workspace/pocket_option_trading_bot', 'ai_config.py'),  # Absolute bot path
-        ]
-
-        # Add all paths to sys.path
-        for path_dir in [current_dir, os.path.dirname(current_dir), '/home/runner/workspace', '/home/runner/workspace/pocket_option_trading_bot']:
-            if path_dir not in sys.path:
-                sys.path.insert(0, path_dir)
-
-        print(f"📂 Current dir: {current_dir}")
-        print(f"📂 Looking for ai_config.py in multiple locations...")
-
-        # Try to import the AI config module
-        try:
-            # Find the first existing ai_config.py
-            ai_config_path = None
-            for path in possible_paths:
-                if os.path.exists(path):
-                    ai_config_path = path
-                    break
-
-            print(f"🔍 Checking for ai_config at paths: {possible_paths}")
-
-            if not ai_config_path:
-                print(f"❌ ai_config.py not found in any location")
-                safe_log("❌ AI config file not found in any location")
-                return False
-
-            print(f"✅ Found ai_config.py at {ai_config_path}")
-
-            # Import the module
-            import importlib.util
-            spec = importlib.util.spec_from_file_location("ai_config", ai_config_path)
-            if spec is None:
-                print("❌ Failed to create module spec")
-                safe_log("❌ Failed to load AI module specification")
-                return False
-
-            ai_config = importlib.util.module_from_spec(spec)
-            if ai_config is None:
-                print("❌ Failed to create module from spec")
-                safe_log("❌ Failed to create AI module")
-                return False
-
-            spec.loader.exec_module(ai_config)
-            print("✅ Successfully imported ai_config module")
-
-            # Get the classes and configs
-            AITradingBrain = ai_config.AITradingBrain
-            SelfOptimizer = ai_config.SelfOptimizer
-            INDICATOR_CONFIG = ai_config.INDICATOR_CONFIG
-            AI_STRATEGIES = ai_config.AI_STRATEGIES
-
-            # Also get the API key from the module
-            OPENAI_API_KEY = ai_config.OPENAI_API_KEY
-            OPENAI_PROJECT_ID = ai_config.OPENAI_PROJECT_ID
-
-            # Diagnostic: Check API key value
-            if OPENAI_API_KEY:
-                print(f"🔑 API Key loaded: {OPENAI_API_KEY[:15]}...{OPENAI_API_KEY[-8:]} (length: {len(OPENAI_API_KEY)})")
-            else:
-                print(f"⚠️ API Key is: {OPENAI_API_KEY}")
-
-            print("✅ Successfully loaded AI classes and configs")
-
-        except Exception as import_error:
-            error_msg = str(import_error)
-            print(f"❌ Failed to import ai_config: {error_msg}")
-            safe_log(f"❌ AI module import error: {error_msg[:100]}")
-            import traceback
-            traceback.print_exc()
-            return False
-
-        # Check if API key is valid before initializing
-        if not OPENAI_API_KEY or OPENAI_API_KEY == "your-api-key-here" or len(OPENAI_API_KEY) < 20:
-            print("❌ Invalid or missing OpenAI API key")
-            safe_log("❌ AI initialization failed - Invalid API key")
-            return False
-
-        # Initialize the AI objects
-        print("🔧 Creating AI brain and optimizer instances...")
-        try:
-            ai_brain = AITradingBrain()
-            optimizer = SelfOptimizer()
-            AI_ENABLED = True
-            print("✅ AI Trading System loaded successfully")
-            safe_log("✅ AI Trading System initialized successfully")
-        except Exception as init_error:
-            print(f"❌ Failed to initialize AI objects: {init_error}")
-            safe_log(f"❌ AI initialization error: {str(init_error)[:100]}")
-            return False
-
-        if ai_brain:
-            try:
-                ai_brain.load_patterns()
-                pattern_count = len(ai_brain.pattern_database) if hasattr(ai_brain, 'pattern_database') else 0
-                print(f"📊 Loaded {pattern_count} patterns")
-                safe_log(f"📊 AI loaded with {pattern_count} learned patterns")
-            except Exception as pattern_error:
-                print(f"📊 Starting with fresh pattern database: {pattern_error}")
-                safe_log("📊 AI starting with fresh pattern database")
-
-        return True
-
-    except Exception as e:
-        error_msg = str(e)
-        print(f"❌ Failed to initialize AI: {error_msg}")
-        safe_log(f"❌ AI initialization failed: {error_msg[:100]}")
-        import traceback
-        traceback.print_exc()
-        AI_ENABLED = False
-        ai_brain = None
-        optimizer = None
-        return False
-
-# AI initialization will happen after add_log is defined
+# ===================================================================
+# AI SYSTEM REMOVED - Custom Strategies Only
+# AI will be added back in a future update
+# ===================================================================
 
 # Global variables
 DRIVER = None
@@ -484,27 +342,16 @@ def add_log(msg):
     print(f"[{ts}] {msg}")
 
 
-# Try to initialize AI on startup now that add_log is available
+# ===================================================================
+# Custom Strategy Mode - No AI initialization needed
+# ===================================================================
 print("\n" + "=" * 80)
-print("🤖 INITIALIZING AI TRADING SYSTEM")
+print("📋 CUSTOM STRATEGY MODE - BOT READY")
 print("=" * 80)
-if not ai_brain:
-    success = initialize_ai_system()
-    if success:
-        print("=" * 80)
-        print("✅ AI SYSTEM READY - GPT-4 TRADING GOD ONLINE!")
-        print(f"   AI_ENABLED: {AI_ENABLED}")
-        print(f"   ai_brain: {ai_brain is not None}")
-        print(f"   optimizer: {optimizer is not None}")
-        print("=" * 80 + "\n")
-    else:
-        print("=" * 80)
-        print("❌ AI SYSTEM FAILED TO INITIALIZE")
-        print("   Check errors above for details")
-        print("=" * 80 + "\n")
-else:
-    print("✅ AI already initialized")
-    print("=" * 80 + "\n")
+print("✅ Strategy Builder: Ready")
+print("✅ Performance Tracker: Ready")
+print("✅ Indicators: Ready")
+print("=" * 80 + "\n")
 
 
 # ==================== CHROME DRIVER MANAGEMENT ====================
@@ -1390,598 +1237,179 @@ async def enhanced_strategy(candles):
     if None in [ema_fast, ema_slow, rsi, upper_bb, lower_bb]:
         return None
 
-    # If AI is enabled, use it for analysis
-    # Check both AI_ENABLED global and settings value
-    ai_enabled_flag = AI_ENABLED or settings.get('ai_enabled', False)
-    ai_brain_available = ai_brain is not None
+    # ===================================================================
+    # CUSTOM STRATEGY ONLY MODE
+    # Evaluate custom strategies using indicators calculated above
+    # ===================================================================
 
-    # DEBUG: Log AI status
-    print(f"🔍 AI Check - AI_ENABLED: {AI_ENABLED}, settings.ai_enabled: {settings.get('ai_enabled', False)}, ai_brain: {ai_brain is not None}")
+    print(f"\n{'='*70}")
+    print(f"📋 CUSTOM STRATEGY MODE - Evaluating Active Strategies")
+    print(f"{'='*70}")
 
-    if ai_enabled_flag and ai_brain_available:
+    # Setup multi-timeframe data for custom strategies
+    candles_5m = []
+    candles_15m = []
+    market_regime = 'unknown'
+
+    if mtf_analyzer:
         try:
-            add_log(f"🤖🧠 DUAL AI ENSEMBLE ANALYSIS STARTING...")
-            print(f"🤖 AI Ensemble Analysis initiated for {CURRENT_ASSET}")
+            mtf_data = mtf_analyzer.get_multi_timeframe_data(candles)
+            candles_5m = mtf_data.get('5m', [])
+            candles_15m = mtf_data.get('15m', [])
+            print(f"📊 Multi-Timeframe: 1m={len(candles)}, 5m={len(candles_5m)}, 15m={len(candles_15m)}")
+        except Exception as e:
+            print(f"⚠️ MTF Analysis error: {e}")
 
-            # Get recent trades for AI context
-            recent_trades_list = bot_state.get('trades', [])[-10:]  # Last 10 trades
-
-            # Calculate win streak
-            streak_count = 0
-            streak_type = None
-            for trade in reversed(recent_trades_list):
-                if trade.get('result') == 'WIN':
-                    if streak_type is None or streak_type == 'WIN':
-                        streak_count += 1
-                        streak_type = 'WIN'
-                    else:
-                        break
-                elif trade.get('result') == 'LOSS':
-                    if streak_type is None or streak_type == 'LOSS':
-                        streak_count += 1
-                        streak_type = 'LOSS'
-                    else:
-                        break
-            streak = f"{streak_count}W" if streak_type == 'WIN' else f"{streak_count}L" if streak_type == 'LOSS' else "New"
-
-            # 🚀 ULTRA MASTER SYSTEMS INTEGRATION
-            market_regime = 'unknown'
-            regime_confidence = 0
-            regime_desc = ''
-            mtf_data = None
-            candles_5m = []
-            candles_15m = []
-
-            # Multi-Timeframe Analysis
-            if mtf_analyzer:
-                try:
-                    mtf_data = mtf_analyzer.get_multi_timeframe_data(candles)
-                    candles_5m = mtf_data.get('5m', [])
-                    candles_15m = mtf_data.get('15m', [])
-                    htf_context = mtf_analyzer.get_higher_timeframe_context(candles_5m, candles_15m)
-                    print(f"📊 Multi-Timeframe: {htf_context}")
-                except Exception as e:
-                    print(f"⚠️ MTF Analysis error: {e}")
-
-            # Market Regime Detection
-            if regime_detector:
-                try:
-                    # Prepare indicators dict for regime detection
-                    regime_indicators = {
-                        'rsi': rsi or 50,
-                        'ema_cross': 'Bullish' if ema_fast and ema_slow and ema_fast > ema_slow else 'Bearish',
-                        'supertrend': 'BUY' if supertrend_direction == 1 else 'SELL' if supertrend_direction == -1 else 'Neutral',
-                        'adx': 25
-                    }
-                    market_regime, regime_confidence, regime_desc = await regime_detector.detect_regime(
-                        candles,
-                        candles_5m,
-                        candles_15m,
-                        regime_indicators
-                    )
-                    print(f"🎯 Market Regime: {market_regime.upper()} ({regime_confidence:.0f}%) - {regime_desc}")
-                except Exception as e:
-                    print(f"⚠️ Regime Detection error: {e}")
-
-            # 🕯️ CANDLESTICK PATTERN RECOGNITION (Multi-Timeframe)
-            pattern_data = {}
-            pattern_type = None
-            pattern_strength = 0
-            pattern_quality = 0
-            if pattern_recognizer and settings.get('pattern_recognition_enabled', True):
-                try:
-                    # Detect patterns across all timeframes
-                    pattern_data = pattern_recognizer.detect_all_patterns_mtf(
-                        candles,
-                        candles_5m,
-                        candles_15m
-                    )
-
-                    strongest = pattern_data.get('strongest_signal', {})
-                    if strongest.get('pattern'):
-                        pattern_type = strongest['pattern']
-                        pattern_strength = strongest.get('strength', 0)
-                        timeframe = strongest.get('timeframe', '1m')
-
-                        print(f"🕯️ PATTERN DETECTED: {pattern_type.upper().replace('_', ' ')} on {timeframe} (Strength: {pattern_strength}%)")
-
-                        # Evaluate pattern quality with context
-                        temp_indicators = {
-                            'rsi': rsi or 50,
-                            'macd_histogram': macd_histogram or 0,
-                            'regime': market_regime
-                        }
-                        quality_eval = pattern_recognizer.evaluate_pattern_quality(
-                            strongest.get('data', {}),
-                            temp_indicators,
-                            market_regime
-                        )
-                        pattern_quality = quality_eval.get('quality_score', 0)
-
-                        print(f"   └─ Quality Score: {pattern_quality}/100 - {quality_eval.get('trade_recommendation', 'neutral').upper()}")
-                        if quality_eval.get('reasons'):
-                            for reason in quality_eval['reasons'][:3]:  # Show top 3 reasons
-                                print(f"      {reason}")
-
-                        # Update bot_state with pattern data for UI
-                        bot_state['pattern_data'] = {
-                            'pattern_type': pattern_type,
-                            'pattern_strength': pattern_strength,
-                            'pattern_quality': pattern_quality,
-                            'pattern_timeframe': timeframe
-                        }
-                    else:
-                        # Clear pattern data if no pattern detected
-                        bot_state['pattern_data'] = {
-                            'pattern_type': None,
-                            'pattern_strength': 0,
-                            'pattern_quality': 0,
-                            'pattern_timeframe': '1m'
-                        }
-
-                except Exception as e:
-                    print(f"⚠️ Pattern Recognition error: {e}")
-
-            # 🎰 OTC MARKET ANOMALY DETECTION
-            otc_signal = None
-            otc_confidence = 0
-            otc_details = {}
-            is_otc_market = False
-            if otc_strategy and settings.get('otc_strategy_enabled', True):
-                try:
-                    # Check if current asset is OTC
-                    is_otc_market = otc_strategy.is_otc_asset(CURRENT_ASSET or '')
-
-                    if is_otc_market:
-                        # Run OTC anomaly detection
-                        otc_signal, otc_confidence, otc_details = otc_strategy.analyze_otc_tick(
-                            price=current_price,
-                            timestamp=datetime.now(),
-                            asset_name=CURRENT_ASSET
-                        )
-
-                        if otc_signal and otc_confidence > 0:
-                            print(f"🎰 OTC ANOMALY DETECTED: {otc_signal.upper()} @ {otc_confidence:.1%}")
-                            print(f"   ├─ Detections: {otc_details.get('final_decision', {}).get('signal_count', 0)}")
-
-                            # Show individual detection types
-                            if 'synthetic_pattern' in otc_details:
-                                sp = otc_details['synthetic_pattern']
-                                print(f"   ├─ 🔮 Synthetic Pattern: {sp['direction']} @ {sp['confidence']:.1%}")
-                            if 'artificial_level' in otc_details:
-                                al = otc_details['artificial_level']
-                                print(f"   ├─ 🎯 Artificial Level: {al['direction']} @ {al['confidence']:.1%}")
-                            if 'micro_reversion' in otc_details:
-                                mr = otc_details['micro_reversion']
-                                print(f"   ├─ ⚡ Micro Reversion: {mr['direction']} @ {mr['confidence']:.1%}")
-                            if 'sequence_pattern' in otc_details:
-                                seq = otc_details['sequence_pattern']
-                                print(f"   ├─ 🔄 Sequence Pattern: {seq['direction']} @ {seq['confidence']:.1%}")
-                            if 'time_anomaly' in otc_details:
-                                ta = otc_details['time_anomaly']
-                                print(f"   └─ ⏰ Time Anomaly: {ta['direction']} @ {ta['confidence']:.1%}")
-                        else:
-                            print(f"🎰 OTC Market Detected - No significant anomalies (waiting for high-probability setup)")
-
-                except Exception as e:
-                    print(f"⚠️ OTC Anomaly Detection error: {e}")
-
-            # 🔄 REVERSAL CATCHER - 7 INDICATOR CONFLUENCE SYSTEM
-            reversal_signal = None
-            reversal_confidence = 0
-            reversal_details = {}
-            if reversal_catcher and settings.get('reversal_catcher_enabled', True):
-                try:
-                    # Feed price data to reversal catcher
-                    # Use synthetic volume from VWAP calculation
-                    current_volume = volumes[-1] if volumes and len(volumes) > 0 else 1.0
-
-                    reversal_signal, reversal_confidence, reversal_details = reversal_catcher.add_price(
-                        price=current_price,
-                        volume=current_volume,
-                        timestamp=datetime.now()
-                    )
-
-                    if reversal_signal and reversal_confidence > 0:
-                        confirming_indicators = reversal_details.get('indicators', [])
-                        total_confirming = reversal_details.get('total_confirming', 0)
-                        conflicting = reversal_details.get('conflicting', 0)
-
-                        print(f"🔄 REVERSAL DETECTED: {reversal_signal.upper()} @ {reversal_confidence:.1%}")
-                        print(f"   ├─ Confirming Indicators: {total_confirming}/7")
-                        print(f"   ├─ Conflicting: {conflicting}")
-                        print(f"   └─ Top Signals:")
-
-                        # Show top 3 indicators
-                        for ind in confirming_indicators[:3]:
-                            ind_name = ind['name'].replace('_', ' ').title()
-                            ind_type = ind['details'].get('type', 'N/A').replace('_', ' ').title()
-                            print(f"      • {ind_name}: {ind['strength']:.1%} ({ind_type})")
-
-                except Exception as e:
-                    print(f"⚠️ Reversal Catcher error: {e}")
-
-            # Prepare COMPLETE market data for AI
-            market_data = {
-                'asset': CURRENT_ASSET or 'Unknown',
-                'current_price': current_price,
-                'change_1m': ((candles[-1][2] - candles[-2][2]) / candles[-2][2]) * 100 if len(candles) > 1 else 0,
-                'change_5m': ((candles[-1][2] - candles[-5][2]) / candles[-5][2]) * 100 if len(candles) > 5 else 0,
-                'volume': 'Normal',  # TODO: Parse real volume from WebSocket
-                'recent_trades': recent_trades_list,
-                'win_rate': (bot_state['wins'] / bot_state['total_trades'] * 100) if bot_state['total_trades'] > 0 else 0,
-                'total_trades': bot_state['total_trades'],
-                'streak': streak
-            }
-
-            # Prepare ALL indicators for AI (13-point analysis)
-            ai_indicators = {
-                # Trend indicators
+    # Detect market regime for custom strategies
+    if regime_detector:
+        try:
+            regime_indicators = {
                 'rsi': rsi or 50,
                 'ema_cross': 'Bullish' if ema_fast and ema_slow and ema_fast > ema_slow else 'Bearish',
                 'supertrend': 'BUY' if supertrend_direction == 1 else 'SELL' if supertrend_direction == -1 else 'Neutral',
-                'adx': adx_value,
-                'plus_di': plus_di,
-                'minus_di': minus_di,
-                'di_cross': di_cross_signal,
-
-                # Momentum indicators
-                'macd_line': macd_line or 0,
-                'macd_signal_line': macd_signal or 0,
-                'macd_histogram': macd_histogram or 0,
-                'stochastic_k': stoch_k or 50,
-                'stochastic_d': stoch_d or 50,
-                'bollinger_position': 'Above' if upper_bb and current_price > upper_bb else 'Below' if lower_bb and current_price < lower_bb else 'Middle',
-
-                # Volume & patterns
-                'heikin_ashi': heikin_ashi_trend,
-                'heikin_ashi_consecutive': heikin_ashi_consecutive,
-                'heikin_ashi_strength': heikin_ashi_strength,
-                'vwap_position': vwap_position,
-                'vwap_deviation': vwap_deviation,
-                'vwap_value': vwap_value,
-                'vwap_upper_band_1': vwap_upper_1,
-                'vwap_lower_band_1': vwap_lower_1,
-                'vwap_upper_band_2': vwap_upper_2,
-                'vwap_lower_band_2': vwap_lower_2,
-                'volume_trend': volume_trend,
-                'volume_signal': volume_signal,
-                'volume_strength': volume_strength,
-
-                # Support/Resistance
-                'support': support or 0,
-                'resistance': resistance or 0,
-                'atr': atr or 0,
-
-                # Chart patterns (legacy)
-                'pattern_name': pattern_name,
-                'pattern_strength': pattern_strength or 0,
-                'pattern_direction': pattern_direction or 'neutral',
-
-                # 🕯️ Candlestick Patterns (NEW - Multi-Timeframe)
-                'pattern_type': pattern_type,  # bullish_engulfing, bearish_engulfing, doji, hammer, etc.
-                'pattern_strength': pattern_strength,  # 0-100
-                'pattern_quality': pattern_quality,  # 0-100 (quality based on context)
-                'pattern_data': pattern_data,  # Full pattern data for AI context
-                'regime': market_regime,  # Current market regime
-
-                # 🎰 OTC Market Anomaly Detection
-                'is_otc_market': is_otc_market,
-                'otc_signal': otc_signal,  # CALL/PUT or None
-                'otc_confidence': otc_confidence * 100 if otc_confidence else 0,  # 0-100
-                'otc_details': otc_details,  # Full OTC detection details
-
-                # 🔄 Reversal Catcher - 7 Indicator Confluence
-                'reversal_signal': reversal_signal,  # CALL/PUT or None
-                'reversal_confidence': reversal_confidence * 100 if reversal_confidence else 0,  # 0-100
-                'reversal_confirming': reversal_details.get('total_confirming', 0),  # How many indicators agree
-                'reversal_details': reversal_details  # Full reversal detection details
+                'adx': adx_value
             }
-
-            # 🎯 DECISION MODE SYSTEM - Determine what systems to use
-            decision_mode = settings.get('decision_mode', 'full_power')
-            ai_enabled = settings.get('ai_enabled', True)
-
-            # Initialize decision variables
-            ai_action = 'hold'
-            ai_confidence = 0
-            ai_reason = 'AI not used in this mode'
-
-            # AI ANALYSIS (Skip if not needed by decision mode)
-            should_run_ai = (
-                decision_mode in ['full_power', 'ai_only'] and
-                ai_enabled
+            market_regime, regime_confidence, regime_desc = await regime_detector.detect_regime(
+                candles, candles_5m, candles_15m, regime_indicators
             )
-
-            if should_run_ai:
-                ai_mode = settings.get('ai_mode', 'ensemble')
-                use_gpt4 = settings.get('use_gpt4', True)
-                use_claude = settings.get('use_claude', True)
-
-                print(f"📊 Calling AI (Mode: {ai_mode.upper()}, GPT-4: {use_gpt4}, Claude: {use_claude})...")
-                # Get AI ENSEMBLE decision with user settings (NOW WITH DYNAMIC EXPIRY!)
-                ai_action, ai_confidence, ai_reason, ai_expiry = await ai_brain.analyze_with_ensemble(
-                    market_data,
-                    ai_indicators,
-                    ai_mode=ai_mode,
-                    use_gpt4=use_gpt4,
-                    use_claude=use_claude
-                )
-
-                # Validate and apply AI expiry selection
-                if settings.get('ai_dynamic_expiry_enabled', True):
-                    # Validate expiry is within allowed range
-                    allowed_expiries = settings.get('ai_expiry_allowed', [30, 60, 90, 120, 180, 300])
-                    if ai_expiry not in allowed_expiries:
-                        ai_expiry = min(allowed_expiries, key=lambda x: abs(x - ai_expiry))
-                    print(f"✅ AI Response: {ai_action.upper()} @ {ai_confidence}% ⏰ EXPIRY: {ai_expiry}s (AI-chosen)")
-                else:
-                    ai_expiry = settings.get('ai_expiry_default', 60)
-                    print(f"✅ AI Response: {ai_action.upper()} @ {ai_confidence}% ⏰ EXPIRY: {ai_expiry}s (default)")
-            else:
-                print(f"⏭️  Skipping AI analysis (Decision Mode: {decision_mode.upper()})")
-
-            # 🎯 EVALUATE CUSTOM STRATEGIES (Skip if not needed by decision mode)
-            custom_strategy_signals = []
-            custom_strategies_enabled = settings.get('custom_strategies_enabled', True)
-
-            should_run_strategies = (
-                strategy_builder and
-                ULTRA_SYSTEMS_AVAILABLE and
-                custom_strategies_enabled and
-                decision_mode in ['full_power', 'strategy_only']
-            )
-
-            if should_run_strategies:
-                try:
-                    # Get active strategies (or specific strategy if in strategy_only mode)
-                    if decision_mode == 'strategy_only':
-                        active_strategy_id = settings.get('active_strategy_id')
-                        if active_strategy_id:
-                            strategy = strategy_builder.get_strategy(active_strategy_id)
-                            if strategy:
-                                active_strategies = {active_strategy_id: strategy}
-                            else:
-                                active_strategies = {}
-                                print(f"⚠️  Strategy '{active_strategy_id}' not found")
-                        else:
-                            active_strategies = {}
-                            print(f"⚠️  No strategy selected for 'strategy_only' mode")
-                    else:
-                        active_strategies = strategy_builder.get_active_strategies()
-
-                    for strategy_id, strategy in active_strategies.items():
-                        # Check if timeframe alignment is required
-                        mtf_aligned = True
-                        if mtf_analyzer and strategy.get('timeframe_alignment', False):
-                            alignment_data = mtf_analyzer.analyze_trend_alignment(candles, candles_5m, candles_15m)
-                            mtf_aligned = alignment_data.get('aligned', False)
-
-                        # Evaluate strategy with AI decision as input
-                        strategy_action, strategy_confidence, strategy_reason = strategy_builder.evaluate_strategy(
-                            strategy_id,
-                            market_data,
-                            ai_indicators,
-                            market_regime,
-                            mtf_aligned,
-                            ai_decision=(ai_action, ai_confidence, ai_reason)
-                        )
-
-                        if strategy_action:
-                            custom_strategy_signals.append({
-                                'strategy_id': strategy_id,
-                                'strategy_name': strategy['name'],
-                                'action': strategy_action,
-                                'confidence': strategy_confidence,
-                                'reason': strategy_reason
-                            })
-                            print(f"📋 Strategy '{strategy['name']}': {strategy_action.upper()} @ {strategy_confidence:.0f}% - {strategy_reason}")
-
-                    # If any custom strategies triggered, use the highest confidence one
-                    if custom_strategy_signals:
-                        best_strategy = max(custom_strategy_signals, key=lambda x: x['confidence'])
-                        print(f"✨ BEST CUSTOM STRATEGY: {best_strategy['strategy_name']} - {best_strategy['action'].upper()} @ {best_strategy['confidence']:.0f}%")
-
-                        # Override AI decision with custom strategy if confidence is higher
-                        if best_strategy['confidence'] > ai_confidence:
-                            ACTIVE_STRATEGY_ID = best_strategy['strategy_id']
-                            ACTIVE_STRATEGY_NAME = best_strategy['strategy_name']
-                            ai_action = best_strategy['action']
-                            ai_confidence = best_strategy['confidence']
-                            ai_reason = f"Custom Strategy '{best_strategy['strategy_name']}': {best_strategy['reason']}"
-                            print(f"🔄 STRATEGY OVERRIDE: Using custom strategy decision")
-
-                except Exception as e:
-                    print(f"⚠️ Custom strategy evaluation error: {e}")
-            else:
-                if decision_mode in ['full_power', 'strategy_only']:
-                    print(f"⏭️  No active custom strategies")
-
-            # 🎯 FINAL DECISION LOGIC BASED ON DECISION MODE
-            print(f"\n{'='*60}")
-            print(f"🎯 DECISION MODE: {decision_mode.upper()}")
-            print(f"{'='*60}")
-
-            final_action = 'hold'
-            final_confidence = 0
-            final_reason = 'No signal'
-            final_expiry = settings.get('ai_expiry_default', 60)  # Default expiry
-
-            if decision_mode == 'ai_only':
-                # AI ONLY MODE: Use AI decision exclusively
-                if ai_confidence >= settings.get('ai_min_confidence', 70):
-                    final_action = ai_action
-                    final_confidence = ai_confidence
-                    final_reason = f"🤖 AI ONLY: {ai_reason[:100]}"
-                    final_expiry = ai_expiry  # Use AI-chosen expiry
-                    print(f"✅ AI Decision: {ai_action.upper()} @ {ai_confidence}% ⏰ {final_expiry}s")
-                else:
-                    print(f"⏭️  AI Confidence too low ({ai_confidence}% < {settings.get('ai_min_confidence', 70)}%)")
-
-            elif decision_mode == 'patterns_only':
-                # PATTERNS ONLY MODE: Use pattern quality score for decision
-                if pattern_type and pattern_quality >= 70:
-                    # Determine action from pattern type
-                    if 'bullish' in pattern_type or pattern_type == 'hammer':
-                        final_action = 'call'
-                    elif 'bearish' in pattern_type or pattern_type == 'shooting_star':
-                        final_action = 'put'
-                    else:
-                        final_action = 'hold'  # Doji = indecision
-
-                    final_confidence = pattern_quality
-                    final_reason = f"🕯️ PATTERN: {pattern_type.upper()} (Quality: {pattern_quality}%)"
-                    print(f"✅ Pattern Decision: {final_action.upper()} @ {pattern_quality}%")
-                else:
-                    print(f"⏭️  No high-quality pattern (Quality: {pattern_quality}% < 70%)")
-
-            elif decision_mode == 'strategy_only':
-                # STRATEGY ONLY MODE: Use selected custom strategy exclusively
-                if custom_strategy_signals:
-                    best_strategy = max(custom_strategy_signals, key=lambda x: x['confidence'])
-                    ACTIVE_STRATEGY_ID = best_strategy['strategy_id']
-                    ACTIVE_STRATEGY_NAME = best_strategy['strategy_name']
-                    final_action = best_strategy['action']
-                    final_confidence = best_strategy['confidence']
-                    final_reason = f"📋 STRATEGY: {best_strategy['strategy_name']} - {best_strategy['reason']}"
-                    print(f"✅ Strategy Decision: {final_action.upper()} @ {final_confidence}%")
-                else:
-                    print(f"⏭️  Strategy did not trigger")
-
-            elif decision_mode == 'full_power':
-                # FULL POWER MODE: Combine AI + Patterns + Strategies (best decision wins)
-                candidates = []
-
-                # Add AI decision
-                if ai_confidence >= settings.get('ai_min_confidence', 70) and ai_action != 'hold':
-                    candidates.append({
-                        'source': '🤖 AI',
-                        'action': ai_action,
-                        'confidence': ai_confidence,
-                        'reason': ai_reason[:100],
-                        'expiry': ai_expiry  # Include AI-chosen expiry
-                    })
-
-                # Add pattern decision
-                if pattern_type and pattern_quality >= 70:
-                    if 'bullish' in pattern_type or pattern_type == 'hammer':
-                        pattern_action = 'call'
-                    elif 'bearish' in pattern_type or pattern_type == 'shooting_star':
-                        pattern_action = 'put'
-                    else:
-                        pattern_action = 'hold'
-
-                    if pattern_action != 'hold':
-                        candidates.append({
-                            'source': '🕯️ Pattern',
-                            'action': pattern_action,
-                            'confidence': pattern_quality,
-                            'reason': f"{pattern_type.upper()} (Quality: {pattern_quality}%)"
-                        })
-
-                # Add custom strategy decisions
-                for strategy_signal in custom_strategy_signals:
-                    candidates.append({
-                        'source': f"📋 {strategy_signal['strategy_name']}",
-                        'action': strategy_signal['action'],
-                        'confidence': strategy_signal['confidence'],
-                        'reason': strategy_signal['reason']
-                    })
-
-                # Add OTC anomaly signal (if market is OTC and signal is strong)
-                min_otc_confidence = settings.get('otc_min_confidence', 75)
-                if otc_signal and otc_confidence >= min_otc_confidence / 100 and is_otc_market:
-                    otc_conf_percent = otc_confidence * 100
-                    # OTC signals on OTC markets get priority boost
-                    boosted_confidence = min(otc_conf_percent + 5, 95)  # +5% boost for OTC specialty
-                    candidates.append({
-                        'source': '🎰 OTC Anomaly',
-                        'action': otc_signal.lower(),
-                        'confidence': boosted_confidence,
-                        'reason': f"OTC Market Exploit ({len([k for k in otc_details.keys() if k != 'final_decision'])} patterns detected)"
-                    })
-
-                # Add Reversal Catcher signal (if reversal detected with high confidence)
-                min_reversal_confidence = settings.get('reversal_min_confidence', 65)
-                if reversal_signal and reversal_confidence >= min_reversal_confidence / 100:
-                    reversal_conf_percent = reversal_confidence * 100
-                    confirming_count = reversal_details.get('total_confirming', 0)
-                    # Reversal signals get boost for multiple confirming indicators
-                    boost = min(confirming_count * 2, 10)  # Up to +10% for 5+ indicators
-                    boosted_confidence = min(reversal_conf_percent + boost, 95)
-                    candidates.append({
-                        'source': '🔄 Reversal Catcher',
-                        'action': reversal_signal.lower(),
-                        'confidence': boosted_confidence,
-                        'reason': f"7-Indicator Confluence ({confirming_count}/7 indicators agree)"
-                    })
-
-                # Pick the highest confidence decision
-                if candidates:
-                    best = max(candidates, key=lambda x: x['confidence'])
-                    final_action = best['action']
-                    final_confidence = best['confidence']
-                    final_reason = f"{best['source']}: {best['reason']}"
-                    # Use expiry from winner if available (AI provides it), otherwise use default
-                    final_expiry = best.get('expiry', settings.get('ai_expiry_default', 60))
-
-                    print(f"\n📊 ALL CANDIDATES:")
-                    for c in candidates:
-                        expiry_str = f" ⏰ {c['expiry']}s" if 'expiry' in c else ""
-                        print(f"   {c['source']}: {c['action'].upper()} @ {c['confidence']}%{expiry_str}")
-                    print(f"\n✨ WINNER: {best['source']} - {best['action'].upper()} @ {best['confidence']}% ⏰ {final_expiry}s")
-
-                    # Track which system was used
-                    if '📋' in best['source']:
-                        for sig in custom_strategy_signals:
-                            if sig['strategy_name'] in best['source']:
-                                ACTIVE_STRATEGY_ID = sig['strategy_id']
-                                ACTIVE_STRATEGY_NAME = sig['strategy_name']
-                                break
-                else:
-                    print(f"⏭️  No signals from any system")
-
-            elif decision_mode == 'indicators_only':
-                # INDICATORS ONLY MODE: Fall through to traditional indicator analysis below
-                # This will be handled by the existing traditional indicator logic
-                print(f"⏭️  Using traditional indicators (legacy code below)")
-                # Don't return here, let it continue to traditional analysis
-
-            print(f"{'='*60}\n")
-
-            # If we have a final decision from the new decision modes, return it
-            if final_action != 'hold' and decision_mode != 'indicators_only':
-                add_log(f"🎯 {decision_mode.upper()}: {final_action.upper()} - {final_reason} ({final_confidence}%) ⏰ Expiry: {final_expiry}s")
-                return final_action, final_reason, final_expiry  # NOW RETURNS EXPIRY TOO!
+            print(f"🎯 Market Regime: {market_regime.upper()} ({regime_confidence:.0f}%) - {regime_desc}")
         except Exception as e:
+            print(f"⚠️ Regime Detection error: {e}")
+
+    # Build market data for strategies
+    recent_trades_list = bot_state.get('trades', [])[-10:]
+    market_data = {
+        'asset': CURRENT_ASSET or 'Unknown',
+        'current_price': current_price,
+        'change_1m': ((candles[-1][2] - candles[-2][2]) / candles[-2][2]) * 100 if len(candles) > 1 else 0,
+        'change_5m': ((candles[-1][2] - candles[-5][2]) / candles[-5][2]) * 100 if len(candles) > 5 else 0,
+        'volume': 'Normal',
+        'recent_trades': recent_trades_list,
+        'win_rate': (bot_state['wins'] / bot_state['total_trades'] * 100) if bot_state['total_trades'] > 0 else 0,
+        'total_trades': bot_state['total_trades']
+    }
+
+    # Build complete indicator dict for strategies
+    strategy_indicators = {
+        # Trend indicators
+        'rsi': rsi or 50,
+        'ema_cross': 'Bullish' if ema_fast and ema_slow and ema_fast > ema_slow else 'Bearish',
+        'ema_fast': ema_fast,
+        'ema_slow': ema_slow,
+        'supertrend': 'BUY' if supertrend_direction == 1 else 'SELL' if supertrend_direction == -1 else 'Neutral',
+        'supertrend_direction': supertrend_direction,
+        'adx': adx_value,
+        'plus_di': plus_di,
+        'minus_di': minus_di,
+        'di_cross': di_cross_signal,
+
+        # Momentum indicators
+        'macd_line': macd_line or 0,
+        'macd_signal_line': macd_signal or 0,
+        'macd_histogram': macd_histogram or 0,
+        'stochastic_k': stoch_k or 50,
+        'stochastic_d': stoch_d or 50,
+        'bollinger_position': 'Above' if upper_bb and current_price > upper_bb else 'Below' if lower_bb and current_price < lower_bb else 'Middle',
+        'upper_bb': upper_bb,
+        'middle_bb': middle_bb,
+        'lower_bb': lower_bb,
+
+        # Volume & patterns
+        'heikin_ashi': heikin_ashi_trend,
+        'heikin_ashi_consecutive': heikin_ashi_consecutive,
+        'heikin_ashi_strength': heikin_ashi_strength,
+        'vwap_position': vwap_position,
+        'vwap_deviation': vwap_deviation,
+        'vwap_value': vwap_value,
+        'volume_trend': volume_trend,
+        'volume_signal': volume_signal,
+        'volume_strength': volume_strength,
+
+        # Support/Resistance
+        'support': support or 0,
+        'resistance': resistance or 0,
+        'atr': atr or 0,
+
+        # Chart patterns
+        'pattern_name': pattern_name,
+        'pattern_strength': pattern_strength or 0,
+        'pattern_direction': pattern_direction or 'neutral',
+
+        # Market regime
+        'regime': market_regime
+    }
+
+    # Evaluate all active custom strategies
+    custom_strategy_signals = []
+
+    if strategy_builder and STRATEGY_SYSTEMS_AVAILABLE:
+        try:
+            active_strategies = strategy_builder.get_active_strategies()
+            print(f"📋 Found {len(active_strategies)} active custom strategies")
+
+            # Evaluate each active strategy
+            for strategy_id, strategy in active_strategies.items():
+                # Check if timeframe alignment is required
+                mtf_aligned = True
+                if mtf_analyzer and strategy.get('timeframe_alignment', False):
+                    try:
+                        alignment_data = mtf_analyzer.analyze_trend_alignment(candles, candles_5m, candles_15m)
+                        mtf_aligned = alignment_data.get('aligned', False)
+                    except:
+                        pass
+
+                # Evaluate strategy
+                try:
+                    strategy_action, strategy_confidence, strategy_reason = strategy_builder.evaluate_strategy(
+                        strategy_id,
+                        market_data,
+                        strategy_indicators,
+                        market_regime,
+                        mtf_aligned,
+                        ai_decision=('hold', 0, 'No AI')
+                    )
+
+                    if strategy_action and strategy_action != 'hold':
+                        custom_strategy_signals.append({
+                            'strategy_id': strategy_id,
+                            'strategy_name': strategy['name'],
+                            'action': strategy_action,
+                            'confidence': strategy_confidence,
+                            'reason': strategy_reason
+                        })
+                        print(f"📋 Strategy '{strategy['name']}': {strategy_action.upper()} @ {strategy_confidence:.0f}% - {strategy_reason}")
+                except Exception as e:
+                    print(f"⚠️ Error evaluating strategy '{strategy.get('name', strategy_id)}': {e}")
+
+            # Return best strategy or fall through to traditional indicators
+            if custom_strategy_signals:
+                best_strategy = max(custom_strategy_signals, key=lambda x: x['confidence'])
+                print(f"\n✨ BEST CUSTOM STRATEGY: {best_strategy['strategy_name']}")
+                print(f"   Action: {best_strategy['action'].upper()} @ {best_strategy['confidence']:.0f}%")
+                print(f"   Reason: {best_strategy['reason']}")
+                print(f"{'='*70}\n")
+
+                ACTIVE_STRATEGY_ID = best_strategy['strategy_id']
+                ACTIVE_STRATEGY_NAME = best_strategy['strategy_name']
+
+                add_log(f"📋 {best_strategy['strategy_name']}: {best_strategy['action'].upper()} - {best_strategy['reason']} ({best_strategy['confidence']:.0f}%)")
+                return best_strategy['action'], best_strategy['reason'], 60  # 60s default expiry
+            else:
+                print(f"⏭️  No custom strategies triggered")
+                print(f"{'='*70}\n")
+        except Exception as e:
+            print(f"⚠️ Custom strategy evaluation error: {e}")
             import traceback
-            error_trace = traceback.format_exc()
-            add_log(f"❌ AI analysis failed: {str(e)}")
-            print(f"❌ AI ERROR:\n{error_trace}")
+            traceback.print_exc()
     else:
-        if not ai_enabled_flag:
-            print(f"ℹ️ AI disabled (AI_ENABLED={AI_ENABLED}, settings={settings.get('ai_enabled', False)})")
-        if not ai_brain_available:
-            print(f"⚠️ AI brain not available (ai_brain={ai_brain})")
+        print(f"⏭️  Strategy Builder not available")
 
-    # Traditional indicator analysis (fallback or when AI is disabled)
-    # NOTE: All indicators already calculated above for AI use
+    # Fall through to traditional indicator analysis if no strategy triggered
+    print(f"📊 Traditional Indicator Analysis (Fallback)")
+    print(f"{'='*70}\n")
 
-    # WEIGHTED SIGNAL SCORING SYSTEM (Ultra Powerful!)
     call_score = 0.0
     put_score = 0.0
-
-    # 1. Moving Average Crossover (Weight: 15%)
-    if ema_fast_prev < ema_slow_prev and ema_fast > ema_slow:
-        call_score += 15.0  # Golden cross - STRONG bullish
-        add_log("📈 GOLDEN CROSS detected!")
-    elif ema_fast_prev > ema_slow_prev and ema_fast < ema_slow:
-        put_score += 15.0  # Death cross - STRONG bearish
-        add_log("📉 DEATH CROSS detected!")
-    elif ema_fast > ema_slow:
-        call_score += 5.0  # Trend continuation
-    else:
-        put_score += 5.0  # Trend continuation
 
     # 2. RSI Analysis (Weight: 12%)
     if settings['rsi_enabled']:
@@ -3151,44 +2579,10 @@ def get_settings():
 @app.route('/api/settings', methods=['POST'])
 def update_settings():
     """Update bot settings"""
-    global settings, AI_ENABLED, ai_brain, optimizer
+    global settings
     try:
         new_settings = request.json
         settings.update(new_settings)
-
-        # Update AI status if changed
-        if 'ai_enabled' in new_settings:
-            should_enable = new_settings['ai_enabled']
-            settings['ai_enabled'] = should_enable
-
-            if should_enable:
-                # Try to initialize AI if not already initialized
-                if not ai_brain:
-                    print(f"🔄 AI not initialized, attempting to initialize...")
-                    success = initialize_ai_system()
-                    if success:
-                        AI_ENABLED = True
-                        add_log("🤖 AI System ENABLED - ULTRA SUPER POWERFUL MODE ACTIVATED!")
-                        add_log("🚀 GPT-4 TRADING GOD ONLINE - 99% WIN RATE TARGET!")
-                        print(f"✅ AI initialization successful, AI_ENABLED={AI_ENABLED}")
-                    else:
-                        AI_ENABLED = False
-                        settings['ai_enabled'] = False  # Revert if initialization failed
-                        add_log("❌ AI System failed to initialize - check console for details")
-                        print(f"❌ AI initialization failed, returning error")
-                        return jsonify({
-                            'success': False,
-                            'error': 'AI initialization failed. Check if ai_config.py exists in parent directory and OpenAI API key is valid.',
-                            'details': 'Check server console for detailed error logs'
-                        })
-                else:
-                    AI_ENABLED = True
-                    add_log("🤖 AI System ENABLED - ULTRA SUPER POWERFUL MODE!")
-                    if ai_brain:
-                        ai_brain.load_patterns()
-            else:
-                AI_ENABLED = False
-                add_log("🤖 AI System DISABLED - Using traditional indicators only")
 
         add_log(f"⚙️ Settings updated successfully")
         return jsonify({'success': True, 'message': 'Settings updated'})
@@ -3200,41 +2594,43 @@ def update_settings():
 
 @app.route('/api/ai-status', methods=['GET'])
 def get_ai_status():
-    """Get AI system status"""
-    global AI_ENABLED, ai_brain
-
-    # The actual current state
-    ai_is_enabled = AI_ENABLED and ai_brain is not None
-
-    # Get the active strategy
-    current_strat = settings.get('active_strategy', 'AI_ENHANCED')
-    if current_strat == 'AI_ENHANCED' and settings.get('ai_strategy'):
-        current_strat = settings.get('ai_strategy', 'ULTRA_SCALPING')
-
+    """Get system status (AI removed - custom strategies only)"""
     return jsonify({
-        'ai_enabled': ai_is_enabled,
-        'ai_available': ai_brain is not None,
-        'patterns_learned': len(ai_brain.pattern_database) if ai_brain and hasattr(ai_brain, 'pattern_database') else 0,
-        'current_strategy': current_strat,
-        'ai_module_loaded': ai_brain is not None,
-        'settings_enabled': settings.get('ai_enabled', False),
-        'global_enabled': AI_ENABLED
+        'ai_enabled': False,
+        'ai_available': False,
+        'patterns_learned': 0,
+        'current_strategy': 'Custom Strategies Only',
+        'ai_module_loaded': False,
+        'settings_enabled': False,
+        'global_enabled': False,
+        'mode': 'CUSTOM_STRATEGIES_ONLY'
     })
 
 
 @app.route('/api/indicator-performance', methods=['GET'])
 def get_indicator_performance():
-    """Get performance metrics for each indicator"""
-    if optimizer:
-        return jsonify(optimizer.indicator_performance)
+    """Get performance metrics for indicators (from performance tracker)"""
+    if performance_tracker:
+        try:
+            stats = performance_tracker.get_performance_stats()
+            return jsonify(stats)
+        except:
+            pass
     return jsonify({})
 
 
 @app.route('/api/strategy-stats', methods=['GET'])
 def get_strategy_stats():
-    """Get strategy performance statistics"""
-    if optimizer:
-        return jsonify(optimizer.strategy_performance)
+    """Get custom strategy performance statistics"""
+    if strategy_builder:
+        try:
+            strategies = strategy_builder.get_active_strategies()
+            stats = {}
+            for sid, strategy in strategies.items():
+                stats[sid] = strategy.get('performance', {})
+            return jsonify(stats)
+        except:
+            pass
     return jsonify({})
 
 
