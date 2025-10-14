@@ -79,6 +79,7 @@ try:
     from market_regime import get_detector
     from multi_timeframe import get_analyzer
     from strategy_builder import get_builder
+    from strategy_builder_advanced import get_advanced_builder
     from backtesting_engine import get_backtest_engine
     from trade_journal import get_journal
     STRATEGY_SYSTEMS_AVAILABLE = True
@@ -92,6 +93,7 @@ performance_tracker = None
 regime_detector = None
 mtf_analyzer = None
 strategy_builder = None
+advanced_strategy_builder = None
 backtest_engine = None
 trade_journal = None
 
@@ -101,6 +103,7 @@ if STRATEGY_SYSTEMS_AVAILABLE:
         regime_detector = get_detector()
         mtf_analyzer = get_analyzer()
         strategy_builder = get_builder()
+        advanced_strategy_builder = get_advanced_builder()
         backtest_engine = get_backtest_engine()
         trade_journal = get_journal()
         print("✅ Strategy support systems initialized! 📋 Custom Strategies Ready")
@@ -1344,10 +1347,66 @@ async def enhanced_strategy(candles):
         'regime': market_regime
     }
 
-    # Evaluate all active custom strategies
+    # 🚀 ULTRA-ADVANCED MULTI-STRATEGY EVALUATION
+    # Using advanced strategy builder with priority, voting, and aggregation support
     custom_strategy_signals = []
 
-    if strategy_builder and STRATEGY_SYSTEMS_AVAILABLE:
+    # Try advanced builder first (supports multi-strategy execution)
+    if advanced_strategy_builder and STRATEGY_SYSTEMS_AVAILABLE:
+        try:
+            # Check if MTF alignment is needed for any strategy
+            mtf_aligned = True
+            if mtf_analyzer:
+                try:
+                    alignment_data = mtf_analyzer.analyze_trend_alignment(candles, candles_5m, candles_15m)
+                    mtf_aligned = alignment_data.get('aligned', False)
+                except:
+                    pass
+
+            # Evaluate multiple strategies with advanced aggregation
+            signals = advanced_strategy_builder.evaluate_multiple_strategies(
+                market_data,
+                strategy_indicators,
+                market_regime,
+                mtf_aligned
+            )
+
+            if signals:
+                exec_mode = advanced_strategy_builder.execution_mode
+                print(f"\n🎯 MULTI-STRATEGY EXECUTION (Mode: {exec_mode.upper()})")
+                print(f"📋 {len(signals)} Strategy Signal(s) Active")
+                print(f"{'='*70}")
+
+                for signal in signals:
+                    print(f"  ├─ {signal['strategy_name']}")
+                    print(f"  │  Action: {signal['action'].upper()} @ {signal['confidence']:.0f}% confidence")
+                    print(f"  │  Priority: {signal['priority']}")
+                    print(f"  │  Reason: {signal['reason']}")
+                    print(f"  │")
+
+                # Use the first aggregated signal (already processed by execution mode)
+                best_signal = signals[0]
+                print(f"  └─ ✨ SELECTED: {best_signal['strategy_name']}")
+                print(f"{'='*70}\n")
+
+                ACTIVE_STRATEGY_ID = best_signal['strategy_id']
+                ACTIVE_STRATEGY_NAME = best_signal['strategy_name']
+                LAST_TRADE_CONFIDENCE = best_signal['confidence']
+
+                add_log(f"🎯 {best_signal['strategy_name']}: {best_signal['action'].upper()} - {best_signal['reason']} ({best_signal['confidence']:.0f}%)")
+                return best_signal['action'], best_signal['reason'], 60
+            else:
+                print(f"⏭️  No strategies triggered")
+                print(f"{'='*70}\n")
+
+        except Exception as e:
+            print(f"⚠️ Advanced strategy evaluation error: {e}")
+            import traceback
+            traceback.print_exc()
+            # Fall through to legacy strategy builder
+
+    # Fallback to legacy strategy builder (single-strategy mode)
+    elif strategy_builder and STRATEGY_SYSTEMS_AVAILABLE:
         try:
             active_strategies = strategy_builder.get_active_strategies()
             print(f"📋 Found {len(active_strategies)} active custom strategies")
