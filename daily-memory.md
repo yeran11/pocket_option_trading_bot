@@ -3031,3 +3031,314 @@ The user can now:
 
 _Generated and maintained with [Claude Code](https://claude.com/claude-code)_
 _Last updated: October 8, 2025 - End of Session 9_
+
+---
+
+# 📝 Session Update - October 14, 2025
+## Master Strategy Builder UI + Import/Export System
+
+### 🎯 Major Accomplishments
+
+#### 1. ✅ ULTRA-SOPHISTICATED Master Strategy Builder UI
+**File**: `templates/strategies_master.html` (1347 lines)
+
+**Features Built**:
+- **3-Tab Interface**: Strategy Builder, Advanced Features, Strategy Manager
+- **Visual AND/OR Condition Builder**: Create complex logic groups visually
+- **Strategy Priority System**: 1-10 slider with color-coded display
+- **4 Execution Modes**: Priority, All, Voting, Weighted
+- **Time Filter**: Trade only during specific hours (multiple ranges)
+- **Asset Filter**: Whitelist/blacklist specific trading pairs
+- **Risk Management**: Max trades/day/hour, consecutive losses, position sizing
+
+**Route Updated**:
+- Changed `/strategies` from `strategies.html` → `strategies_master.html`
+
+---
+
+#### 2. ✅ Strategy Import/Export System
+
+**New API Endpoints**:
+
+**POST `/api/strategies/import`**
+- Import single or multiple strategies from JSON
+- Supports 3 file formats (single, multiple, with ID)
+- Auto-validation of required fields
+- Auto-generates IDs from names
+- Imports as INACTIVE by default for safety
+- Batch import with error reporting
+
+**GET `/api/strategies/export`**
+- Export all strategies as JSON backup
+- Auto-generates timestamped filename: `strategies_backup_YYYY-MM-DD.json`
+
+**GET `/api/strategies/export/<strategy_id>`**
+- Export individual strategy
+- Format: `{id: "...", data: {...}}`
+
+**GET `/api/strategies/template/<template_name>`**
+- Get pre-made strategy templates
+- Available: `basic`, `advanced`
+- Download → Edit → Import workflow
+
+---
+
+### 📋 Supported Strategy File Formats
+
+#### Format 1: Single Strategy (Simplest)
+```json
+{
+  "name": "My Strategy",
+  "description": "...",
+  "entry_conditions": [
+    {"indicator": "rsi", "operator": "<", "value": 30, "action": "call"}
+  ],
+  "risk_management": {
+    "max_trades_per_day": 50,
+    "max_consecutive_losses": 3,
+    "position_size_percent": 2.0
+  }
+}
+```
+
+#### Format 2: Multiple Strategies (Batch)
+```json
+{
+  "strategy_1": {"name": "...", ...},
+  "strategy_2": {"name": "...", ...}
+}
+```
+
+#### Format 3: Strategy with Custom ID
+```json
+{
+  "id": "my_custom_id",
+  "data": {
+    "name": "My Strategy",
+    "entry_conditions": [...]
+  }
+}
+```
+
+#### Format 4: Advanced with Condition Groups
+```json
+{
+  "name": "Advanced Strategy",
+  "priority": 8,
+  "condition_groups": [
+    {
+      "logic": "AND",
+      "conditions": [
+        {"indicator": "rsi", "operator": "<", "value": 30, "weight": 1.0},
+        {"indicator": "macd_histogram", "operator": ">", "value": 0, "weight": 1.5}
+      ]
+    }
+  ],
+  "time_filter": {
+    "enabled": true,
+    "allowed_hours": [[9, 17]]
+  },
+  "asset_filter": {
+    "enabled": true,
+    "whitelist": ["EUR/USD", "GBP/USD"]
+  }
+}
+```
+
+---
+
+### 🎨 UI Features Added
+
+**In Strategy Manager Tab**:
+- **Import Section**: Upload JSON strategy files
+- **Export Buttons**: Download all or individual strategies
+- **Template Downloads**: Basic and Advanced templates
+- **Status Messages**: Color-coded feedback (green/red/yellow)
+- **Auto-refresh**: Reloads strategies after successful import
+- **Individual Export**: Each strategy card has export button
+
+**Validation & Safety**:
+- Checks required fields (name, conditions)
+- Validates structure before import
+- Auto-generates unique IDs
+- Adds default performance tracking
+- Reports specific errors per strategy
+- Imports as INACTIVE by default
+
+---
+
+### 💾 Technical Details
+
+**Files Modified**:
+1. **main.py**: +280 lines
+   - 4 new API endpoints
+   - Validation functions
+   - Template system
+   - Enhanced `/api/strategies/list` response
+
+2. **templates/strategies_master.html**: +204 lines
+   - Import/Export UI section
+   - JavaScript file handling
+   - Download functions
+   - Status message system
+
+**Validation Logic**:
+```python
+def validate_strategy(strat_data):
+    required_fields = ['name']
+    # Must have either 'entry_conditions' OR 'condition_groups'
+    # Auto-adds: 'active': False, 'performance': {...}
+```
+
+**ID Generation**:
+- "My Strategy" → "my_strategy"
+- If exists → "my_strategy_1", "my_strategy_2", etc.
+
+---
+
+### 🚀 How to Use
+
+**Creating Strategies**:
+1. Go to `/strategies`
+2. **Strategy Builder** tab → Add conditions, risk management
+3. **Advanced Features** tab → Set priority, execution mode, filters
+4. Click **"💾 Save Strategy"**
+
+**Importing Strategies**:
+1. **Strategy Manager** tab
+2. Click **"📤 Import Strategy File"**
+3. Select JSON file
+4. Strategy imports as INACTIVE
+5. Toggle ON when ready
+
+**Exporting Strategies**:
+- **All**: Click **"📥 Export All Strategies"**
+- **Single**: Click **"📥 Export"** on strategy card
+
+**Using Templates**:
+1. Download template (Basic or Advanced)
+2. Edit JSON in text editor
+3. Modify name, conditions, values
+4. Import modified file
+5. Activate and test
+
+---
+
+### 📊 Strategy Structure Reference
+
+**Required Fields**:
+- `name` (string)
+- Either: `entry_conditions` OR `condition_groups`
+
+**Optional Fields**:
+- `description`, `priority` (1-10), `action` ("call"/"put"/"auto")
+- `time_filter`, `asset_filter`, `risk_management`
+- `signal_strength`, `regime_filter`, `timeframe_alignment`
+
+**Auto-Added**:
+```json
+{
+  "active": false,
+  "performance": {
+    "total_trades": 0, "wins": 0, "losses": 0,
+    "win_rate": 0.0, "total_profit": 0.0
+  }
+}
+```
+
+---
+
+### 📝 Available Indicators
+
+- `rsi` - RSI indicator
+- `ema_cross` - EMA crossover
+- `macd_histogram` - MACD histogram
+- `stochastic_k` - Stochastic %K
+- `bollinger_position` - Bollinger position
+- `supertrend` - SuperTrend
+- `adx` - ADX
+- `price` - Current price
+- `pattern_type` - Candlestick pattern
+- `pattern_strength` - Pattern strength
+
+**Operators**: `>`, `<`, `>=`, `<=`, `==`, `!=`, `contains`
+
+**Actions**: `call`, `put`, `auto`
+
+---
+
+### 💾 Git Commits
+
+**Commit 1**: `479ea7a` - Master Strategy Builder UI
+- Visual condition builder with AND/OR logic
+- Priority system, 4 execution modes
+- Time and asset filters
+- 3-tab glassmorphism interface
+
+**Commit 2**: `23555d6` - Import/Export System
+- Import single/multiple strategies
+- Export all or individual
+- Pre-made templates
+- Full validation
+- Status feedback
+
+**Total**: ~500 lines added across 2 files
+
+---
+
+### 🔧 Integration
+
+- Uses existing `strategy_builder` and `advanced_strategy_builder`
+- Saves to `custom_strategies.json`
+- Syncs between both builders
+- Bot uses `evaluate_multiple_strategies()`
+- Respects execution mode and filters
+- Tracks performance per strategy
+
+---
+
+### 🛡️ Safety Features
+
+1. **Imports INACTIVE** - Manual activation required
+2. **Validation** - Structure checks before import
+3. **Unique IDs** - Auto-generation prevents overwrites
+4. **Error Reporting** - Shows failed imports
+5. **Backup Friendly** - Easy export before changes
+
+---
+
+### 🎯 Best Practices
+
+1. **Export Weekly** - Regular backups
+2. **Test Imports** - Import inactive, verify, then activate
+3. **Use Templates** - Faster than scratch
+4. **Name Clearly** - Good names = good IDs
+5. **Document** - Use description field
+
+---
+
+### 🆘 Troubleshooting
+
+**Import Fails**:
+- Check JSON syntax (use validator)
+- Verify required fields (name + conditions)
+- Check file encoding (UTF-8)
+- Review error message for specifics
+
+**Strategy Not Working**:
+- Verify active toggle is ON
+- Check indicator names are correct
+- Review time/asset filters
+- Check execution mode
+
+---
+
+### ✅ Status
+
+**Complete**: Master UI + Import/Export System
+**Pushed to GitHub**: Both commits (479ea7a, 23555d6)
+**Ready for Production**: Yes ✅
+**Access**: `http://localhost:5000/strategies`
+
+---
+
