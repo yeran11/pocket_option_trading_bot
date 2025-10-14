@@ -200,7 +200,7 @@
     },
     "regime_filter": [],
     "timeframe_alignment": false,
-    "active": false,
+    "active": true,
     "performance": {
       "total_trades": 0,
       "wins": 0,
@@ -246,7 +246,7 @@
       "ranging"
     ],
     "timeframe_alignment": false,
-    "active": false,
+    "active": true,
     "performance": {
       "total_trades": 0,
       "wins": 0,
