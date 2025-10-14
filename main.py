@@ -2734,16 +2734,26 @@ def get_chart_data():
 
 @app.route('/strategies')
 def strategies_page():
-    """Strategy Builder UI"""
-    return render_template('strategies.html')
+    """Master Strategy Builder UI"""
+    return render_template('strategies_master.html')
 
 
 @app.route('/api/strategies/list', methods=['GET'])
 def get_strategies_list():
-    """Get all strategies"""
+    """Get all strategies with execution mode info"""
+    strategies = {}
+    execution_mode = 'priority'
+
     if strategy_builder:
-        return jsonify(strategy_builder.get_all_strategies())
-    return jsonify({})
+        strategies = strategy_builder.get_all_strategies()
+
+    if advanced_strategy_builder:
+        execution_mode = advanced_strategy_builder.execution_mode
+
+    return jsonify({
+        'strategies': strategies,
+        'execution_mode': execution_mode
+    })
 
 
 @app.route('/api/strategies/create', methods=['POST'])
@@ -2783,6 +2793,36 @@ def delete_strategy(strategy_id):
 
     try:
         success, message = strategy_builder.delete_strategy(strategy_id)
+        return jsonify({'success': success, 'message': message})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@app.route('/api/strategies/execution-mode', methods=['POST'])
+def set_execution_mode():
+    """Set multi-strategy execution mode (priority/all/voting/weighted)"""
+    if not advanced_strategy_builder:
+        return jsonify({'success': False, 'message': 'Advanced strategy builder not available'})
+
+    try:
+        data = request.json
+        mode = data.get('mode', 'priority')
+        advanced_strategy_builder.set_execution_mode(mode)
+        return jsonify({'success': True, 'message': f'Execution mode set to {mode}'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@app.route('/api/strategies/priority/<strategy_id>', methods=['POST'])
+def update_strategy_priority(strategy_id):
+    """Update strategy priority (1-10)"""
+    if not advanced_strategy_builder:
+        return jsonify({'success': False, 'message': 'Advanced strategy builder not available'})
+
+    try:
+        data = request.json
+        priority = data.get('priority', 5)
+        success, message = advanced_strategy_builder.update_strategy_priority(strategy_id, priority)
         return jsonify({'success': success, 'message': message})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
