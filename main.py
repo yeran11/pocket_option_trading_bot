@@ -1818,28 +1818,91 @@ async def websocket_log(driver):
             pass
 
 
+def safe_click_asset_element(driver, element):
+    """
+    Safely click on an asset element without hitting the favorite star icon.
+    Uses JavaScript to click on the left portion of the element (safe zone).
+    """
+    try:
+        # Get element dimensions and position
+        size = element.size
+        location = element.location
+
+        # Calculate safe click position: 30% from left, 50% from top
+        # This avoids the star icon which is typically on the right side
+        safe_x = location['x'] + (size['width'] * 0.3)
+        safe_y = location['y'] + (size['height'] * 0.5)
+
+        # Use JavaScript to click at specific coordinates within the element
+        driver.execute_script("""
+            var element = arguments[0];
+            var event = new MouseEvent('click', {
+                view: window,
+                bubbles: true,
+                cancelable: true
+            });
+            element.dispatchEvent(event);
+        """, element)
+
+        return True
+    except Exception as e:
+        # Fallback to regular click if JavaScript fails
+        try:
+            element.click()
+            return True
+        except:
+            return False
+
+
 async def reanimate_favorites(driver):
-    """Activate all favorite assets"""
+    """Activate all favorite assets - SAFER VERSION with retry limits"""
     global CURRENT_ASSET, FAVORITES_REANIMATED
 
     asset_favorites_items = driver.find_elements(By.CLASS_NAME, 'assets-favorites-item')
     out_of_reach = []
+    activated_count = 0
 
     for item in asset_favorites_items:
-        while True:
-            if 'assets-favorites-item--active' in item.get_attribute('class'):
-                CURRENT_ASSET = item.get_attribute('data-id')
-                break
-            if 'assets-favorites-item--not-active' in item.get_attribute('class'):
-                break
+        max_retries = 5
+        retry_count = 0
+
+        while retry_count < max_retries:
             try:
-                item.click()
-                FAVORITES_REANIMATED = True
+                item_class = item.get_attribute('class')
+
+                # Already active - good, move to next
+                if 'assets-favorites-item--active' in item_class:
+                    CURRENT_ASSET = item.get_attribute('data-id')
+                    activated_count += 1
+                    break
+
+                # Not active (closed market or disabled) - skip it
+                if 'assets-favorites-item--not-active' in item_class:
+                    break
+
+                # Needs activation - use safe click
+                if safe_click_asset_element(driver, item):
+                    FAVORITES_REANIMATED = True
+                    await asyncio.sleep(0.2)  # Small delay after click
+                    retry_count += 1
+                else:
+                    # Click failed - element out of reach
+                    out_of_reach.append(item.get_attribute('data-id'))
+                    break
+
             except ElementNotInteractableException:
                 out_of_reach.append(item.get_attribute('data-id'))
                 break
+            except Exception as e:
+                retry_count += 1
+                if retry_count >= max_retries:
+                    break
+                await asyncio.sleep(0.1)
 
-    # Log all out of reach assets in one message
+    # Log results
+    if activated_count > 0:
+        add_log(f"✅ {activated_count} favorite assets ready for trading")
+
     if out_of_reach and len(out_of_reach) <= 5:
         add_log(f"⚠️ {len(out_of_reach)} assets not visible: {', '.join(out_of_reach[:5])}")
     elif out_of_reach:
@@ -1847,26 +1910,61 @@ async def reanimate_favorites(driver):
 
 
 async def switch_to_asset(driver, asset):
-    """Switch to specific asset"""
+    """Switch to specific asset - SAFER VERSION with retry limits"""
     global CURRENT_ASSET
 
-    asset_favorites_items = driver.find_elements(By.CLASS_NAME, 'assets-favorites-item')
-    for item in asset_favorites_items:
-        if item.get_attribute('data-id') != asset:
-            continue
-        while True:
-            await asyncio.sleep(0.1)
-            if 'assets-favorites-item--active' in item.get_attribute('class'):
-                CURRENT_ASSET = asset
-                return True
-            try:
-                item.click()
-            except:
-                add_log(f'Asset {asset} out of reach')
-                return False
-
+    # Check if already on the correct asset
     if asset == CURRENT_ASSET:
         return True
+
+    asset_favorites_items = driver.find_elements(By.CLASS_NAME, 'assets-favorites-item')
+
+    for item in asset_favorites_items:
+        # Skip items that don't match the target asset
+        if item.get_attribute('data-id') != asset:
+            continue
+
+        # Found the target asset - try to activate it
+        max_retries = 10
+        retry_count = 0
+
+        while retry_count < max_retries:
+            try:
+                await asyncio.sleep(0.15)  # Small delay between checks
+                item_class = item.get_attribute('class')
+
+                # Check if asset is now active
+                if 'assets-favorites-item--active' in item_class:
+                    CURRENT_ASSET = asset
+                    return True
+
+                # Try to click using safe method
+                click_success = safe_click_asset_element(driver, item)
+
+                if not click_success:
+                    # Element not clickable
+                    add_log(f'⚠️ Asset {asset} not clickable (may be out of view)')
+                    return False
+
+                retry_count += 1
+
+            except ElementNotInteractableException:
+                add_log(f'⚠️ Asset {asset} out of reach - scroll to make it visible')
+                return False
+            except Exception as e:
+                retry_count += 1
+                if retry_count >= max_retries:
+                    add_log(f'⚠️ Failed to switch to {asset} after {max_retries} attempts')
+                    return False
+                await asyncio.sleep(0.2)
+
+        # Max retries reached without success
+        add_log(f'⚠️ Could not activate {asset} (may be closed or unavailable)')
+        return False
+
+    # Asset not found in favorites list
+    add_log(f'⚠️ Asset {asset} not in favorites - add it first')
+    return False
 
 
 async def check_payout(driver, asset):
