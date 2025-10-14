@@ -768,6 +768,45 @@
                 </div>
             </div>
 
+            <!-- Import/Export Section -->
+            <div style="background: rgba(0, 255, 255, 0.05); border: 2px solid #0ff; border-radius: 10px; padding: 20px; margin: 20px 0;">
+                <h3 style="color: #0ff; margin-bottom: 15px;">📤 📥 Import / Export Strategies</h3>
+
+                <div class="info-box" style="margin-bottom: 15px;">
+                    <div class="info-box-title">💡 How to Use:</div>
+                    <div class="info-box-content">
+                        • <strong>Import</strong>: Upload JSON strategy files (single or multiple)<br>
+                        • <strong>Export</strong>: Download all your strategies as JSON<br>
+                        • <strong>Templates</strong>: Get pre-made strategy templates to start with<br>
+                        • Imported strategies are set to INACTIVE by default for safety
+                    </div>
+                </div>
+
+                <div class="btn-group">
+                    <button class="btn" onclick="document.getElementById('import-file').click()">
+                        📤 Import Strategy File
+                    </button>
+                    <input type="file" id="import-file" accept=".json" style="display: none;" onchange="handleFileImport(event)">
+
+                    <button class="btn" onclick="exportAllStrategies()">
+                        📥 Export All Strategies
+                    </button>
+
+                    <button class="btn btn-secondary" onclick="downloadTemplate('basic')">
+                        📋 Download Basic Template
+                    </button>
+
+                    <button class="btn btn-secondary" onclick="downloadTemplate('advanced')">
+                        ⚡ Download Advanced Template
+                    </button>
+                </div>
+
+                <div id="import-status" style="margin-top: 15px; display: none; padding: 15px; border-radius: 8px; background: rgba(0, 255, 255, 0.1); border-left: 4px solid #0ff;">
+                    <div style="color: #0ff; font-weight: bold; margin-bottom: 5px;">Import Status:</div>
+                    <div id="import-message" style="color: #0cc;"></div>
+                </div>
+            </div>
+
             <div class="strategies-grid" id="strategies-grid">
                 <p style="color: #888;">Loading strategies...</p>
             </div>
@@ -1050,7 +1089,16 @@
         async function loadStrategies() {
             try {
                 const response = await fetch('/api/strategies/list');
-                strategies = await response.json();
+                const data = await response.json();
+
+                // Handle new API format {strategies: {...}, execution_mode: "..."}
+                if (data.strategies) {
+                    strategies = data.strategies;
+                    currentExecutionMode = data.execution_mode || 'priority';
+                } else {
+                    // Fallback to old format
+                    strategies = data;
+                }
 
                 const container = document.getElementById('strategies-grid');
                 container.innerHTML = '';
@@ -1095,6 +1143,7 @@
                                 </div>
                             </div>
                             <div class="btn-group">
+                                <button class="btn btn-small" onclick="exportSingleStrategy('${id}')">📥 Export</button>
                                 <button class="btn btn-small btn-danger" onclick="deleteStrategy('${id}')">🗑️ Delete</button>
                             </div>
                         </div>
@@ -1150,6 +1199,159 @@
 
         // Auto-refresh strategies
         setInterval(loadStrategies, 30000);
+
+        // ========================================================================
+        // IMPORT/EXPORT FUNCTIONS
+        // ========================================================================
+
+        async function handleFileImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // Show loading status
+            showImportStatus('⏳ Reading file...', false);
+
+            try {
+                const text = await file.text();
+                const jsonData = JSON.parse(text);
+
+                // Send to backend
+                const response = await fetch('/api/strategies/import', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(jsonData)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showImportStatus(`✅ ${result.message}\n📊 Imported: ${result.imported} strategy/strategies`, true);
+                    if (result.errors && result.errors.length > 0) {
+                        showImportStatus(`⚠️ Some errors occurred:\n${result.errors.join('\n')}`, false);
+                    }
+                    // Reload strategies after successful import
+                    setTimeout(() => {
+                        loadStrategies();
+                    }, 1500);
+                } else {
+                    showImportStatus(`❌ Import failed: ${result.message}`, false);
+                }
+            } catch (error) {
+                showImportStatus(`❌ Error: ${error.message}`, false);
+            }
+
+            // Clear file input
+            event.target.value = '';
+        }
+
+        function showImportStatus(message, success) {
+            const statusDiv = document.getElementById('import-status');
+            const messageDiv = document.getElementById('import-message');
+
+            statusDiv.style.display = 'block';
+            messageDiv.innerHTML = message.replace(/\n/g, '<br>');
+
+            if (success) {
+                statusDiv.style.borderLeftColor = '#0f0';
+            } else if (message.includes('❌')) {
+                statusDiv.style.borderLeftColor = '#f00';
+            } else {
+                statusDiv.style.borderLeftColor = '#ff0';
+            }
+
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                statusDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        async function exportAllStrategies() {
+            try {
+                const response = await fetch('/api/strategies/export');
+                const result = await response.json();
+
+                if (result.success) {
+                    // Create download
+                    const dataStr = JSON.stringify(result.strategies, null, 2);
+                    const dataBlob = new Blob([dataStr], {type: 'application/json'});
+                    const url = URL.createObjectURL(dataBlob);
+
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `strategies_backup_${new Date().toISOString().split('T')[0]}.json`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+
+                    showImportStatus(`✅ Exported ${result.count} strategies successfully!`, true);
+                } else {
+                    showImportStatus(`❌ Export failed: ${result.message}`, false);
+                }
+            } catch (error) {
+                showImportStatus(`❌ Export error: ${error.message}`, false);
+            }
+        }
+
+        async function exportSingleStrategy(strategyId) {
+            try {
+                const response = await fetch(`/api/strategies/export/${strategyId}`);
+                const result = await response.json();
+
+                if (result.success) {
+                    // Create download
+                    const strategyData = {
+                        id: result.id,
+                        data: result.data
+                    };
+                    const dataStr = JSON.stringify(strategyData, null, 2);
+                    const dataBlob = new Blob([dataStr], {type: 'application/json'});
+                    const url = URL.createObjectURL(dataBlob);
+
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `${strategyId}_${new Date().toISOString().split('T')[0]}.json`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+
+                    showImportStatus(`✅ Exported strategy '${result.data.name}' successfully!`, true);
+                } else {
+                    showImportStatus(`❌ Export failed: ${result.message}`, false);
+                }
+            } catch (error) {
+                showImportStatus(`❌ Export error: ${error.message}`, false);
+            }
+        }
+
+        async function downloadTemplate(templateName) {
+            try {
+                const response = await fetch(`/api/strategies/template/${templateName}`);
+                const result = await response.json();
+
+                if (result.success) {
+                    // Create download
+                    const dataStr = JSON.stringify(result.template, null, 2);
+                    const dataBlob = new Blob([dataStr], {type: 'application/json'});
+                    const url = URL.createObjectURL(dataBlob);
+
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `template_${templateName}_strategy.json`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+
+                    showImportStatus(`✅ Template downloaded! Edit it and import back.`, true);
+                } else {
+                    showImportStatus(`❌ Template download failed: ${result.message}`, false);
+                }
+            } catch (error) {
+                showImportStatus(`❌ Error: ${error.message}`, false);
+            }
+        }
     </script>
 </body>
 </html>
