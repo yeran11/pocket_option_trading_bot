@@ -595,9 +595,147 @@
                 grid-template-columns: 1fr;
             }
         }
+
+        /* 🎨 Custom Cyberpunk Notification Popup */
+        .notification-popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.7);
+            background: linear-gradient(135deg, #001a1a 0%, #000 50%, #001a1a 100%);
+            border: 3px solid #0ff;
+            border-radius: 15px;
+            padding: 30px 40px;
+            box-shadow: 0 0 50px rgba(0, 255, 255, 0.5), inset 0 0 30px rgba(0, 255, 255, 0.1);
+            z-index: 10000;
+            min-width: 400px;
+            max-width: 600px;
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            pointer-events: none;
+        }
+
+        .notification-popup.show {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+            pointer-events: auto;
+        }
+
+        .notification-popup.success {
+            border-color: #0f0;
+            box-shadow: 0 0 50px rgba(0, 255, 0, 0.5), inset 0 0 30px rgba(0, 255, 0, 0.1);
+        }
+
+        .notification-popup.error {
+            border-color: #f00;
+            box-shadow: 0 0 50px rgba(255, 0, 0, 0.5), inset 0 0 30px rgba(255, 0, 0, 0.1);
+        }
+
+        .notification-popup.warning {
+            border-color: #ff0;
+            box-shadow: 0 0 50px rgba(255, 255, 0, 0.5), inset 0 0 30px rgba(255, 255, 0, 0.1);
+        }
+
+        .notification-content {
+            text-align: center;
+        }
+
+        .notification-icon {
+            font-size: 3em;
+            margin-bottom: 15px;
+            animation: iconPulse 1s ease-in-out infinite;
+        }
+
+        @keyframes iconPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .notification-message {
+            font-size: 1.3em;
+            margin-bottom: 25px;
+            line-height: 1.6;
+        }
+
+        .notification-popup.success .notification-message {
+            color: #0f0;
+            text-shadow: 0 0 15px #0f0;
+        }
+
+        .notification-popup.error .notification-message {
+            color: #f00;
+            text-shadow: 0 0 15px #f00;
+        }
+
+        .notification-popup.warning .notification-message {
+            color: #ff0;
+            text-shadow: 0 0 15px #ff0;
+        }
+
+        .notification-close {
+            padding: 12px 30px;
+            border: 2px solid;
+            border-radius: 8px;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Courier New', monospace;
+            text-transform: uppercase;
+            background: #000;
+        }
+
+        .notification-popup.success .notification-close {
+            border-color: #0f0;
+            color: #0f0;
+        }
+
+        .notification-popup.error .notification-close {
+            border-color: #f00;
+            color: #f00;
+        }
+
+        .notification-popup.warning .notification-close {
+            border-color: #ff0;
+            color: #ff0;
+        }
+
+        .notification-close:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px currentColor;
+            text-shadow: 0 0 10px currentColor;
+        }
+
+        .notification-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 9999;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+
+        .notification-overlay.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
     </style>
 </head>
 <body>
+    <!-- Custom Notification Popup -->
+    <div class="notification-overlay" id="notificationOverlay"></div>
+    <div class="notification-popup" id="notificationPopup">
+        <div class="notification-content">
+            <div class="notification-icon" id="notificationIcon"></div>
+            <div class="notification-message" id="notificationMessage"></div>
+            <button class="notification-close" id="notificationClose" onclick="closeNotification()">OK</button>
+        </div>
+    </div>
+
     <div class="header">
         <h1>🎯 MASTER STRATEGY BUILDER</h1>
         <div class="header-subtitle">Ultra-Sophisticated Multi-Strategy System</div>
@@ -814,6 +952,57 @@
     </div>
 
     <script>
+        // 🎨 Custom Notification System
+        function showNotification(message, type = 'success') {
+            const overlay = document.getElementById('notificationOverlay');
+            const popup = document.getElementById('notificationPopup');
+            const icon = document.getElementById('notificationIcon');
+            const messageEl = document.getElementById('notificationMessage');
+
+            // Set icon based on type
+            const icons = {
+                'success': '✅',
+                'error': '❌',
+                'warning': '⚠️',
+                'info': 'ℹ️'
+            };
+            icon.textContent = icons[type] || icons['info'];
+
+            // Set message
+            messageEl.textContent = message;
+
+            // Remove all type classes
+            popup.classList.remove('success', 'error', 'warning', 'info');
+
+            // Add type class
+            popup.classList.add(type);
+
+            // Show overlay and popup
+            overlay.classList.add('show');
+            popup.classList.add('show');
+
+            // Auto-close after 3 seconds
+            setTimeout(() => {
+                closeNotification();
+            }, 3000);
+        }
+
+        function closeNotification() {
+            const overlay = document.getElementById('notificationOverlay');
+            const popup = document.getElementById('notificationPopup');
+
+            overlay.classList.remove('show');
+            popup.classList.remove('show');
+        }
+
+        // Close on overlay click
+        document.addEventListener('DOMContentLoaded', () => {
+            const overlay = document.getElementById('notificationOverlay');
+            if (overlay) {
+                overlay.addEventListener('click', closeNotification);
+            }
+        });
+
         let conditionGroups = [];
         let timeRanges = [];
         let whitelist = [];
@@ -997,7 +1186,7 @@
         async function saveStrategy() {
             const name = document.getElementById('strategy-name').value.trim();
             if (!name) {
-                alert('Please enter a strategy name');
+                showNotification('Please enter a strategy name', 'warning');
                 return;
             }
 
@@ -1022,7 +1211,7 @@
             }
 
             if (conditionGroupsData.length === 0 || conditionGroupsData[0].conditions.length === 0) {
-                alert('Please add at least one condition');
+                showNotification('Please add at least one condition', 'warning');
                 return;
             }
 
@@ -1071,19 +1260,19 @@
                 const result = await response.json();
 
                 if (result.success) {
-                    alert('✅ Strategy saved successfully!');
+                    showNotification('Strategy saved successfully!', 'success');
                     loadStrategies();
                     clearForm();
                 } else {
-                    alert('❌ Error: ' + result.message);
+                    showNotification('Error: ' + result.message, 'error');
                 }
             } catch (error) {
-                alert('❌ Error saving strategy: ' + error);
+                showNotification('Error saving strategy: ' + error, 'error');
             }
         }
 
         async function saveAdvancedSettings() {
-            alert('✅ Advanced settings will be saved with your strategy!');
+            showNotification('Advanced settings will be saved with your strategy!', 'success');
         }
 
         async function loadStrategies() {
@@ -1189,11 +1378,11 @@
 
                 const result = await response.json();
                 if (result.success) {
-                    alert('✅ Strategy deleted');
+                    showNotification('Strategy deleted', 'success');
                     loadStrategies();
                 }
             } catch (error) {
-                alert('❌ Error deleting strategy');
+                showNotification('Error deleting strategy', 'error');
             }
         }
 
