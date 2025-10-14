@@ -332,6 +332,24 @@ settings = {
     'max_consecutive_losses': 5
 }
 
+# 💾 Load settings from file if it exists
+def load_settings_from_file():
+    """Load settings from bot_settings.json if it exists"""
+    global settings
+    try:
+        if os.path.exists('bot_settings.json'):
+            with open('bot_settings.json', 'r') as f:
+                saved_settings = json.load(f)
+                settings.update(saved_settings)
+                print("✅ Settings loaded from bot_settings.json")
+        else:
+            print("ℹ️  No saved settings file found, using defaults")
+    except Exception as e:
+        print(f"⚠️  Error loading settings: {e}, using defaults")
+
+# Call it immediately
+load_settings_from_file()
+
 ops = {
     '>': operator.gt,
     '<': operator.lt,
@@ -2661,13 +2679,21 @@ def get_settings():
 
 @app.route('/api/settings', methods=['POST'])
 def update_settings():
-    """Update bot settings"""
+    """Update bot settings and persist to file"""
     global settings
     try:
         new_settings = request.json
         settings.update(new_settings)
 
-        add_log(f"⚙️ Settings updated successfully")
+        # 💾 Save settings to file for persistence
+        try:
+            with open('bot_settings.json', 'w') as f:
+                json.dump(settings, f, indent=2)
+            add_log(f"⚙️ Settings updated and saved to file")
+        except Exception as save_error:
+            print(f"Warning: Could not save settings to file: {save_error}")
+            add_log(f"⚠️ Settings updated but not saved to file")
+
         return jsonify({'success': True, 'message': 'Settings updated'})
     except Exception as e:
         import traceback
