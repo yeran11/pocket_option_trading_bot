@@ -2828,6 +2828,286 @@ def update_strategy_priority(strategy_id):
         return jsonify({'success': False, 'message': str(e)})
 
 
+@app.route('/api/strategies/import', methods=['POST'])
+def import_strategies():
+    """
+    Import strategies from JSON
+
+    Supports:
+    - Single strategy object: {"name": "...", "entry_conditions": [...], ...}
+    - Multiple strategies: {"strategy_id": {...}, "strategy_id2": {...}}
+    - Strategy with ID: {"id": "my_strategy", "data": {...}}
+    """
+    if not strategy_builder:
+        return jsonify({'success': False, 'message': 'Strategy builder not available'})
+
+    try:
+        data = request.json
+        imported_count = 0
+        errors = []
+
+        # Validate required fields for a strategy
+        def validate_strategy(strat_data):
+            required_fields = ['name']
+            for field in required_fields:
+                if field not in strat_data:
+                    return False, f"Missing required field: {field}"
+
+            # Check if it has either entry_conditions or condition_groups
+            if 'entry_conditions' not in strat_data and 'condition_groups' not in strat_data:
+                return False, "Strategy must have either 'entry_conditions' or 'condition_groups'"
+
+            return True, "Valid"
+
+        # Case 1: Single strategy with explicit ID
+        if 'id' in data and 'data' in data:
+            strategy_id = data['id']
+            strategy_data = data['data']
+
+            valid, msg = validate_strategy(strategy_data)
+            if not valid:
+                return jsonify({'success': False, 'message': msg})
+
+            # Add default fields if missing
+            if 'active' not in strategy_data:
+                strategy_data['active'] = False  # Import as inactive by default
+            if 'performance' not in strategy_data:
+                strategy_data['performance'] = {
+                    'total_trades': 0, 'wins': 0, 'losses': 0,
+                    'win_rate': 0.0, 'total_profit': 0.0
+                }
+
+            strategy_builder.strategies[strategy_id] = strategy_data
+            strategy_builder._save_strategies()
+
+            # Also add to advanced builder if available
+            if advanced_strategy_builder:
+                advanced_strategy_builder.strategies[strategy_id] = strategy_data
+                advanced_strategy_builder._save_strategies()
+
+            return jsonify({'success': True, 'message': f"Strategy '{strategy_data['name']}' imported successfully", 'imported': 1})
+
+        # Case 2: Multiple strategies object
+        elif isinstance(data, dict) and any(isinstance(v, dict) and 'name' in v for v in data.values()):
+            for strategy_id, strategy_data in data.items():
+                if not isinstance(strategy_data, dict):
+                    continue
+
+                valid, msg = validate_strategy(strategy_data)
+                if not valid:
+                    errors.append(f"{strategy_id}: {msg}")
+                    continue
+
+                # Add default fields
+                if 'active' not in strategy_data:
+                    strategy_data['active'] = False
+                if 'performance' not in strategy_data:
+                    strategy_data['performance'] = {
+                        'total_trades': 0, 'wins': 0, 'losses': 0,
+                        'win_rate': 0.0, 'total_profit': 0.0
+                    }
+
+                strategy_builder.strategies[strategy_id] = strategy_data
+                if advanced_strategy_builder:
+                    advanced_strategy_builder.strategies[strategy_id] = strategy_data
+                imported_count += 1
+
+            strategy_builder._save_strategies()
+            if advanced_strategy_builder:
+                advanced_strategy_builder._save_strategies()
+
+            message = f"Imported {imported_count} strategy/strategies"
+            if errors:
+                message += f". Errors: {', '.join(errors)}"
+
+            return jsonify({'success': True, 'message': message, 'imported': imported_count, 'errors': errors})
+
+        # Case 3: Single strategy without ID
+        elif 'name' in data:
+            valid, msg = validate_strategy(data)
+            if not valid:
+                return jsonify({'success': False, 'message': msg})
+
+            # Generate ID from name
+            strategy_id = data['name'].lower().replace(' ', '_').replace('-', '_')
+            # Make sure ID is unique
+            counter = 1
+            original_id = strategy_id
+            while strategy_id in strategy_builder.strategies:
+                strategy_id = f"{original_id}_{counter}"
+                counter += 1
+
+            if 'active' not in data:
+                data['active'] = False
+            if 'performance' not in data:
+                data['performance'] = {
+                    'total_trades': 0, 'wins': 0, 'losses': 0,
+                    'win_rate': 0.0, 'total_profit': 0.0
+                }
+
+            strategy_builder.strategies[strategy_id] = data
+            strategy_builder._save_strategies()
+
+            if advanced_strategy_builder:
+                advanced_strategy_builder.strategies[strategy_id] = data
+                advanced_strategy_builder._save_strategies()
+
+            return jsonify({'success': True, 'message': f"Strategy '{data['name']}' imported as '{strategy_id}'", 'imported': 1, 'strategy_id': strategy_id})
+
+        else:
+            return jsonify({'success': False, 'message': 'Invalid strategy format. See documentation for supported formats.'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Import error: {str(e)}'})
+
+
+@app.route('/api/strategies/export', methods=['GET'])
+def export_strategies():
+    """Export all strategies as JSON"""
+    if not strategy_builder:
+        return jsonify({'success': False, 'message': 'Strategy builder not available'})
+
+    try:
+        strategies = strategy_builder.get_all_strategies()
+        return jsonify({
+            'success': True,
+            'strategies': strategies,
+            'count': len(strategies)
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@app.route('/api/strategies/export/<strategy_id>', methods=['GET'])
+def export_single_strategy(strategy_id):
+    """Export a single strategy as JSON"""
+    if not strategy_builder:
+        return jsonify({'success': False, 'message': 'Strategy builder not available'})
+
+    try:
+        strategies = strategy_builder.get_all_strategies()
+        if strategy_id not in strategies:
+            return jsonify({'success': False, 'message': f"Strategy '{strategy_id}' not found"})
+
+        return jsonify({
+            'success': True,
+            'id': strategy_id,
+            'data': strategies[strategy_id]
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@app.route('/api/strategies/template/<template_name>', methods=['GET'])
+def get_strategy_template(template_name):
+    """Get a strategy template"""
+    templates = {
+        'basic': {
+            'name': 'New Basic Strategy',
+            'description': 'A simple strategy template',
+            'entry_conditions': [
+                {
+                    'indicator': 'rsi',
+                    'operator': '<',
+                    'value': 30,
+                    'action': 'call'
+                }
+            ],
+            'ai_integration': {
+                'mode': 'validator',
+                'min_ai_confidence': 70
+            },
+            'risk_management': {
+                'max_trades_per_day': 50,
+                'max_consecutive_losses': 3,
+                'position_size_percent': 2.0
+            },
+            'regime_filter': [],
+            'timeframe_alignment': False,
+            'active': False,
+            'performance': {
+                'total_trades': 0,
+                'wins': 0,
+                'losses': 0,
+                'win_rate': 0.0,
+                'total_profit': 0.0
+            }
+        },
+        'advanced': {
+            'name': 'New Advanced Strategy',
+            'description': 'Advanced multi-condition strategy with groups',
+            'priority': 5,
+            'condition_groups': [
+                {
+                    'logic': 'AND',
+                    'conditions': [
+                        {
+                            'indicator': 'rsi',
+                            'operator': '<',
+                            'value': 30,
+                            'weight': 1.0
+                        },
+                        {
+                            'indicator': 'macd_histogram',
+                            'operator': '>',
+                            'value': 0,
+                            'weight': 1.5
+                        }
+                    ]
+                }
+            ],
+            'action': 'call',
+            'time_filter': {
+                'enabled': False,
+                'allowed_hours': [[9, 17]],
+                'timezone': 'UTC'
+            },
+            'asset_filter': {
+                'enabled': False,
+                'whitelist': [],
+                'blacklist': []
+            },
+            'risk_management': {
+                'max_trades_per_day': 50,
+                'max_trades_per_hour': 10,
+                'max_consecutive_losses': 3,
+                'position_size_percent': 2.0,
+                'stop_on_drawdown_percent': 5.0,
+                'take_profit_target_percent': 10.0
+            },
+            'signal_strength': {
+                'min_confidence': 70,
+                'condition_weights': True
+            },
+            'regime_filter': ['trending_up', 'ranging'],
+            'timeframe_alignment': True,
+            'active': False,
+            'performance': {
+                'total_trades': 0,
+                'wins': 0,
+                'losses': 0,
+                'win_rate': 0.0,
+                'total_profit': 0.0,
+                'avg_profit_per_trade': 0.0,
+                'max_drawdown': 0.0,
+                'sharpe_ratio': 0.0,
+                'trades_today': 0,
+                'trades_this_hour': 0,
+                'consecutive_losses': 0,
+                'last_trade_time': None
+            }
+        }
+    }
+
+    if template_name not in templates:
+        return jsonify({'success': False, 'message': f"Template '{template_name}' not found"})
+
+    return jsonify({
+        'success': True,
+        'template': templates[template_name]
+    })
+
+
 @app.route('/api/backtest', methods=['POST'])
 def run_backtest():
     """Run backtest on a strategy"""
