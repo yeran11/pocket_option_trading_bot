@@ -81,7 +81,7 @@
     }
   },
   "bullish_engulfing_ai": {
-    "name": "\ud83d\udd6f\ufe0f Bullish Engulfing + AI",
+    "name": "🕯️ Bullish Engulfing + AI",
     "description": "Trade bullish engulfing patterns at oversold levels with AI confirmation",
     "entry_conditions": [
       {
@@ -127,7 +127,7 @@
     }
   },
   "bearish_engulfing_ai": {
-    "name": "\ud83d\udd6f\ufe0f Bearish Engulfing + AI",
+    "name": "🕯️ Bearish Engulfing + AI",
     "description": "Trade bearish engulfing patterns at overbought levels with AI confirmation",
     "entry_conditions": [
       {
@@ -173,7 +173,7 @@
     }
   },
   "pure_engulfing_scalp": {
-    "name": "\ud83d\udd6f\ufe0f Pure Engulfing Scalp (No AI)",
+    "name": "🕯️ Pure Engulfing Scalp (No AI)",
     "description": "Aggressive engulfing pattern scalping without AI - ULTRA FAST",
     "entry_conditions": [
       {
@@ -210,7 +210,7 @@
     }
   },
   "hammer_reversal": {
-    "name": "\ud83d\udd28 Hammer Reversal Hunter",
+    "name": "🔨 Hammer Reversal Hunter",
     "description": "Catch reversals with hammer patterns at support",
     "entry_conditions": [
       {
