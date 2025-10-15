@@ -1818,40 +1818,92 @@ async def websocket_log(driver):
             pass
 
 
-def safe_click_asset_element(driver, element):
+def safe_click_asset_element(driver, element, asset_id="unknown"):
     """
     Safely click on an asset element without hitting the favorite star icon.
-    Uses JavaScript to click on the left portion of the element (safe zone).
+    CRITICAL FIX: Finds child elements and clicks ONLY non-star elements.
     """
     try:
-        # Get element dimensions and position
-        size = element.size
-        location = element.location
-
-        # Calculate safe click position: 30% from left, 50% from top
-        # This avoids the star icon which is typically on the right side
-        safe_x = location['x'] + (size['width'] * 0.3)
-        safe_y = location['y'] + (size['height'] * 0.5)
-
-        # Use JavaScript to click at specific coordinates within the element
-        driver.execute_script("""
-            var element = arguments[0];
-            var event = new MouseEvent('click', {
-                view: window,
-                bubbles: true,
-                cancelable: true
-            });
-            element.dispatchEvent(event);
-        """, element)
-
-        return True
-    except Exception as e:
-        # Fallback to regular click if JavaScript fails
+        # STRATEGY 1: Find and click a child element that's NOT the star icon
+        # This is the safest approach - click a specific child, not the parent
         try:
-            element.click()
-            return True
+            child_elements = element.find_elements(By.XPATH, ".//*")
+
+            # DEBUG: Log what we found
+            # add_log(f"🔍 Checking {len(child_elements)} child elements for {asset_id}")
+
+            for child in child_elements:
+                try:
+                    child_class = (child.get_attribute('class') or '').lower()
+                    child_tag = child.tag_name.lower()
+
+                    # Skip elements that look like star/favorite icons
+                    if any(keyword in child_class for keyword in ['star', 'favorite', 'icon', 'fav', 'svg', 'img']):
+                        # add_log(f"⏭️ Skipping {child_tag} with class '{child_class}' (looks like star)")
+                        continue
+
+                    # Skip input/button elements (might be the star)
+                    if child_tag in ['button', 'input', 'i']:
+                        # add_log(f"⏭️ Skipping {child_tag} (button/input/icon)")
+                        continue
+
+                    # Found a safe text element - click it!
+                    if child_tag in ['span', 'div', 'p', 'a', 'label']:
+                        if child.is_displayed() and child.is_enabled():
+                            # add_log(f"✅ Clicking safe child element: {child_tag} for {asset_id}")
+                            child.click()
+                            return True
+                except:
+                    continue
+
         except:
-            return False
+            pass
+
+        # STRATEGY 2: Use JavaScript to find and click the leftmost clickable area
+        # This targets the asset name area, not the right-side star
+        try:
+            success = driver.execute_script("""
+                var parentElement = arguments[0];
+                var rect = parentElement.getBoundingClientRect();
+
+                // Click at 20% from left edge (far from right-side star icon)
+                var safeX = rect.left + (rect.width * 0.2);
+                var safeY = rect.top + (rect.height * 0.5);
+
+                // Find the actual element at that position
+                var targetElement = document.elementFromPoint(safeX, safeY);
+
+                // Make sure we're not clicking a star/favorite element
+                if (targetElement) {
+                    var classList = targetElement.className || '';
+                    var tagName = targetElement.tagName.toLowerCase();
+
+                    // Reject if it looks like a star icon
+                    if (classList.includes('star') || classList.includes('fav') ||
+                        classList.includes('icon') || tagName === 'svg' ||
+                        tagName === 'i' || tagName === 'button') {
+                        return false;
+                    }
+
+                    // Click the safe element
+                    targetElement.click();
+                    return true;
+                }
+                return false;
+            """, element)
+
+            if success:
+                return True
+
+        except:
+            pass
+
+        # STRATEGY 3: DON'T fall back to regular click - it's not safe!
+        # If we can't find a safe element to click, better to skip than risk unfavoriting
+        return False
+
+    except Exception as e:
+        return False
 
 
 async def reanimate_favorites(driver):
@@ -1881,13 +1933,14 @@ async def reanimate_favorites(driver):
                     break
 
                 # Needs activation - use safe click
-                if safe_click_asset_element(driver, item):
+                asset_name = item.get_attribute('data-id') or 'unknown'
+                if safe_click_asset_element(driver, item, asset_name):
                     FAVORITES_REANIMATED = True
-                    await asyncio.sleep(0.2)  # Small delay after click
+                    await asyncio.sleep(0.3)  # Small delay after click
                     retry_count += 1
                 else:
                     # Click failed - element out of reach
-                    out_of_reach.append(item.get_attribute('data-id'))
+                    out_of_reach.append(asset_name)
                     break
 
             except ElementNotInteractableException:
@@ -1938,8 +1991,8 @@ async def switch_to_asset(driver, asset):
                     CURRENT_ASSET = asset
                     return True
 
-                # Try to click using safe method
-                click_success = safe_click_asset_element(driver, item)
+                # Try to click using safe method with asset name for logging
+                click_success = safe_click_asset_element(driver, item, asset)
 
                 if not click_success:
                     # Element not clickable
