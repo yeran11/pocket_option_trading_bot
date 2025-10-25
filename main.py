@@ -329,7 +329,14 @@ settings = {
     'take_profit': 100,
     'stop_loss': 50,
     'trailing_stop': False,
-    'max_consecutive_losses': 5
+    'max_consecutive_losses': 5,
+
+    # ⏰ Trading Hours Scheduler
+    'trading_hours_enabled': False,  # Enable/disable trading hours restriction
+    'trading_hours_timezone': 'UTC',  # Timezone for trading hours
+    'trading_hours_ranges': [  # List of time ranges when trading is allowed
+        {'start': '09:00', 'end': '17:00'}  # Default: 9 AM to 5 PM
+    ]
 }
 
 # 💾 Load settings from file if it exists
@@ -2657,6 +2664,22 @@ async def check_indicators(driver):
             action, reason = result
             expiry = settings.get('ai_expiry_default', 60)
 
+        # ⏰ Check trading hours before placing trade
+        in_trading_window, window_message = is_in_trading_window()
+        if not in_trading_window:
+            # Skip this trade - outside trading hours
+            if hasattr(check_indicators, '_last_hours_log_time'):
+                # Log every 60 seconds to avoid spam
+                import time
+                if time.time() - check_indicators._last_hours_log_time > 60:
+                    add_log(f"⏸️ {window_message} - Bot running but not trading")
+                    check_indicators._last_hours_log_time = time.time()
+            else:
+                import time
+                add_log(f"⏸️ {window_message} - Bot running but not trading")
+                check_indicators._last_hours_log_time = time.time()
+            continue
+
         order_created = await create_order(driver, action, asset, reason, expiry)
 
         if order_created:
@@ -2902,6 +2925,109 @@ def get_chart_data():
         'balances': bot_state['chart_data']['balances'],
         'trades': bot_state['chart_data']['trades'],
         'initial_balance': bot_state['initial_balance']
+    })
+
+
+# ========================================================================
+# TRADING HOURS SCHEDULER API ENDPOINTS
+# ========================================================================
+
+def is_in_trading_window():
+    """Check if current time is within configured trading hours"""
+    from datetime import datetime
+    import pytz
+
+    if not settings.get('trading_hours_enabled', False):
+        return True, "Trading hours restriction disabled"
+
+    try:
+        # Get timezone
+        timezone_str = settings.get('trading_hours_timezone', 'UTC')
+        tz = pytz.timezone(timezone_str)
+
+        # Get current time in the selected timezone
+        now = datetime.now(tz)
+        current_time = now.strftime('%H:%M')
+
+        # Get time ranges
+        time_ranges = settings.get('trading_hours_ranges', [])
+
+        if not time_ranges:
+            return False, "No trading time windows configured"
+
+        # Check if current time falls within any range
+        for time_range in time_ranges:
+            start_time = time_range.get('start', '00:00')
+            end_time = time_range.get('end', '23:59')
+
+            # Handle ranges that cross midnight
+            if start_time <= end_time:
+                # Normal range (e.g., 09:00 to 17:00)
+                if start_time <= current_time <= end_time:
+                    return True, f"In trading window: {start_time} - {end_time} ({timezone_str})"
+            else:
+                # Range crosses midnight (e.g., 22:00 to 02:00)
+                if current_time >= start_time or current_time <= end_time:
+                    return True, f"In trading window: {start_time} - {end_time} ({timezone_str})"
+
+        # Not in any trading window
+        next_window = time_ranges[0] if time_ranges else None
+        if next_window:
+            return False, f"Outside trading hours. Next window: {next_window['start']} - {next_window['end']} ({timezone_str})"
+        else:
+            return False, "Outside trading hours"
+
+    except Exception as e:
+        print(f"Error checking trading hours: {e}")
+        return True, f"Error checking trading hours: {e}"
+
+
+@app.route('/api/trading-hours', methods=['GET'])
+def get_trading_hours():
+    """Get trading hours settings"""
+    return jsonify({
+        'enabled': settings.get('trading_hours_enabled', False),
+        'timezone': settings.get('trading_hours_timezone', 'UTC'),
+        'time_ranges': settings.get('trading_hours_ranges', [{'start': '09:00', 'end': '17:00'}])
+    })
+
+
+@app.route('/api/trading-hours', methods=['POST'])
+def update_trading_hours():
+    """Update trading hours settings"""
+    global settings
+    try:
+        data = request.json
+
+        # Update settings
+        settings['trading_hours_enabled'] = data.get('enabled', False)
+        settings['trading_hours_timezone'] = data.get('timezone', 'UTC')
+        settings['trading_hours_ranges'] = data.get('time_ranges', [])
+
+        # Save to file
+        try:
+            with open('bot_settings.json', 'w') as f:
+                json.dump(settings, f, indent=2)
+            add_log(f"⏰ Trading hours updated: {'ENABLED' if data.get('enabled') else 'DISABLED'} ({data.get('timezone', 'UTC')})")
+        except Exception as save_error:
+            print(f"Warning: Could not save trading hours to file: {save_error}")
+
+        return jsonify({'success': True, 'message': 'Trading hours updated'})
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/trading-hours/status', methods=['GET'])
+def get_trading_hours_status():
+    """Check if currently in trading window"""
+    in_window, message = is_in_trading_window()
+    return jsonify({
+        'in_trading_window': in_window,
+        'message': message,
+        'enabled': settings.get('trading_hours_enabled', False),
+        'timezone': settings.get('trading_hours_timezone', 'UTC')
     })
 
 

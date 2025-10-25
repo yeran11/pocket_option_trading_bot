@@ -665,6 +665,70 @@
                 </div>
             </div>
 
+            <!-- Trading Hours Scheduler Panel -->
+            <div class="panel" style="min-height: 400px;">
+                <h2>⏰ TRADING HOURS SCHEDULER</h2>
+
+                <!-- Current Status -->
+                <div id="trading-hours-status" style="background: #001a1a; border: 2px solid #0ff; border-radius: 8px; padding: 12px; margin: 10px 0; text-align: center;">
+                    <div style="font-size: 0.9em; color: #0cc; margin-bottom: 5px;">Current Status</div>
+                    <div id="trading-window-status" style="font-size: 1.3em; font-weight: bold; color: #ff0; text-shadow: 0 0 10px #ff0;">
+                        ⏸️ PAUSED
+                    </div>
+                    <div id="trading-window-info" style="font-size: 0.85em; color: #0cc; margin-top: 5px;">
+                        Scheduler disabled
+                    </div>
+                </div>
+
+                <!-- Enable/Disable Toggle -->
+                <div class="checkbox-group" style="margin: 15px 0; background: #001a1a; border: 2px solid #0ff;">
+                    <input type="checkbox" id="trading-hours-enabled" onchange="toggleTradingHours()">
+                    <label for="trading-hours-enabled" style="color: #0ff; font-weight: bold; margin: 0; cursor: pointer;">
+                        Enable Trading Hours Restriction
+                    </label>
+                </div>
+
+                <!-- Timezone Selector -->
+                <div class="form-group">
+                    <label for="trading-timezone" style="color: #0cc; font-weight: bold;">🌍 Timezone</label>
+                    <select id="trading-timezone" onchange="saveTradingHours()" style="width: 100%; padding: 10px; background: #001a1a; border: 1px solid #0ff; border-radius: 5px; color: #0ff; font-family: 'Courier New', monospace; font-size: 1em;">
+                        <option value="UTC">UTC (Coordinated Universal Time)</option>
+                        <option value="America/New_York">EST (Eastern US)</option>
+                        <option value="America/Chicago">CST (Central US)</option>
+                        <option value="America/Denver">MST (Mountain US)</option>
+                        <option value="America/Los_Angeles">PST (Pacific US)</option>
+                        <option value="Europe/London">GMT (London)</option>
+                        <option value="Europe/Paris">CET (Central Europe)</option>
+                        <option value="Asia/Tokyo">JST (Japan)</option>
+                        <option value="Asia/Shanghai">CST (China)</option>
+                        <option value="Asia/Dubai">GST (Dubai)</option>
+                        <option value="Australia/Sydney">AEDT (Sydney)</option>
+                    </select>
+                </div>
+
+                <!-- Current Time Display -->
+                <div style="background: rgba(0,255,255,0.05); border: 1px solid rgba(0,255,255,0.3); border-radius: 5px; padding: 8px; margin: 10px 0; text-align: center; font-size: 0.9em; color: #0cc;">
+                    <div>Current Time: <span id="current-local-time" style="color: #0ff; font-weight: bold;">--:--:--</span></div>
+                    <div style="font-size: 0.8em; margin-top: 2px;">Selected Timezone: <span id="selected-timezone-display" style="color: #0ff;">UTC</span></div>
+                </div>
+
+                <!-- Trading Time Ranges -->
+                <div id="time-ranges-container" style="margin: 15px 0;">
+                    <label style="color: #0cc; font-weight: bold; display: block; margin-bottom: 8px;">⏱️ Trading Time Windows</label>
+                    <div id="time-ranges-list">
+                        <!-- Time ranges will be added here dynamically -->
+                    </div>
+                    <button onclick="addTimeRange()" style="width: 100%; padding: 10px; margin-top: 10px; background: linear-gradient(135deg, #004444, #002222); border: 1px solid #0ff; color: #0ff; border-radius: 5px; cursor: pointer; font-size: 0.9em;">
+                        ➕ Add Time Window
+                    </button>
+                </div>
+
+                <!-- Save Button -->
+                <button onclick="saveTradingHours()" style="width: 100%; padding: 12px; background: linear-gradient(135deg, #00ff00, #008800); border: none; border-radius: 8px; color: #000; font-weight: bold; cursor: pointer; font-size: 1.1em; margin-top: 10px; box-shadow: 0 0 20px rgba(0,255,0,0.4);">
+                    💾 SAVE SCHEDULE
+                </button>
+            </div>
+
             <!-- Controls Panel - Full Width, Thin -->
             <div class="panel" style="grid-column: 1/-1; padding: 15px;">
                 <h2 style="margin-bottom: 15px;">🎮 CONTROLS</h2>
@@ -1300,6 +1364,195 @@
                 console.log('Chart has', chartData.balances.length, 'data points');
             }
         }, 30000);
+
+        // ===== TRADING HOURS SCHEDULER FUNCTIONS =====
+
+        let timeRangeCounter = 0;
+
+        // Load trading hours settings from backend
+        function loadTradingHours() {
+            fetch('/api/trading-hours')
+                .then(r => r.json())
+                .then(data => {
+                    // Set enabled state
+                    document.getElementById('trading-hours-enabled').checked = data.enabled || false;
+
+                    // Set timezone
+                    const timezoneSelect = document.getElementById('trading-timezone');
+                    if (data.timezone) {
+                        timezoneSelect.value = data.timezone;
+                    }
+
+                    // Clear existing time ranges
+                    document.getElementById('time-ranges-list').innerHTML = '';
+                    timeRangeCounter = 0;
+
+                    // Load time ranges
+                    if (data.time_ranges && data.time_ranges.length > 0) {
+                        data.time_ranges.forEach(range => {
+                            addTimeRange(range.start, range.end);
+                        });
+                    } else {
+                        // Add default range if none exist
+                        addTimeRange('09:00', '17:00');
+                    }
+
+                    // Update status display
+                    updateTradingHoursStatus();
+                })
+                .catch(err => {
+                    console.error('Failed to load trading hours:', err);
+                    // Add default range on error
+                    addTimeRange('09:00', '17:00');
+                });
+        }
+
+        // Save trading hours to backend
+        function saveTradingHours() {
+            const enabled = document.getElementById('trading-hours-enabled').checked;
+            const timezone = document.getElementById('trading-timezone').value;
+
+            // Collect all time ranges
+            const timeRanges = [];
+            document.querySelectorAll('.time-range-item').forEach(item => {
+                const start = item.querySelector('.time-start').value;
+                const end = item.querySelector('.time-end').value;
+                if (start && end) {
+                    timeRanges.push({ start, end });
+                }
+            });
+
+            const data = {
+                enabled: enabled,
+                timezone: timezone,
+                time_ranges: timeRanges
+            };
+
+            fetch('/api/trading-hours', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+            .then(r => r.json())
+            .then(response => {
+                if (response.success) {
+                    showModal('success', 'Success', '✅ Trading hours schedule saved successfully!');
+                    addLog('⏰ Trading hours updated: ' + (enabled ? 'ENABLED' : 'DISABLED'));
+                    updateTradingHoursStatus();
+                } else {
+                    showModal('error', 'Error', '❌ Failed to save trading hours: ' + response.error);
+                }
+            })
+            .catch(err => {
+                console.error('Error saving trading hours:', err);
+                showModal('error', 'Error', '❌ Failed to save trading hours');
+            });
+        }
+
+        // Toggle trading hours enabled/disabled
+        function toggleTradingHours() {
+            updateTradingHoursStatus();
+            saveTradingHours();
+        }
+
+        // Add a time range input
+        function addTimeRange(startTime = '09:00', endTime = '17:00') {
+            const container = document.getElementById('time-ranges-list');
+            const id = timeRangeCounter++;
+
+            const div = document.createElement('div');
+            div.className = 'time-range-item';
+            div.style.cssText = 'background: #001a1a; border: 1px solid #0ff; border-radius: 5px; padding: 10px; margin: 8px 0; display: flex; gap: 10px; align-items: center;';
+
+            div.innerHTML = `
+                <div style="flex: 1;">
+                    <label style="color: #0cc; font-size: 0.8em; display: block; margin-bottom: 3px;">Start Time</label>
+                    <input type="time" class="time-start" value="${startTime}" onchange="saveTradingHours()"
+                        style="width: 100%; padding: 8px; background: #000; border: 1px solid #0ff; border-radius: 3px; color: #0ff; font-family: 'Courier New', monospace;">
+                </div>
+                <div style="color: #0ff; padding-top: 20px; font-weight: bold;">→</div>
+                <div style="flex: 1;">
+                    <label style="color: #0cc; font-size: 0.8em; display: block; margin-bottom: 3px;">End Time</label>
+                    <input type="time" class="time-end" value="${endTime}" onchange="saveTradingHours()"
+                        style="width: 100%; padding: 8px; background: #000; border: 1px solid #0ff; border-radius: 3px; color: #0ff; font-family: 'Courier New', monospace;">
+                </div>
+                <button onclick="removeTimeRange(this)" style="padding: 8px 12px; background: #400; border: 1px solid #f00; color: #f00; border-radius: 3px; cursor: pointer; margin-top: 20px;">
+                    🗑️
+                </button>
+            `;
+
+            container.appendChild(div);
+        }
+
+        // Remove a time range
+        function removeTimeRange(button) {
+            const item = button.closest('.time-range-item');
+            item.remove();
+            saveTradingHours();
+        }
+
+        // Update trading hours status display
+        function updateTradingHoursStatus() {
+            const enabled = document.getElementById('trading-hours-enabled').checked;
+            const statusDiv = document.getElementById('trading-window-status');
+            const infoDiv = document.getElementById('trading-window-info');
+
+            fetch('/api/trading-hours/status')
+                .then(r => r.json())
+                .then(data => {
+                    if (!enabled) {
+                        statusDiv.innerHTML = '✅ TRADING ACTIVE';
+                        statusDiv.style.color = '#0f0';
+                        statusDiv.style.textShadow = '0 0 10px #0f0';
+                        infoDiv.textContent = 'Scheduler disabled - Trading 24/7';
+                    } else if (data.in_trading_window) {
+                        statusDiv.innerHTML = '✅ TRADING ACTIVE';
+                        statusDiv.style.color = '#0f0';
+                        statusDiv.style.textShadow = '0 0 10px #0f0';
+                        infoDiv.textContent = data.message || 'Currently in trading window';
+                    } else {
+                        statusDiv.innerHTML = '⏸️ TRADING PAUSED';
+                        statusDiv.style.color = '#ff0';
+                        statusDiv.style.textShadow = '0 0 10px #ff0';
+                        infoDiv.textContent = data.message || 'Outside trading hours';
+                    }
+                })
+                .catch(err => {
+                    console.error('Failed to get trading hours status:', err);
+                });
+        }
+
+        // Update current time display
+        function updateCurrentTime() {
+            const timezone = document.getElementById('trading-timezone').value;
+            const now = new Date();
+
+            try {
+                const timeString = now.toLocaleTimeString('en-US', {
+                    timeZone: timezone,
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: false
+                });
+
+                document.getElementById('current-local-time').textContent = timeString;
+
+                // Update timezone display
+                const tzAbbr = timezone.split('/')[1] || timezone;
+                document.getElementById('selected-timezone-display').textContent = tzAbbr;
+            } catch (e) {
+                console.error('Error updating time:', e);
+            }
+        }
+
+        // Initialize trading hours on page load
+        setTimeout(() => {
+            loadTradingHours();
+            updateCurrentTime();
+            setInterval(updateCurrentTime, 1000); // Update every second
+            setInterval(updateTradingHoursStatus, 5000); // Update status every 5 seconds
+        }, 500);
     </script>
 </body>
 </html>
