@@ -3079,48 +3079,74 @@ def create_strategy():
         return jsonify({'success': False, 'message': str(e)})
 
 
-@app.route('/api/strategies/toggle/<strategy_id>', methods=['POST'])
+@app.route('/api/strategies/toggle/<path:strategy_id>', methods=['POST'])
 def toggle_strategy(strategy_id):
     """Toggle strategy active state"""
     if not strategy_builder:
-        return jsonify({'success': False})
+        return jsonify({'success': False, 'message': 'Strategy builder not available'}), 500
 
     try:
         data = request.json
         active = data.get('active', False)
+        print(f"🔄 Toggle strategy '{strategy_id}' to {'ACTIVE' if active else 'INACTIVE'}")
         success, message = strategy_builder.update_strategy(strategy_id, {'active': active})
 
         # Sync both builders after toggle
         if success:
             if advanced_strategy_builder:
                 advanced_strategy_builder.reload_strategies()
+                print(f"✅ Builders synced after toggle")
 
-        return jsonify({'success': success, 'message': message})
+        return jsonify({'success': success, 'message': message}), 200
     except Exception as e:
-        return jsonify({'success': False, 'message': str(e)})
+        print(f"❌ Error toggling strategy: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 
-@app.route('/api/strategies/delete/<strategy_id>', methods=['DELETE'])
+@app.route('/api/strategies/delete/<path:strategy_id>', methods=['DELETE'])
 def delete_strategy(strategy_id):
     """Delete a strategy completely from both builders"""
+    print(f"\n🗑️  DELETE REQUEST for strategy: '{strategy_id}'")
+
     if not strategy_builder and not advanced_strategy_builder:
-        return jsonify({'success': False, 'message': 'Strategy builders not available'})
+        return jsonify({'success': False, 'message': 'Strategy builders not available'}), 500
 
     try:
         success = False
         message = ""
+        found_in_any_builder = False
 
-        # Delete from advanced builder first (primary)
+        # Check both builders to see if strategy exists anywhere
+        print(f"📋 Checking advanced builder...")
         if advanced_strategy_builder:
-            success, message = advanced_strategy_builder.delete_strategy(strategy_id)
-            if success:
-                print(f"✅ Deleted '{strategy_id}' from advanced builder")
+            if strategy_id in advanced_strategy_builder.strategies:
+                found_in_any_builder = True
+                success, message = advanced_strategy_builder.delete_strategy(strategy_id)
+                if success:
+                    print(f"✅ Deleted '{strategy_id}' from advanced builder")
+            else:
+                print(f"⚠️  Strategy '{strategy_id}' not found in advanced builder")
 
         # If not found in advanced builder, try basic builder
+        print(f"📋 Checking basic builder...")
         if not success and strategy_builder:
-            success, message = strategy_builder.delete_strategy(strategy_id)
-            if success:
-                print(f"✅ Deleted '{strategy_id}' from basic builder")
+            if strategy_id in strategy_builder.strategies:
+                found_in_any_builder = True
+                success, message = strategy_builder.delete_strategy(strategy_id)
+                if success:
+                    print(f"✅ Deleted '{strategy_id}' from basic builder")
+            else:
+                print(f"⚠️  Strategy '{strategy_id}' not found in basic builder")
+
+        # If strategy wasn't found in any builder, treat as already deleted
+        if not found_in_any_builder:
+            print(f"⚠️  Strategy '{strategy_id}' not found in any builder - treating as already deleted")
+            # Return success=True so UI removes the stale card
+            return jsonify({
+                'success': True,
+                'message': f"Strategy '{strategy_id}' not found (already deleted or doesn't exist)",
+                'was_cached': True
+            }), 200
 
         # Sync both builders by reloading from file
         if success:
@@ -3131,10 +3157,15 @@ def delete_strategy(strategy_id):
                 advanced_strategy_builder.reload_strategies()
                 print(f"🔄 Advanced builder reloaded")
 
-        return jsonify({'success': success, 'message': message})
+            return jsonify({'success': True, 'message': message}), 200
+        else:
+            return jsonify({'success': False, 'message': message}), 200
+
     except Exception as e:
         print(f"❌ Error deleting strategy: {e}")
-        return jsonify({'success': False, 'message': str(e)})
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 
 @app.route('/api/strategies/execution-mode', methods=['POST'])
@@ -3152,19 +3183,21 @@ def set_execution_mode():
         return jsonify({'success': False, 'message': str(e)})
 
 
-@app.route('/api/strategies/priority/<strategy_id>', methods=['POST'])
+@app.route('/api/strategies/priority/<path:strategy_id>', methods=['POST'])
 def update_strategy_priority(strategy_id):
     """Update strategy priority (1-10)"""
     if not advanced_strategy_builder:
-        return jsonify({'success': False, 'message': 'Advanced strategy builder not available'})
+        return jsonify({'success': False, 'message': 'Advanced strategy builder not available'}), 500
 
     try:
         data = request.json
         priority = data.get('priority', 5)
+        print(f"📊 Update priority for '{strategy_id}' to {priority}")
         success, message = advanced_strategy_builder.update_strategy_priority(strategy_id, priority)
-        return jsonify({'success': success, 'message': message})
+        return jsonify({'success': success, 'message': message}), 200
     except Exception as e:
-        return jsonify({'success': False, 'message': str(e)})
+        print(f"❌ Error updating priority: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 
 @app.route('/api/strategies/import', methods=['POST'])
@@ -3317,24 +3350,27 @@ def export_strategies():
         return jsonify({'success': False, 'message': str(e)})
 
 
-@app.route('/api/strategies/export/<strategy_id>', methods=['GET'])
+@app.route('/api/strategies/export/<path:strategy_id>', methods=['GET'])
 def export_single_strategy(strategy_id):
     """Export a single strategy as JSON"""
     if not strategy_builder:
-        return jsonify({'success': False, 'message': 'Strategy builder not available'})
+        return jsonify({'success': False, 'message': 'Strategy builder not available'}), 500
 
     try:
+        print(f"📤 Export request for strategy: '{strategy_id}'")
         strategies = strategy_builder.get_all_strategies()
         if strategy_id not in strategies:
-            return jsonify({'success': False, 'message': f"Strategy '{strategy_id}' not found"})
+            print(f"⚠️  Strategy '{strategy_id}' not found for export")
+            return jsonify({'success': False, 'message': f"Strategy '{strategy_id}' not found"}), 404
 
         return jsonify({
             'success': True,
             'id': strategy_id,
             'data': strategies[strategy_id]
-        })
+        }), 200
     except Exception as e:
-        return jsonify({'success': False, 'message': str(e)})
+        print(f"❌ Error exporting strategy: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 
 @app.route('/api/strategies/template/<template_name>', methods=['GET'])
