@@ -1353,7 +1353,8 @@
             const active = event.target.checked;
 
             try {
-                const response = await fetch(`/api/strategies/toggle/${id}`, {
+                // URL encode the ID to handle special characters like / in strategy names
+                const response = await fetch(`/api/strategies/toggle/${encodeURIComponent(id)}`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({active: active})
@@ -1372,7 +1373,8 @@
             if (!confirm('Are you sure you want to delete this strategy?')) return;
 
             try {
-                const response = await fetch(`/api/strategies/delete/${id}`, {
+                // URL encode the ID to handle special characters like / in strategy names
+                const response = await fetch(`/api/strategies/delete/${encodeURIComponent(id)}`, {
                     method: 'DELETE'
                 });
 
@@ -1380,8 +1382,11 @@
                 if (result.success) {
                     showNotification('Strategy deleted', 'success');
                     loadStrategies();
+                } else {
+                    showNotification(result.message || 'Failed to delete strategy', 'error');
                 }
             } catch (error) {
+                console.error('Delete error:', error);
                 showNotification('Error deleting strategy', 'error');
             }
         }
@@ -1484,7 +1489,8 @@
 
         async function exportSingleStrategy(strategyId) {
             try {
-                const response = await fetch(`/api/strategies/export/${strategyId}`);
+                // URL encode the ID to handle special characters like / in strategy names
+                const response = await fetch(`/api/strategies/export/${encodeURIComponent(strategyId)}`);
                 const result = await response.json();
 
                 if (result.success) {
