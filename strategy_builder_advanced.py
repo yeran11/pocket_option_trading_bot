@@ -495,6 +495,21 @@ class AdvancedStrategyBuilder:
 
         return (True, f"Strategy priority updated to {priority}")
 
+    def delete_strategy(self, strategy_id: str) -> Tuple[bool, str]:
+        """Delete a strategy completely"""
+        if strategy_id not in self.strategies:
+            return (False, f"Strategy '{strategy_id}' not found")
+
+        strategy_name = self.strategies[strategy_id].get('name', strategy_id)
+        del self.strategies[strategy_id]
+        self._save_strategies()
+
+        return (True, f"Strategy '{strategy_name}' deleted successfully!")
+
+    def reload_strategies(self):
+        """Reload strategies from file (useful for syncing after external changes)"""
+        self.strategies = self._load_strategies()
+
     def record_strategy_result(self, strategy_id: str, result: str, profit: float):
         """Record trade result for strategy"""
         if strategy_id not in self.strategies:

@@ -3068,6 +3068,12 @@ def create_strategy():
     try:
         strategy_data = request.json
         success, message = strategy_builder.create_strategy(strategy_data)
+
+        # Sync both builders after creation
+        if success:
+            if advanced_strategy_builder:
+                advanced_strategy_builder.reload_strategies()
+
         return jsonify({'success': success, 'message': message})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
@@ -3083,6 +3089,12 @@ def toggle_strategy(strategy_id):
         data = request.json
         active = data.get('active', False)
         success, message = strategy_builder.update_strategy(strategy_id, {'active': active})
+
+        # Sync both builders after toggle
+        if success:
+            if advanced_strategy_builder:
+                advanced_strategy_builder.reload_strategies()
+
         return jsonify({'success': success, 'message': message})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
@@ -3090,14 +3102,38 @@ def toggle_strategy(strategy_id):
 
 @app.route('/api/strategies/delete/<strategy_id>', methods=['DELETE'])
 def delete_strategy(strategy_id):
-    """Delete a strategy"""
-    if not strategy_builder:
-        return jsonify({'success': False})
+    """Delete a strategy completely from both builders"""
+    if not strategy_builder and not advanced_strategy_builder:
+        return jsonify({'success': False, 'message': 'Strategy builders not available'})
 
     try:
-        success, message = strategy_builder.delete_strategy(strategy_id)
+        success = False
+        message = ""
+
+        # Delete from advanced builder first (primary)
+        if advanced_strategy_builder:
+            success, message = advanced_strategy_builder.delete_strategy(strategy_id)
+            if success:
+                print(f"✅ Deleted '{strategy_id}' from advanced builder")
+
+        # If not found in advanced builder, try basic builder
+        if not success and strategy_builder:
+            success, message = strategy_builder.delete_strategy(strategy_id)
+            if success:
+                print(f"✅ Deleted '{strategy_id}' from basic builder")
+
+        # Sync both builders by reloading from file
+        if success:
+            if strategy_builder:
+                strategy_builder.reload_strategies()
+                print(f"🔄 Basic builder reloaded")
+            if advanced_strategy_builder:
+                advanced_strategy_builder.reload_strategies()
+                print(f"🔄 Advanced builder reloaded")
+
         return jsonify({'success': success, 'message': message})
     except Exception as e:
+        print(f"❌ Error deleting strategy: {e}")
         return jsonify({'success': False, 'message': str(e)})
 
 
