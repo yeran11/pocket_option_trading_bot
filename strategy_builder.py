@@ -319,10 +319,15 @@ class StrategyBuilder:
         if strategy_id not in self.strategies:
             return (False, f"Strategy '{strategy_id}' not found")
 
+        strategy_name = self.strategies[strategy_id].get('name', strategy_id)
         del self.strategies[strategy_id]
         self._save_strategies()
 
-        return (True, f"Strategy '{strategy_id}' deleted successfully!")
+        return (True, f"Strategy '{strategy_name}' deleted successfully!")
+
+    def reload_strategies(self):
+        """Reload strategies from file (useful for syncing after external changes)"""
+        self.strategies = self._load_strategies()
 
     def get_strategy(self, strategy_id: str) -> Optional[Dict]:
         """Get a specific strategy"""
