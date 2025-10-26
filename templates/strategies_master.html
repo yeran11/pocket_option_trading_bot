@@ -1380,8 +1380,13 @@
 
                 const result = await response.json();
                 if (result.success) {
-                    showNotification('Strategy deleted', 'success');
-                    loadStrategies();
+                    if (result.was_cached) {
+                        showNotification('Cached strategy removed from UI', 'success');
+                        console.log('Removed cached strategy:', id);
+                    } else {
+                        showNotification('Strategy deleted', 'success');
+                    }
+                    loadStrategies(); // Reload the list
                 } else {
                     showNotification(result.message || 'Failed to delete strategy', 'error');
                 }
