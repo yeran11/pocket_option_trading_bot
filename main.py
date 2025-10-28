@@ -2598,13 +2598,28 @@ async def detect_account_mode(driver):
 
 async def wait_for_login(driver):
     """Wait for user to login manually"""
+    # Check if running in Electron with mode specified
+    trading_mode = os.getenv('TRADING_MODE', 'manual').lower()
+    demo_mode = os.getenv('DEMO_MODE', 'false').lower() == 'true'
+
     add_log("=" * 40)
     add_log("👉 WAITING FOR YOU TO LOGIN")
     add_log("=" * 40)
     add_log("")
     add_log("A Chrome window has opened")
     add_log("Please LOGIN to your Pocket Option account")
-    add_log("Choose DEMO or REAL account (top-right)")
+
+    # Display mode based on environment
+    if trading_mode == 'demo' or demo_mode:
+        add_log("📊 Mode: DEMO TRADING (Virtual Money)")
+        add_log("Please select DEMO account (top-right)")
+    elif trading_mode == 'live':
+        add_log("💰 Mode: LIVE TRADING (Real Money)")
+        add_log("⚠️ WARNING: Real money will be used!")
+        add_log("Please select REAL account (top-right)")
+    else:
+        add_log("Choose DEMO or REAL account (top-right)")
+
     add_log("Add 2-5 FAVORITE assets (star icon)")
     add_log("Bot will detect login automatically...")
     add_log("")
