@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Bot Pro</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            -webkit-app-region: drag;
+            user-select: none;
+        }
+
+        .splash-container {
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            animation: fadeIn 0.5s ease-in-out;
+            -webkit-app-region: no-drag;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            margin-bottom: 40px;
+        }
+
+        .logo {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(45deg, #f093fb 0%, #f5576c 100%);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            color: white;
+            font-weight: bold;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .app-title {
+            font-size: 32px;
+            color: white;
+            margin-left: 20px;
+            font-weight: 600;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+
+        .version {
+            color: rgba(255,255,255,0.7);
+            font-size: 14px;
+            margin-top: 5px;
+        }
+
+        .mode-selector {
+            display: flex;
+            gap: 30px;
+            margin-top: 40px;
+        }
+
+        .mode-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            padding: 30px;
+            width: 220px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .mode-card:hover {
+            transform: translateY(-5px);
+            background: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.2);
+        }
+
+        .mode-card::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(45deg, transparent, rgba(255,255,255,0.5), transparent);
+            transform: translateX(-100%);
+            transition: transform 0.6s;
+        }
+
+        .mode-card:hover::before {
+            transform: translateX(100%);
+        }
+
+        .demo-card {
+            border-color: rgba(16, 185, 129, 0.5);
+        }
+
+        .live-card {
+            border-color: rgba(239, 68, 68, 0.5);
+        }
+
+        .mode-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+            display: block;
+            text-align: center;
+        }
+
+        .demo-card .mode-icon {
+            background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .live-card .mode-icon {
+            background: linear-gradient(135deg, #ef4444 0%, #f87171 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .mode-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: white;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .mode-description {
+            font-size: 13px;
+            color: rgba(255,255,255,0.7);
+            text-align: center;
+            line-height: 1.5;
+        }
+
+        .mode-features {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .feature {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 12px;
+            color: rgba(255,255,255,0.8);
+        }
+
+        .feature-icon {
+            margin-right: 8px;
+            color: #10b981;
+        }
+
+        .live-card .feature-icon {
+            color: #ef4444;
+        }
+
+        .loading-container {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 40px;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255,255,255,0.1);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            color: white;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+
+        .footer {
+            position: absolute;
+            bottom: 20px;
+            color: rgba(255,255,255,0.5);
+            font-size: 12px;
+        }
+
+        .setup-form {
+            display: none;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 30px;
+            width: 400px;
+            margin-top: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            color: white;
+            font-size: 14px;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            color: white;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .form-input:focus {
+            outline: none;
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.4);
+        }
+
+        .form-input::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .form-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 25px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+    </style>
+</head>
+<body>
+    <div class="splash-container">
+        <div class="logo-container">
+            <div class="logo">TB</div>
+            <div>
+                <div class="app-title">Trading Bot Pro</div>
+                <div class="version">v1.0.0</div>
+            </div>
+        </div>
+
+        <div class="mode-selector" id="modeSelector">
+            <div class="mode-card demo-card" onclick="selectMode('demo')">
+                <span class="mode-icon">🎮</span>
+                <div class="mode-title">Demo Trading</div>
+                <div class="mode-description">Practice with virtual money</div>
+                <div class="mode-features">
+                    <div class="feature">
+                        <span class="feature-icon">✓</span>
+                        <span>$10,000 virtual balance</span>
+                    </div>
+                    <div class="feature">
+                        <span class="feature-icon">✓</span>
+                        <span>Risk-free testing</span>
+                    </div>
+                    <div class="feature">
+                        <span class="feature-icon">✓</span>
+                        <span>Full strategy features</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mode-card live-card" onclick="selectMode('live')">
+                <span class="mode-icon">💰</span>
+                <div class="mode-title">Live Trading</div>
+                <div class="mode-description">Trade with real money</div>
+                <div class="mode-features">
+                    <div class="feature">
+                        <span class="feature-icon">✓</span>
+                        <span>Real market trading</span>
+                    </div>
+                    <div class="feature">
+                        <span class="feature-icon">✓</span>
+                        <span>Actual profits</span>
+                    </div>
+                    <div class="feature">
+                        <span class="feature-icon">⚠</span>
+                        <span>Real money at risk</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="setup-form" id="setupForm">
+            <div class="form-group">
+                <label class="form-label">Pocket Option Email</label>
+                <input type="email" class="form-input" id="emailInput" placeholder="your@email.com" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Pocket Option Password</label>
+                <input type="password" class="form-input" id="passwordInput" placeholder="••••••••" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">OpenAI API Key (Optional)</label>
+                <input type="text" class="form-input" id="openaiInput" placeholder="sk-...">
+            </div>
+            <div class="form-buttons">
+                <button class="btn btn-secondary" onclick="cancelSetup()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveCredentials()">Start Trading</button>
+            </div>
+        </div>
+
+        <div class="loading-container" id="loadingContainer">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Initializing Trading Bot...</div>
+        </div>
+
+        <div class="footer">
+            © 2025 Trading Bot Pro - Automated Trading System
+        </div>
+    </div>
+
+    <script>
+        let selectedMode = null;
+
+        async function selectMode(mode) {
+            selectedMode = mode;
+
+            // Check if .env file exists
+            const hasEnv = await window.electronAPI.checkEnvFile();
+
+            if (!hasEnv) {
+                // Show setup form
+                document.getElementById('modeSelector').style.display = 'none';
+                document.getElementById('setupForm').style.display = 'block';
+            } else {
+                // Proceed to main window
+                startApplication();
+            }
+        }
+
+        async function saveCredentials() {
+            const email = document.getElementById('emailInput').value;
+            const password = document.getElementById('passwordInput').value;
+            const openaiKey = document.getElementById('openaiInput').value;
+
+            if (!email || !password) {
+                alert('Please enter your Pocket Option credentials');
+                return;
+            }
+
+            const credentials = { email, password, openaiKey };
+            await window.electronAPI.createEnvFile(credentials);
+
+            startApplication();
+        }
+
+        function cancelSetup() {
+            document.getElementById('setupForm').style.display = 'none';
+            document.getElementById('modeSelector').style.display = 'flex';
+            selectedMode = null;
+        }
+
+        async function startApplication() {
+            document.getElementById('modeSelector').style.display = 'none';
+            document.getElementById('setupForm').style.display = 'none';
+            document.getElementById('loadingContainer').style.display = 'flex';
+
+            setTimeout(() => {
+                window.electronAPI.selectMode(selectedMode);
+            }, 2000);
+        }
+    </script>
+</body>
+</html>

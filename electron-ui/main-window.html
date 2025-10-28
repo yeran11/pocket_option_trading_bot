@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Bot Pro</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Custom Title Bar */
+        .title-bar {
+            height: 35px;
+            background: linear-gradient(90deg, rgba(30, 60, 114, 0.95) 0%, rgba(42, 82, 152, 0.95) 100%);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 15px;
+            -webkit-app-region: drag;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .title-bar-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .app-icon {
+            width: 18px;
+            height: 18px;
+            background: linear-gradient(45deg, #f093fb 0%, #f5576c 100%);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: white;
+            font-weight: bold;
+        }
+
+        .app-title {
+            font-size: 13px;
+            color: white;
+            font-weight: 500;
+        }
+
+        .mode-indicator {
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .mode-demo {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .mode-live {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        .window-controls {
+            display: flex;
+            gap: 10px;
+            -webkit-app-region: no-drag;
+        }
+
+        .window-control {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .window-control:hover {
+            opacity: 0.8;
+        }
+
+        .minimize { background: #febc2e; }
+        .maximize { background: #28c840; }
+        .close { background: #ff5f57; }
+
+        /* Main Container */
+        .main-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 250px;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .control-section {
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 15px;
+        }
+
+        .control-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .control-btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-start {
+            background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+            color: white;
+        }
+
+        .btn-start:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(16, 185, 129, 0.4);
+        }
+
+        .btn-stop {
+            background: linear-gradient(135deg, #ef4444 0%, #f87171 100%);
+            color: white;
+        }
+
+        .btn-stop:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(239, 68, 68, 0.4);
+        }
+
+        .btn-stop:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-interface {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-interface:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .status-indicator {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .status-label {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 12px;
+            margin-bottom: 8px;
+        }
+
+        .status-value {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-running {
+            background: #10b981;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+        }
+
+        .status-stopped {
+            background: #6b7280;
+        }
+
+        .status-running-text {
+            color: #10b981;
+        }
+
+        .status-stopped-text {
+            color: #6b7280;
+        }
+
+        /* Statistics */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+            margin-top: 30px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+        }
+
+        .stat-label {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 11px;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            color: white;
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .stat-positive {
+            color: #10b981;
+        }
+
+        .stat-negative {
+            color: #ef4444;
+        }
+
+        /* Content Area */
+        .content-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+        }
+
+        /* Tabs */
+        .tabs-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 5px;
+            border-radius: 12px;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            background: transparent;
+            border: none;
+            color: rgba(255, 255, 255, 0.7);
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .tab:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .tab.active {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        /* Terminal Container */
+        .terminal-container {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(20px);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .terminal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .terminal-title {
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .terminal-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .terminal-btn {
+            padding: 5px 12px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .terminal-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        #terminal {
+            flex: 1;
+            background: #0c0c0c;
+            border-radius: 8px;
+            padding: 10px;
+        }
+
+        /* Iframe container for Flask UI */
+        .flask-container {
+            flex: 1;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            display: none;
+        }
+
+        .flask-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        /* Footer */
+        .footer {
+            height: 30px;
+            background: rgba(255, 255, 255, 0.05);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 12px;
+        }
+
+        .footer-left {
+            display: flex;
+            gap: 20px;
+        }
+
+        .footer-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .update-available {
+            background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+            color: white;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 11px;
+            cursor: pointer;
+            animation: pulse 2s infinite;
+        }
+    </style>
+</head>
+<body>
+    <!-- Custom Title Bar -->
+    <div class="title-bar">
+        <div class="title-bar-left">
+            <div class="app-icon">TB</div>
+            <div class="app-title">Trading Bot Pro</div>
+            <div class="mode-indicator" id="modeIndicator">DEMO</div>
+        </div>
+        <div class="window-controls">
+            <div class="window-control minimize" onclick="window.electronAPI.minimizeWindow()"></div>
+            <div class="window-control maximize" onclick="window.electronAPI.maximizeWindow()"></div>
+            <div class="window-control close" onclick="window.electronAPI.closeWindow()"></div>
+        </div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="control-section">
+                <div class="section-title">Bot Control</div>
+                <div class="control-buttons">
+                    <button class="control-btn btn-start" id="startBtn" onclick="startBot()">
+                        <span>▶</span> Start Bot
+                    </button>
+                    <button class="control-btn btn-stop" id="stopBtn" onclick="stopBot()" disabled>
+                        <span>■</span> Stop Bot
+                    </button>
+                    <button class="control-btn btn-interface" onclick="openInterface()">
+                        <span>🌐</span> Open Web Interface
+                    </button>
+                </div>
+            </div>
+
+            <div class="status-indicator">
+                <div class="status-label">Backend Status</div>
+                <div class="status-value">
+                    <div class="status-dot status-stopped" id="statusDot"></div>
+                    <span class="status-stopped-text" id="statusText">Stopped</span>
+                </div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">Today's Trades</div>
+                    <div class="stat-value" id="tradesCount">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Win Rate</div>
+                    <div class="stat-value" id="winRate">0%</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Profit/Loss</div>
+                    <div class="stat-value stat-positive" id="profitLoss">+$0.00</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Content Area -->
+        <div class="content-area">
+            <div class="tabs-container">
+                <button class="tab active" onclick="switchTab('terminal')">Terminal</button>
+                <button class="tab" onclick="switchTab('interface')">Trading Interface</button>
+            </div>
+
+            <!-- Terminal Container -->
+            <div class="terminal-container" id="terminalTab">
+                <div class="terminal-header">
+                    <div class="terminal-title">
+                        <span>📟</span> Bot Console Output
+                    </div>
+                    <div class="terminal-actions">
+                        <button class="terminal-btn" onclick="clearTerminal()">Clear</button>
+                        <button class="terminal-btn" onclick="exportLogs()">Export Logs</button>
+                    </div>
+                </div>
+                <div id="terminal"></div>
+            </div>
+
+            <!-- Flask Interface Container -->
+            <div class="flask-container" id="interfaceTab">
+                <iframe src="http://localhost:5000" class="flask-iframe" id="flaskFrame"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <div class="footer-left">
+            <div class="footer-item">
+                <span>⚡</span> Connected
+            </div>
+            <div class="footer-item">
+                <span>📊</span> <span id="modeFooter">Demo Mode</span>
+            </div>
+            <div class="footer-item">
+                <span>⏰</span> <span id="timeFooter">00:00:00</span>
+            </div>
+        </div>
+        <div class="footer-right">
+            <div class="update-available" id="updateNotice" style="display: none;" onclick="checkUpdate()">
+                Update Available
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
+    <script>
+        let term;
+        let fitAddon;
+        let botRunning = false;
+        let currentTab = 'terminal';
+
+        // Initialize terminal
+        function initTerminal() {
+            term = new Terminal({
+                theme: {
+                    background: '#0c0c0c',
+                    foreground: '#ffffff',
+                    cursor: '#ffffff',
+                    selection: 'rgba(255, 255, 255, 0.3)'
+                },
+                fontFamily: 'Consolas, "Courier New", monospace',
+                fontSize: 13,
+                cursorBlink: true,
+                convertEol: true
+            });
+
+            fitAddon = new FitAddon.FitAddon();
+            term.loadAddon(fitAddon);
+            term.open(document.getElementById('terminal'));
+            fitAddon.fit();
+
+            // Welcome message
+            term.writeln('\x1b[32m===================================\x1b[0m');
+            term.writeln('\x1b[36mTrading Bot Pro - Console Output\x1b[0m');
+            term.writeln('\x1b[32m===================================\x1b[0m');
+            term.writeln('');
+            term.writeln('Ready to start trading bot...');
+            term.writeln('');
+
+            // Resize terminal on window resize
+            window.addEventListener('resize', () => {
+                fitAddon.fit();
+            });
+        }
+
+        // Initialize on load
+        window.addEventListener('DOMContentLoaded', async () => {
+            initTerminal();
+
+            // Get current mode
+            const mode = await window.electronAPI.getMode();
+            updateModeDisplay(mode);
+
+            // Listen for terminal output
+            window.electronAPI.onTerminalOutput((data) => {
+                term.write(data);
+            });
+
+            // Listen for backend status
+            window.electronAPI.onBackendStatus((status) => {
+                updateBotStatus(status === 'running');
+            });
+
+            // Update time
+            setInterval(updateTime, 1000);
+        });
+
+        function updateModeDisplay(mode) {
+            const indicator = document.getElementById('modeIndicator');
+            const footer = document.getElementById('modeFooter');
+
+            if (mode === 'demo') {
+                indicator.textContent = 'DEMO';
+                indicator.className = 'mode-indicator mode-demo';
+                footer.textContent = 'Demo Mode';
+            } else {
+                indicator.textContent = 'LIVE';
+                indicator.className = 'mode-indicator mode-live';
+                footer.textContent = 'Live Trading';
+            }
+        }
+
+        function updateBotStatus(running) {
+            botRunning = running;
+            const startBtn = document.getElementById('startBtn');
+            const stopBtn = document.getElementById('stopBtn');
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('statusText');
+
+            if (running) {
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                statusDot.className = 'status-dot status-running';
+                statusText.className = 'status-running-text';
+                statusText.textContent = 'Running';
+            } else {
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+                statusDot.className = 'status-dot status-stopped';
+                statusText.className = 'status-stopped-text';
+                statusText.textContent = 'Stopped';
+            }
+        }
+
+        async function startBot() {
+            term.writeln('\x1b[32m[INFO] Starting trading bot...\x1b[0m');
+            await window.electronAPI.startBackend();
+        }
+
+        async function stopBot() {
+            term.writeln('\x1b[31m[INFO] Stopping trading bot...\x1b[0m');
+            await window.electronAPI.stopBackend();
+        }
+
+        function openInterface() {
+            window.electronAPI.openFlask();
+        }
+
+        function clearTerminal() {
+            term.clear();
+            term.writeln('\x1b[32m===================================\x1b[0m');
+            term.writeln('\x1b[36mTerminal cleared\x1b[0m');
+            term.writeln('\x1b[32m===================================\x1b[0m');
+            term.writeln('');
+        }
+
+        function exportLogs() {
+            // TODO: Implement log export
+            alert('Export functionality will be available in the next update');
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+
+            if (tab === 'terminal') {
+                document.getElementById('terminalTab').style.display = 'flex';
+                document.getElementById('interfaceTab').style.display = 'none';
+                fitAddon.fit();
+            } else {
+                document.getElementById('terminalTab').style.display = 'none';
+                document.getElementById('interfaceTab').style.display = 'block';
+                // Refresh iframe if needed
+                const frame = document.getElementById('flaskFrame');
+                if (!frame.src) {
+                    frame.src = 'http://localhost:5000';
+                }
+            }
+        }
+
+        function updateTime() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString();
+            document.getElementById('timeFooter').textContent = timeStr;
+        }
+
+        function checkUpdate() {
+            // Handled by Electron main process
+        }
+
+        // Cleanup on window close
+        window.addEventListener('beforeunload', () => {
+            window.electronAPI.removeAllListeners();
+        });
+    </script>
+</body>
+</html>

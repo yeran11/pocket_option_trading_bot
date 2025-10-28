@@ -1,0 +1,35 @@
+📁 FILES TO TRANSFER TO WINDOWS:
+
+Copy these files/folders from Replit to your Windows machine:
+(To: C:\Users\thewo\OneDrive\Documents\GitHub\)
+
+FILES:
+✅ package.json (the Electron one, NOT the one in pocket_option_trading_bot)
+✅ electron-main.js
+✅ electron-preload.js
+✅ START_DESKTOP_APP.bat
+✅ START_DESKTOP_APP.sh
+✅ ELECTRON_README.md
+
+FOLDERS:
+✅ electron-ui/ (entire folder with all contents)
+   - electron-ui/splash.html
+   - electron-ui/main-window.html
+   - electron-ui/assets/ (all icon files)
+
+Your Windows structure should look like:
+C:\Users\thewo\OneDrive\Documents\GitHub\
+├── package.json              ← Electron config
+├── electron-main.js          ← Main process
+├── electron-preload.js       ← Preload script
+├── START_DESKTOP_APP.bat     ← Quick launcher
+├── electron-ui/              ← UI folder
+│   ├── splash.html
+│   ├── main-window.html
+│   └── assets/
+└── pocket_option_trading_bot/  ← Your existing bot folder
+    └── main.py
+
+Once these files are in place, run:
+1. npm install
+2. npm run dist

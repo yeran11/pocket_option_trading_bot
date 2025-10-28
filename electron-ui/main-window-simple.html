@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Bot Pro</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Custom Title Bar */
+        .title-bar {
+            height: 35px;
+            background: linear-gradient(90deg, rgba(30, 60, 114, 0.95) 0%, rgba(42, 82, 152, 0.95) 100%);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 15px;
+            -webkit-app-region: drag;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .title-bar-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .app-icon {
+            width: 18px;
+            height: 18px;
+            background: linear-gradient(45deg, #f093fb 0%, #f5576c 100%);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: white;
+            font-weight: bold;
+        }
+
+        .app-title {
+            font-size: 13px;
+            color: white;
+            font-weight: 500;
+        }
+
+        .window-controls {
+            display: flex;
+            gap: 10px;
+            -webkit-app-region: no-drag;
+        }
+
+        .window-control {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .window-control:hover {
+            opacity: 0.8;
+        }
+
+        .minimize { background: #febc2e; }
+        .maximize { background: #28c840; }
+        .close { background: #ff5f57; }
+
+        /* Main Container */
+        .main-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 250px;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .control-section {
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 15px;
+        }
+
+        .control-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .control-btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-start {
+            background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+            color: white;
+        }
+
+        .btn-start:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(16, 185, 129, 0.4);
+        }
+
+        .btn-stop {
+            background: linear-gradient(135deg, #ef4444 0%, #f87171 100%);
+            color: white;
+        }
+
+        .btn-stop:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(239, 68, 68, 0.4);
+        }
+
+        .btn-stop:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-interface {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-interface:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .status-indicator {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .status-label {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 12px;
+            margin-bottom: 8px;
+        }
+
+        .status-value {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-running {
+            background: #10b981;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+        }
+
+        .status-stopped {
+            background: #6b7280;
+        }
+
+        .status-running-text {
+            color: #10b981;
+        }
+
+        .status-stopped-text {
+            color: #6b7280;
+        }
+
+        /* Statistics */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+            margin-top: 30px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+        }
+
+        .stat-label {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 11px;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            color: white;
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .stat-positive {
+            color: #10b981;
+        }
+
+        .stat-negative {
+            color: #ef4444;
+        }
+
+        /* Content Area */
+        .content-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+        }
+
+        /* Tabs */
+        .tabs-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 5px;
+            border-radius: 12px;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            background: transparent;
+            border: none;
+            color: rgba(255, 255, 255, 0.7);
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .tab:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .tab.active {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        /* Console Container */
+        .console-container {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(20px);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .console-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .console-title {
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .console-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .console-btn {
+            padding: 5px 12px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .console-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        #console {
+            flex: 1;
+            background: #0c0c0c;
+            border-radius: 8px;
+            padding: 10px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 13px;
+            color: #00ff00;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        /* Iframe container for Flask UI */
+        .flask-container {
+            flex: 1;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            display: none;
+        }
+
+        .flask-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        /* Footer */
+        .footer {
+            height: 30px;
+            background: rgba(255, 255, 255, 0.05);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 12px;
+        }
+
+        .footer-left {
+            display: flex;
+            gap: 20px;
+        }
+
+        .footer-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .update-available {
+            background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+            color: white;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 11px;
+            cursor: pointer;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Custom Title Bar -->
+    <div class="title-bar">
+        <div class="title-bar-left">
+            <div class="app-icon">TB</div>
+            <div class="app-title">Trading Bot Pro</div>
+        </div>
+        <div class="window-controls">
+            <div class="window-control minimize" onclick="window.electronAPI.minimizeWindow()"></div>
+            <div class="window-control maximize" onclick="window.electronAPI.maximizeWindow()"></div>
+            <div class="window-control close" onclick="window.electronAPI.closeWindow()"></div>
+        </div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="control-section">
+                <div class="section-title">Bot Control</div>
+                <div class="control-buttons">
+                    <button class="control-btn btn-start" id="startBtn" onclick="startBot()">
+                        <span>▶</span> Start Bot
+                    </button>
+                    <button class="control-btn btn-stop" id="stopBtn" onclick="stopBot()" disabled>
+                        <span>■</span> Stop Bot
+                    </button>
+                    <button class="control-btn btn-interface" onclick="openInterface()">
+                        <span>🌐</span> Open Web Interface
+                    </button>
+                </div>
+            </div>
+
+            <div class="status-indicator">
+                <div class="status-label">Backend Status</div>
+                <div class="status-value">
+                    <div class="status-dot status-stopped" id="statusDot"></div>
+                    <span class="status-stopped-text" id="statusText">Stopped</span>
+                </div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">Session Info</div>
+                    <div class="stat-value" id="sessionInfo">Ready</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Content Area -->
+        <div class="content-area">
+            <div class="tabs-container">
+                <button class="tab active" onclick="switchTab('console')">Console Output</button>
+                <button class="tab" onclick="switchTab('interface')">Trading Interface</button>
+            </div>
+
+            <!-- Console Container -->
+            <div class="console-container" id="consoleTab">
+                <div class="console-header">
+                    <div class="console-title">
+                        <span>📟</span> Bot Console Output
+                    </div>
+                    <div class="console-actions">
+                        <button class="console-btn" onclick="clearConsole()">Clear</button>
+                    </div>
+                </div>
+                <div id="console">Trading Bot Pro - Ready to start...
+Click "Start Bot" to begin trading.
+The bot will open Pocket Option in Chrome for you to log in.
+</div>
+            </div>
+
+            <!-- Flask Interface Container -->
+            <div class="flask-container" id="interfaceTab">
+                <iframe src="http://localhost:5000" class="flask-iframe" id="flaskFrame"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <div class="footer-left">
+            <div class="footer-item">
+                <span>⚡</span> Connected
+            </div>
+            <div class="footer-item">
+                <span>⏰</span> <span id="timeFooter">00:00:00</span>
+            </div>
+        </div>
+        <div class="footer-right">
+            <div class="update-available" id="updateNotice" style="display: none;">
+                Update Available
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let botRunning = false;
+        let currentTab = 'console';
+        const consoleElement = document.getElementById('console');
+
+        // Initialize on load
+        window.addEventListener('DOMContentLoaded', async () => {
+            // Listen for terminal output
+            window.electronAPI.onTerminalOutput((data) => {
+                appendToConsole(data);
+            });
+
+            // Listen for backend status
+            window.electronAPI.onBackendStatus((status) => {
+                updateBotStatus(status === 'running');
+            });
+
+            // Update time
+            setInterval(updateTime, 1000);
+        });
+
+        function appendToConsole(text) {
+            consoleElement.textContent += text;
+            consoleElement.scrollTop = consoleElement.scrollHeight;
+        }
+
+        function updateBotStatus(running) {
+            botRunning = running;
+            const startBtn = document.getElementById('startBtn');
+            const stopBtn = document.getElementById('stopBtn');
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('statusText');
+
+            if (running) {
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                statusDot.className = 'status-dot status-running';
+                statusText.className = 'status-running-text';
+                statusText.textContent = 'Running';
+                document.getElementById('sessionInfo').textContent = 'Trading Active';
+            } else {
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+                statusDot.className = 'status-dot status-stopped';
+                statusText.className = 'status-stopped-text';
+                statusText.textContent = 'Stopped';
+                document.getElementById('sessionInfo').textContent = 'Ready';
+            }
+        }
+
+        async function startBot() {
+            appendToConsole('\n[INFO] Starting trading bot...\n');
+            appendToConsole('Opening Pocket Option browser window...\n');
+            appendToConsole('Please log in and select Demo or Live mode in Pocket Option.\n\n');
+            await window.electronAPI.startBackend();
+        }
+
+        async function stopBot() {
+            appendToConsole('\n[INFO] Stopping trading bot...\n');
+            await window.electronAPI.stopBackend();
+        }
+
+        function openInterface() {
+            window.electronAPI.openFlask();
+        }
+
+        function clearConsole() {
+            consoleElement.textContent = 'Console cleared.\n';
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+
+            if (tab === 'console') {
+                document.getElementById('consoleTab').style.display = 'flex';
+                document.getElementById('interfaceTab').style.display = 'none';
+            } else {
+                document.getElementById('consoleTab').style.display = 'none';
+                document.getElementById('interfaceTab').style.display = 'block';
+                // Refresh iframe if needed
+                const frame = document.getElementById('flaskFrame');
+                if (!frame.src) {
+                    frame.src = 'http://localhost:5000';
+                }
+            }
+        }
+
+        function updateTime() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString();
+            document.getElementById('timeFooter').textContent = timeStr;
+        }
+
+        // Cleanup on window close
+        window.addEventListener('beforeunload', () => {
+            window.electronAPI.removeAllListeners();
+        });
+    </script>
+</body>
+</html>
