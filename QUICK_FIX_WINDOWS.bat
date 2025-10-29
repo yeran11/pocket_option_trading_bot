@@ -3,10 +3,11 @@ title Trading Bot Pro - Quick Setup
 color 0A
 
 echo =================================
-echo    TRADING BOT PRO - QUICK FIX
+echo    TRADING BOT PRO - QUICK SETUP
 echo =================================
 echo.
-echo This will fix the desktop app and remove login screens
+echo [INFO] Setting up credential-free desktop app
+echo [INFO] No API keys or login screens required
 echo.
 
 REM Rename files to use simplified versions
