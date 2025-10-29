@@ -62,10 +62,10 @@ try:
     elif CLAUDE_API_KEY:
         print("✅ Single AI mode (Claude only)")
 except ImportError:
-    print("⚠️ load_my_credentials.py not found (normal on Replit)")
+    # load_my_credentials.py not found - this is fine
     pass
 except Exception as e:
-    print(f"⚠️ Desktop credentials check failed: {e}")
+    # Desktop credentials check failed - this is fine, will try other methods
     pass
 
 # Method 1: Try to import from api_secrets.py (Good for Replit)
@@ -76,7 +76,7 @@ try:
     OPENAI_PROJECT_ID = SECRET_PROJECT_ID
     print("✅ Loaded API keys from api_secrets.py")
 except ImportError:
-    print("⚠️ api_secrets.py not found, trying other methods...")
+    # api_secrets.py not found - trying other methods
     pass
 
 # Method 2: Environment variables (Replit Secrets or .env loaded above)
@@ -95,8 +95,6 @@ if not CLAUDE_API_KEY:
 if not OPENAI_API_KEY:
     try:
         env_path = os.path.join(os.path.dirname(__file__), '.env')
-        print(f"🔍 Checking for .env at: {env_path}")
-        print(f"🔍 .env exists: {os.path.exists(env_path)}")
         if os.path.exists(env_path):
             with open(env_path, 'r') as f:
                 for line in f:
@@ -105,15 +103,13 @@ if not OPENAI_API_KEY:
                         print(f"✅ Loaded API key from .env file (length: {len(OPENAI_API_KEY)})")
                     elif line.startswith('OPENAI_PROJECT_ID='):
                         OPENAI_PROJECT_ID = line.split('=', 1)[1].strip().strip('"').strip("'")
-        else:
-            print(f"⚠️ .env file not found at {env_path}")
     except Exception as e:
-        print(f"❌ Could not read .env file: {e}")
+        # Could not read .env file - that's okay
+        pass
 
 # Method 4: Fallback - if still nothing found
 if not OPENAI_API_KEY:
-    # IMPORTANT: Create secrets.py file or set environment variables
-    print("⚠️ No API key found! Please create secrets.py or set environment variables")
+    # No API keys configured - bot will work in traditional mode
     OPENAI_API_KEY = None
     OPENAI_PROJECT_ID = None
 
@@ -122,10 +118,15 @@ openai.api_key = OPENAI_API_KEY
 
 # Validation
 if not OPENAI_API_KEY or OPENAI_API_KEY == "your-api-key-here":
-    print("⚠️ WARNING: OpenAI API key not configured properly!")
-    print("Please set OPENAI_API_KEY in environment variables, .env file, or ai_config.py")
+    print("ℹ️  INFO: No AI API keys configured - Bot will run with traditional indicators only")
+    print("   To enable AI features, set OPENAI_API_KEY or CLAUDE_API_KEY in:")
+    print("   - Desktop credentials (~/.openai_credentials)")
+    print("   - Environment variables")
+    print("   - .env file")
+    print("✅ Bot ready - AI features disabled (traditional trading mode)")
 else:
     print(f"✅ OpenAI API key loaded successfully (ending in ...{OPENAI_API_KEY[-4:]})")
+    print("✅ AI features ENABLED")
 
 # Advanced Indicator Configuration
 INDICATOR_CONFIG = {

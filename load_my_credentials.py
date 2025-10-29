@@ -92,22 +92,9 @@ def load_desktop_credentials():
                 print(f"⚠️ Error reading {cred_file}: {e}")
                 continue
 
-    # No credentials file found
-    print("⚠️ No desktop credentials file found in any of these locations:")
-    for i, pf in enumerate(possible_files, 1):
-        print(f"   {i}. {pf}")
-    print(f"\n💡 TO SET UP DESKTOP CREDENTIALS:")
-    print(f"   1. Create file at: {possible_files[0]}")
-    print(f"   2. Add your API keys:")
-    print(f"      OPENAI_API_KEY=sk-proj-your-key-here")
-    print(f"      OPENAI_PROJECT_ID=proj_your-id-here")
-    print(f"      CLAUDE_API_KEY=sk-ant-api03-your-key-here")
-    print(f"\n   Windows CMD:")
-    print(f"   cd %USERPROFILE%")
-    print(f"   notepad .openai_credentials")
-    print(f"\n   Mac/Linux Terminal:")
-    print(f"   nano ~/.openai_credentials")
-    print()
+    # No credentials file found - this is okay, bot will run without AI
+    print("ℹ️  No desktop credentials found - Bot will run in traditional mode (no AI)")
+    print("   (Optional) To enable AI, create: {}".format(possible_files[0]))
     return False
 
 # Auto-load credentials when this module is imported
