@@ -111,9 +111,19 @@ if STRATEGY_SYSTEMS_AVAILABLE:
         print(f"⚠️ Strategy systems init error: {e}")
 
 # ===================================================================
-# AI SYSTEM REMOVED - Custom Strategies Only
-# AI will be added back in a future update
+# AI SYSTEM - GPT-4 + Claude + DeepSeek
 # ===================================================================
+try:
+    from ai_config import ai_brain, OPENAI_API_KEY, CLAUDE_API_KEY, DEEPSEEK_API_KEY
+    AI_AVAILABLE = any([OPENAI_API_KEY, CLAUDE_API_KEY, DEEPSEEK_API_KEY])
+    if AI_AVAILABLE:
+        print("✅ AI System loaded - GPT-4, Claude, and DeepSeek available!")
+    else:
+        print("ℹ️ AI System loaded but no API keys configured")
+except ImportError as e:
+    AI_AVAILABLE = False
+    ai_brain = None
+    print(f"⚠️ AI system not available: {e}")
 
 # Global variables
 DRIVER = None
@@ -1272,7 +1282,83 @@ async def enhanced_strategy(candles):
         return None
 
     # ===================================================================
-    # CUSTOM STRATEGY ONLY MODE
+    # AI ANALYSIS (If enabled in settings)
+    # ===================================================================
+    if settings.get('ai_enabled', False) and AI_AVAILABLE and ai_brain:
+        try:
+            print(f"\n{'='*70}")
+            print(f"🤖 AI ANALYSIS - Consulting AI Models")
+            print(f"{'='*70}")
+
+            # Prepare market data for AI
+            market_data = {
+                'asset': 'CURRENT',  # Asset name is set by check_indicators
+                'current_price': current_price,
+                'change_1m': ((current_price - candles[-2][2]) / candles[-2][2] * 100) if len(candles) > 1 else 0,
+                'change_5m': 0,
+                'volume': 'High' if volume_signal == 'high_volume' else 'Normal',
+                'win_rate': (bot_state['wins'] / bot_state['total_trades'] * 100) if bot_state['total_trades'] > 0 else 0,
+                'total_trades': bot_state['total_trades'],
+                'streak': f"{bot_state['wins']}W/{bot_state['losses']}L"
+            }
+
+            # Prepare indicators for AI
+            ai_indicators = {
+                'rsi': rsi,
+                'ema_cross': 'Bullish' if ema_fast > ema_slow else 'Bearish',
+                'supertrend': 'BUY' if supertrend_direction == 1 else 'SELL',
+                'macd_histogram': macd_histogram,
+                'macd_line': macd_line,
+                'macd_signal_line': macd_signal,
+                'stochastic_k': stoch_k,
+                'stochastic_d': stoch_d,
+                'bollinger_position': 'Upper' if current_price > upper_bb else 'Lower' if current_price < lower_bb else 'Middle',
+                'atr': atr,
+                'volume_signal': volume_signal,
+                'adx': adx_value,
+                'heikin_ashi': heikin_ashi_trend,
+                'vwap_position': vwap_position,
+                'support': support,
+                'resistance': resistance
+            }
+
+            # Call AI ensemble
+            ai_action, ai_confidence, ai_reason, ai_expiry = await ai_brain.analyze_with_ensemble(
+                market_data=market_data,
+                indicators=ai_indicators,
+                ai_mode=settings.get('ai_mode', 'ensemble'),
+                use_gpt4=settings.get('use_gpt4', True),
+                use_claude=settings.get('use_claude', True),
+                use_deepseek=settings.get('use_deepseek', True)
+            )
+
+            # Check if AI made a decision
+            if ai_action != 'hold' and ai_confidence >= settings.get('ai_min_confidence', 70):
+                print(f"✅ AI DECISION: {ai_action.upper()} @ {ai_confidence}% confidence ⏰ {ai_expiry}s")
+                print(f"📝 Reason: {ai_reason}")
+                print(f"{'='*70}\n")
+
+                # Set active strategy tracking
+                ACTIVE_STRATEGY_ID = 'ai_ensemble'
+                ACTIVE_STRATEGY_NAME = f"AI {settings.get('ai_mode', 'ensemble').upper()}"
+                LAST_TRADE_CONFIDENCE = ai_confidence
+
+                # Add log and return AI decision
+                add_log(f"🤖 AI: {ai_action.upper()} - {ai_reason} ({ai_confidence:.0f}%)")
+                return ai_action, ai_reason, ai_expiry
+            else:
+                print(f"ℹ️ AI says HOLD (confidence: {ai_confidence}%)")
+                print(f"📝 Reason: {ai_reason}")
+                print(f"⏭️ Falling back to Custom Strategies...")
+
+        except Exception as e:
+            print(f"⚠️ AI Analysis error: {e}")
+            import traceback
+            traceback.print_exc()
+            print(f"⏭️ Falling back to Custom Strategies...")
+
+    # ===================================================================
+    # CUSTOM STRATEGY MODE (Fallback if AI disabled or no signal)
     # Evaluate custom strategies using indicators calculated above
     # ===================================================================
 
