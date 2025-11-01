@@ -2262,44 +2262,109 @@ async def detect_current_expiry(driver):
     try:
         print(f"\n🔍 EXPIRY DETECTION - Scanning Pocket Option UI...")
 
-        # METHOD 1: JavaScript - Read from window variables or data attributes
+        # METHOD 1: JavaScript - SMART detection filtering out dates/times
         try:
             js_detection = """
-            // Try to find expiry time from various sources
+            // SMART EXPIRY DETECTION - Filter out dates and invalid values
+            function isValidExpiry(val) {
+                if (!val) return false;
+                val = val.toString().trim();
+
+                // REJECT dates (contains dots, commas, or year patterns)
+                if (val.includes('.') || val.includes(',') || val.match(/20\\d{2}/)) {
+                    return false;
+                }
+
+                // REJECT very long strings (dates/times are long)
+                if (val.length > 10) return false;
+
+                // ACCEPT: Must contain 'm', 's', or ':' AND be short
+                if (val.includes('m') || val.includes('s') || (val.includes(':') && val.length <= 6)) {
+                    return true;
+                }
+
+                return false;
+            }
+
             var expiry = null;
 
-            // Check window variables
-            if (window.expiryTime) expiry = window.expiryTime;
-            if (window.expiration) expiry = window.expiration;
-            if (window.tradeExpiry) expiry = window.tradeExpiry;
+            // 1. Check window variables
+            if (window.expiryTime && isValidExpiry(window.expiryTime)) {
+                return window.expiryTime;
+            }
+            if (window.expiration && isValidExpiry(window.expiration)) {
+                return window.expiration;
+            }
+            if (window.tradeExpiry && isValidExpiry(window.tradeExpiry)) {
+                return window.tradeExpiry;
+            }
 
-            // Check data attributes on trade buttons
-            var callBtn = document.querySelector('[class*="call"]');
-            var putBtn = document.querySelector('[class*="put"]');
-            if (callBtn && callBtn.dataset.expiry) expiry = callBtn.dataset.expiry;
-            if (putBtn && putBtn.dataset.expiry) expiry = putBtn.dataset.expiry;
+            // 2. Check data attributes on trade buttons
+            var buttons = document.querySelectorAll('[class*="call"], [class*="put"], [class*="trade"], button');
+            for (var i = 0; i < buttons.length; i++) {
+                var btn = buttons[i];
+                if (btn.dataset.expiry && isValidExpiry(btn.dataset.expiry)) {
+                    return btn.dataset.expiry;
+                }
+                if (btn.dataset.expiration && isValidExpiry(btn.dataset.expiration)) {
+                    return btn.dataset.expiration;
+                }
+            }
 
-            // Check all inputs for time-related values
-            var inputs = document.querySelectorAll('input');
+            // 3. Check inputs - but be VERY selective
+            var inputs = document.querySelectorAll('input[type="text"], input[type="number"], input:not([type])');
             for (var i = 0; i < inputs.length; i++) {
                 var val = inputs[i].value;
-                if (val && (val.includes('m') || val.includes('s') || val.includes(':'))) {
-                    expiry = val;
-                    break;
+                if (isValidExpiry(val)) {
+                    return val;
+                }
+                // Also check placeholder
+                var placeholder = inputs[i].placeholder;
+                if (isValidExpiry(placeholder)) {
+                    return placeholder;
                 }
             }
 
-            // Check text content of elements with 'time' or 'expir' in class
-            var timeElems = document.querySelectorAll('[class*="time"], [class*="expir"]');
-            for (var i = 0; i < timeElems.length; i++) {
-                var text = timeElems[i].textContent || timeElems[i].innerText;
-                if (text && (text.includes('m') || text.includes('s') || text.includes(':'))) {
-                    expiry = text;
-                    break;
+            // 4. Check elements near trade panel (not the entire page!)
+            var tradePanelSelectors = [
+                '[class*="deal-"]',
+                '[class*="trade-"]',
+                '[class*="panel-"]',
+                '[class*="trading-"]',
+                '.deals-area',
+                '.trade-panel'
+            ];
+
+            for (var j = 0; j < tradePanelSelectors.length; j++) {
+                var panel = document.querySelector(tradePanelSelectors[j]);
+                if (panel) {
+                    // Search within this panel only
+                    var timeElems = panel.querySelectorAll('[class*="time"], [class*="expir"], [class*="duration"]');
+                    for (var i = 0; i < timeElems.length; i++) {
+                        var text = timeElems[i].textContent || timeElems[i].innerText;
+                        if (isValidExpiry(text)) {
+                            return text;
+                        }
+                    }
                 }
             }
 
-            return expiry;
+            // 5. Last resort: Find elements with 'expir' or 'duration' in class (but validate!)
+            var expiryElems = document.querySelectorAll('[class*="expir"], [class*="duration"], [class*="timer"]');
+            for (var i = 0; i < expiryElems.length; i++) {
+                var elem = expiryElems[i];
+                // Check value attribute
+                if (elem.value && isValidExpiry(elem.value)) {
+                    return elem.value;
+                }
+                // Check text content
+                var text = elem.textContent || elem.innerText;
+                if (isValidExpiry(text)) {
+                    return text;
+                }
+            }
+
+            return null;
             """
 
             js_result = driver.execute_script(js_detection)
@@ -2308,32 +2373,36 @@ async def detect_current_expiry(driver):
                 # Parse the result
                 expiry_str = str(js_result).strip().lower()
 
+                # ADDITIONAL VALIDATION - Skip if it looks like a date
+                if '.' in expiry_str or ',' in expiry_str or '2024' in expiry_str or '2025' in expiry_str:
+                    print(f"   ⚠️ Rejected as date/time: '{expiry_str}'")
+                    raise ValueError("Date detected, not expiry")
+
                 # Handle different formats
                 if 'm' in expiry_str and 's' not in expiry_str:  # "2m", "5m"
-                    minutes = int(''.join(filter(str.isdigit, expiry_str)))
-                    seconds = minutes * 60
-                    print(f"   ✅ Parsed as {minutes}m = {seconds}s")
-                    return seconds
-                elif 's' in expiry_str:  # "60s", "120s"
-                    seconds = int(''.join(filter(str.isdigit, expiry_str)))
-                    print(f"   ✅ Parsed as {seconds}s")
-                    return seconds
-                elif ':' in expiry_str:  # "01:00", "02:00"
-                    parts = expiry_str.split(':')
-                    if len(parts) == 2:
-                        minutes = int(parts[0])
-                        secs = int(parts[1])
-                        total_seconds = (minutes * 60) + secs
-                        print(f"   ✅ Parsed as {minutes}:{secs:02d} = {total_seconds}s")
-                        return total_seconds
-                else:  # Pure number
-                    try:
-                        seconds = int(''.join(filter(str.isdigit, expiry_str)))
-                        if seconds > 0:
+                    digits = ''.join(filter(str.isdigit, expiry_str))
+                    if digits:
+                        minutes = int(digits)
+                        if 1 <= minutes <= 60:  # Reasonable range
+                            seconds = minutes * 60
+                            print(f"   ✅ Parsed as {minutes}m = {seconds}s")
+                            return seconds
+                elif 's' in expiry_str and len(expiry_str) <= 6:  # "60s", "120s"
+                    digits = ''.join(filter(str.isdigit, expiry_str))
+                    if digits:
+                        seconds = int(digits)
+                        if 10 <= seconds <= 3600:  # Reasonable range
                             print(f"   ✅ Parsed as {seconds}s")
                             return seconds
-                    except:
-                        pass
+                elif ':' in expiry_str and len(expiry_str) <= 6:  # "01:00", "02:00"
+                    parts = expiry_str.split(':')
+                    if len(parts) == 2 and parts[0].isdigit() and parts[1].isdigit():
+                        minutes = int(parts[0])
+                        secs = int(parts[1])
+                        if 0 <= minutes <= 60 and 0 <= secs <= 59:
+                            total_seconds = (minutes * 60) + secs
+                            print(f"   ✅ Parsed as {minutes}:{secs:02d} = {total_seconds}s")
+                            return total_seconds
         except Exception as e:
             print(f"   ⚠️ JavaScript method failed: {e}")
 
