@@ -171,7 +171,8 @@ settings = {
     'ai_enabled': True,  # Default to enabled
     'use_gpt4': True,  # Enable GPT-4
     'use_claude': True,  # Enable Claude
-    'ai_mode': 'ensemble',  # ensemble, any, gpt4_only, claude_only
+    'use_deepseek': True,  # Enable DeepSeek
+    'ai_mode': 'ensemble',  # ensemble, any, gpt4_only, claude_only, deepseek_only
     'ai_min_confidence': 70,
     'ai_strategy': 'ULTRA_SCALPING',
 

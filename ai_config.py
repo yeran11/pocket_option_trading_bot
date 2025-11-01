@@ -30,6 +30,7 @@ except ImportError:
 OPENAI_API_KEY = None
 OPENAI_PROJECT_ID = None
 CLAUDE_API_KEY = None
+DEEPSEEK_API_KEY = None
 
 # ========================================================================
 # PRIORITY METHOD 0: Desktop Credentials (BEST for local development)
@@ -55,12 +56,26 @@ try:
     if os.environ.get("CLAUDE_API_KEY"):
         CLAUDE_API_KEY = os.environ.get("CLAUDE_API_KEY")
         print("✅ LOADED CLAUDE from desktop credentials")
-    if OPENAI_API_KEY and CLAUDE_API_KEY:
-        print("✅✅✅ DUAL AI SYSTEM READY - GPT-4 + CLAUDE ENSEMBLE! ✅✅✅")
+    if os.environ.get("DEEPSEEK_API_KEY"):
+        DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY")
+        print("✅ LOADED DEEPSEEK from desktop credentials")
+
+    # Count available AI models
+    ai_count = sum([bool(OPENAI_API_KEY), bool(CLAUDE_API_KEY), bool(DEEPSEEK_API_KEY)])
+    if ai_count >= 3:
+        print("✅✅✅ TRIPLE AI SYSTEM READY - GPT-4 + CLAUDE + DEEPSEEK ENSEMBLE! ✅✅✅")
+    elif ai_count == 2:
+        models = []
+        if OPENAI_API_KEY: models.append("GPT-4")
+        if CLAUDE_API_KEY: models.append("Claude")
+        if DEEPSEEK_API_KEY: models.append("DeepSeek")
+        print(f"✅✅ DUAL AI SYSTEM READY - {' + '.join(models)} ENSEMBLE! ✅✅")
     elif OPENAI_API_KEY:
         print("✅ Single AI mode (GPT-4 only)")
     elif CLAUDE_API_KEY:
         print("✅ Single AI mode (Claude only)")
+    elif DEEPSEEK_API_KEY:
+        print("✅ Single AI mode (DeepSeek only)")
 except ImportError:
     # load_my_credentials.py not found - this is fine
     pass
@@ -91,18 +106,29 @@ if not CLAUDE_API_KEY:
     if CLAUDE_API_KEY:
         print("✅ Loaded CLAUDE from environment variables")
 
+if not DEEPSEEK_API_KEY:
+    DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY")
+    if DEEPSEEK_API_KEY:
+        print("✅ Loaded DEEPSEEK from environment variables")
+
 # Method 3: If still None, try direct .env file read (backup method)
-if not OPENAI_API_KEY:
+if not OPENAI_API_KEY or not CLAUDE_API_KEY or not DEEPSEEK_API_KEY:
     try:
         env_path = os.path.join(os.path.dirname(__file__), '.env')
         if os.path.exists(env_path):
             with open(env_path, 'r') as f:
                 for line in f:
-                    if line.startswith('OPENAI_API_KEY='):
+                    if line.startswith('OPENAI_API_KEY=') and not OPENAI_API_KEY:
                         OPENAI_API_KEY = line.split('=', 1)[1].strip().strip('"').strip("'")
-                        print(f"✅ Loaded API key from .env file (length: {len(OPENAI_API_KEY)})")
-                    elif line.startswith('OPENAI_PROJECT_ID='):
+                        print(f"✅ Loaded OPENAI API key from .env file (length: {len(OPENAI_API_KEY)})")
+                    elif line.startswith('OPENAI_PROJECT_ID=') and not OPENAI_PROJECT_ID:
                         OPENAI_PROJECT_ID = line.split('=', 1)[1].strip().strip('"').strip("'")
+                    elif line.startswith('CLAUDE_API_KEY=') and not CLAUDE_API_KEY:
+                        CLAUDE_API_KEY = line.split('=', 1)[1].strip().strip('"').strip("'")
+                        print(f"✅ Loaded CLAUDE API key from .env file (length: {len(CLAUDE_API_KEY)})")
+                    elif line.startswith('DEEPSEEK_API_KEY=') and not DEEPSEEK_API_KEY:
+                        DEEPSEEK_API_KEY = line.split('=', 1)[1].strip().strip('"').strip("'")
+                        print(f"✅ Loaded DEEPSEEK API key from .env file (length: {len(DEEPSEEK_API_KEY)})")
     except Exception as e:
         # Could not read .env file - that's okay
         pass
@@ -117,15 +143,20 @@ if not OPENAI_API_KEY:
 openai.api_key = OPENAI_API_KEY
 
 # Validation
-if not OPENAI_API_KEY or OPENAI_API_KEY == "your-api-key-here":
+if not any([OPENAI_API_KEY, CLAUDE_API_KEY, DEEPSEEK_API_KEY]):
     print("ℹ️  INFO: No AI API keys configured - Bot will run with traditional indicators only")
-    print("   To enable AI features, set OPENAI_API_KEY or CLAUDE_API_KEY in:")
+    print("   To enable AI features, set OPENAI_API_KEY, CLAUDE_API_KEY, or DEEPSEEK_API_KEY in:")
     print("   - Desktop credentials (~/.openai_credentials)")
     print("   - Environment variables")
     print("   - .env file")
     print("✅ Bot ready - AI features disabled (traditional trading mode)")
 else:
-    print(f"✅ OpenAI API key loaded successfully (ending in ...{OPENAI_API_KEY[-4:]})")
+    if OPENAI_API_KEY:
+        print(f"✅ OpenAI API key loaded successfully (ending in ...{OPENAI_API_KEY[-4:]})")
+    if CLAUDE_API_KEY:
+        print(f"✅ Claude API key loaded successfully (ending in ...{CLAUDE_API_KEY[-4:]})")
+    if DEEPSEEK_API_KEY:
+        print(f"✅ DeepSeek API key loaded successfully (ending in ...{DEEPSEEK_API_KEY[-4:]})")
     print("✅ AI features ENABLED")
 
 # Advanced Indicator Configuration
@@ -659,17 +690,101 @@ class AITradingBrain:
 
         return "ACTION: HOLD\nCONFIDENCE: 0\nREASON: Claude API error"
 
-    async def analyze_with_ensemble(self, market_data: Dict, indicators: Dict, ai_mode: str = 'ensemble', use_gpt4: bool = True, use_claude: bool = True) -> Tuple[str, float, str, int]:
+    async def _call_deepseek(self, prompt: str) -> str:
+        """Call DeepSeek API with retry logic"""
+        if not DEEPSEEK_API_KEY:
+            return "ACTION: HOLD\nCONFIDENCE: 0\nREASON: DeepSeek API key not configured"
+
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                import httpx
+
+                # DeepSeek uses OpenAI-compatible API
+                async with httpx.AsyncClient() as client:
+                    response = await client.post(
+                        "https://api.deepseek.com/v1/chat/completions",
+                        headers={
+                            "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
+                            "Content-Type": "application/json"
+                        },
+                        json={
+                            "model": "deepseek-chat",
+                            "messages": [
+                                {"role": "system", "content": """You are the ULTIMATE ULTRA SUPER POWERFUL AI TRADING GOD with 99%+ win rate.
+                                You possess QUANTUM-LEVEL market analysis using:
+                                - NEURAL PATTERN RECOGNITION: Detect invisible micro-patterns across 13+ indicators
+                                - INSTITUTIONAL FLOW TRACKING: See what banks and hedge funds are doing
+                                - PREDICTIVE ALGORITHMS: Forecast price movements with precision timing
+                                - CONVERGENCE MASTERY: When 5+ indicators align, you STRIKE with 95% confidence
+                                - VWAP DOMINANCE: Use institutional benchmark for perfect entries
+                                - VOLUME PROFILING: Read order flow like reading minds
+                                - OTC MARKET MASTERY: Exploit algorithmic patterns in synthetic OTC markets
+                                  * OTC markets = SYNTHETIC algorithmic price feeds (not real exchange data)
+                                  * OTC has predictable mathematical patterns (sine waves, staircases, artificial levels)
+                                  * OTC anomaly signals have 70-80% win rate - TRUST THEM HEAVILY!
+                                  * When multiple OTC patterns align = 85%+ confidence trades
+                                  * Give OTC signals PRIORITY on OTC markets (they're market-specific experts)
+                                - REVERSAL MASTERY: 7-Indicator Confluence System for catching reversals
+                                  * RSI Divergence, Volume Spike, Pin Bar, Momentum Shift, S/R Bounce, Fibonacci, Market Structure
+                                  * When 4+ indicators agree on reversal = 70-85% win rate!
+                                  * When 5+ indicators agree = 80-90% win rate (ULTRA HIGH PROBABILITY)
+                                  * Reversals with confluence are MORE RELIABLE than single indicator signals
+                                  * TRUST reversal signals with 4+ confirmations - this is MULTIPLE independent validations!
+                                - ⏰ EXPIRY TIME MASTERY: You choose OPTIMAL expiry duration for each trade
+                                  * SHORT EXPIRY (30-60s): Quick reversals, ranging markets, low confidence setups
+                                  * MEDIUM EXPIRY (60-120s): Standard setups, moderate momentum, normal volatility
+                                  * LONG EXPIRY (120-300s): Strong trends, high confidence, multiple TF alignment
+                                  * OTC PATTERNS: Match expiry to pattern duration (staircases, sine waves)
+                                  * REVERSAL SETUPS: 90-180s (reversals need time to develop)
+                                  * BREAKOUTS: 180-300s (momentum plays out over time)
+                                  * VWAP BOUNCES: 60-90s (mean reversion is quick)
+                                  * Match expiry to EXPECTED MOVE COMPLETION TIME!
+
+                                BE ULTRA AGGRESSIVE on perfect setups (90%+ confidence)
+                                BE MODERATELY AGGRESSIVE on good setups (70-89% confidence)
+                                BE CAUTIOUS only when signals conflict (<70% confidence)
+                                BE EXTREMELY CONFIDENT on OTC anomalies (OTC markets are algorithmic gold mines!)
+                                BE EXTREMELY CONFIDENT on 5+ indicator reversals (multiple validations = high probability!)
+
+                                Your mission: MAXIMUM PROFITS with CALCULATED PRECISION
+                                Never doubt strong convergence. Trust the indicators. BE THE MARKET."""},
+                                {"role": "user", "content": prompt}
+                            ],
+                            "temperature": 0.1,
+                            "max_tokens": 300
+                        },
+                        timeout=30.0
+                    )
+
+                if response.status_code == 200:
+                    result = response.json()
+                    return result['choices'][0]['message']['content']
+                else:
+                    raise Exception(f"DeepSeek API error: {response.status_code} - {response.text}")
+
+            except Exception as e:
+                if "rate_limit" in str(e).lower() or "overloaded" in str(e).lower():
+                    await asyncio.sleep(2 ** attempt)  # Exponential backoff
+                else:
+                    print(f"DeepSeek API Error: {e}")
+                    if attempt == max_retries - 1:
+                        return "ACTION: HOLD\nCONFIDENCE: 0\nREASON: DeepSeek API unavailable"
+
+        return "ACTION: HOLD\nCONFIDENCE: 0\nREASON: DeepSeek API error"
+
+    async def analyze_with_ensemble(self, market_data: Dict, indicators: Dict, ai_mode: str = 'ensemble', use_gpt4: bool = True, use_claude: bool = True, use_deepseek: bool = True) -> Tuple[str, float, str, int]:
         """
-        MULTI-MODEL ENSEMBLE: Use both GPT-4 and Claude for maximum accuracy
+        MULTI-MODEL ENSEMBLE: Use GPT-4, Claude, and DeepSeek for maximum accuracy
         Returns: (action, confidence, reasoning, expiry_seconds)
 
         Args:
             market_data: Market information
             indicators: Technical indicators
-            ai_mode: 'ensemble' (both must agree), 'any' (either can trigger), 'gpt4_only', 'claude_only'
+            ai_mode: 'ensemble' (all must agree), 'any' (any can trigger), 'gpt4_only', 'claude_only', 'deepseek_only'
             use_gpt4: Enable GPT-4
             use_claude: Enable Claude
+            use_deepseek: Enable DeepSeek
         """
         try:
             # Build analysis prompt
@@ -677,102 +792,119 @@ class AITradingBrain:
 
             # Determine which AIs to use based on mode and settings
             tasks = []
+            ai_mapping = []  # Track which AI corresponds to which task
             gpt4_available = OPENAI_API_KEY is not None and use_gpt4
             claude_available = CLAUDE_API_KEY is not None and use_claude
+            deepseek_available = DEEPSEEK_API_KEY is not None and use_deepseek
 
             # Override based on ai_mode
             if ai_mode == 'gpt4_only':
                 claude_available = False
+                deepseek_available = False
             elif ai_mode == 'claude_only':
                 gpt4_available = False
+                deepseek_available = False
+            elif ai_mode == 'deepseek_only':
+                gpt4_available = False
+                claude_available = False
 
             if gpt4_available:
                 tasks.append(self._call_gpt4(prompt))
+                ai_mapping.append('gpt4')
             if claude_available:
                 tasks.append(self._call_claude(prompt))
+                ai_mapping.append('claude')
+            if deepseek_available:
+                tasks.append(self._call_deepseek(prompt))
+                ai_mapping.append('deepseek')
 
             if not tasks:
                 return "hold", 0.0, "No AI models available", 60
 
-            # Run both AIs concurrently
+            # Run all AIs concurrently
             responses = await asyncio.gather(*tasks, return_exceptions=True)
 
-            # Parse responses
+            # Parse responses using the mapping
             decisions = []
             ai_names = []
 
-            if gpt4_available:
-                gpt4_response = responses[0] if not isinstance(responses[0], Exception) else "ACTION: HOLD\nCONFIDENCE: 0\nREASON: GPT-4 error\nEXPIRY: 60"
-                gpt4_decision = self._parse_gpt4_response(gpt4_response)
-                decisions.append(gpt4_decision)
-                ai_names.append("GPT-4")
-                print(f"🤖 GPT-4: {gpt4_decision[0].upper()} @ {gpt4_decision[1]}% ⏰ {gpt4_decision[3]}s")
+            for idx, ai_type in enumerate(ai_mapping):
+                response = responses[idx] if not isinstance(responses[idx], Exception) else "ACTION: HOLD\nCONFIDENCE: 0\nREASON: AI error\nEXPIRY: 60"
+                decision = self._parse_gpt4_response(response)  # Same parser works for all
+                decisions.append(decision)
 
-            if claude_available:
-                claude_response = responses[-1] if not isinstance(responses[-1], Exception) else "ACTION: HOLD\nCONFIDENCE: 0\nREASON: Claude error\nEXPIRY: 60"
-                claude_decision = self._parse_gpt4_response(claude_response)  # Same parser works
-                decisions.append(claude_decision)
-                ai_names.append("Claude")
-                print(f"🧠 Claude: {claude_decision[0].upper()} @ {claude_decision[1]}% ⏰ {claude_decision[3]}s")
+                if ai_type == 'gpt4':
+                    ai_names.append("GPT-4")
+                    print(f"🤖 GPT-4: {decision[0].upper()} @ {decision[1]}% ⏰ {decision[3]}s")
+                elif ai_type == 'claude':
+                    ai_names.append("Claude")
+                    print(f"🧠 Claude: {decision[0].upper()} @ {decision[1]}% ⏰ {decision[3]}s")
+                elif ai_type == 'deepseek':
+                    ai_names.append("DeepSeek")
+                    print(f"🔮 DeepSeek: {decision[0].upper()} @ {decision[1]}% ⏰ {decision[3]}s")
 
-            # VOTING SYSTEM: Behavior depends on ai_mode
-            if len(decisions) == 2:
-                action1, conf1, reason1, expiry1 = decisions[0]
-                action2, conf2, reason2, expiry2 = decisions[1]
-
-                if ai_mode == 'ensemble':
-                    # ENSEMBLE MODE: Both must agree
-                    if action1 == action2 and action1 != "hold":
-                        # Boost confidence when both agree
-                        avg_confidence = (conf1 + conf2) / 2
-                        boosted_confidence = min(avg_confidence + 10, 100)  # +10 bonus for agreement
-                        # Use higher expiry when both agree (more conviction = more time)
-                        consensus_expiry = max(expiry1, expiry2)
-                        combined_reason = f"🎯 CONSENSUS: Both {ai_names[0]} & {ai_names[1]} agree! {reason1[:80]}"
-                        print(f"✅ CONSENSUS TRADE: {action1.upper()} @ {boosted_confidence}% ⏰ {consensus_expiry}s")
-                        return action1, boosted_confidence, combined_reason, consensus_expiry
-                    elif action1 != action2:
-                        print(f"⚠️ DISAGREEMENT: {ai_names[0]} says {action1}, {ai_names[1]} says {action2} - HOLDING")
-                        return "hold", 0.0, f"AI models disagree: {ai_names[0]} ({action1}) vs {ai_names[1]} ({action2})", 60
-                    else:
-                        avg_confidence = (conf1 + conf2) / 2
-                        avg_expiry = int((expiry1 + expiry2) / 2)
-                        return "hold", avg_confidence, "Both AIs recommend holding", avg_expiry
-
-                elif ai_mode == 'any':
-                    # ANY MODE: Either AI can trigger (pick highest confidence)
-                    if action1 != "hold" or action2 != "hold":
-                        # Pick the non-hold action with highest confidence
-                        if action1 != "hold" and action2 == "hold":
-                            print(f"✅ {ai_names[0]} TRIGGERS: {action1.upper()} @ {conf1}% ⏰ {expiry1}s")
-                            return action1, conf1, f"ANY MODE: {ai_names[0]} - {reason1[:80]}", expiry1
-                        elif action2 != "hold" and action1 == "hold":
-                            print(f"✅ {ai_names[1]} TRIGGERS: {action2.upper()} @ {conf2}% ⏰ {expiry2}s")
-                            return action2, conf2, f"ANY MODE: {ai_names[1]} - {reason2[:80]}", expiry2
-                        elif action1 == action2:
-                            # Both agree, boost confidence
-                            avg_confidence = (conf1 + conf2) / 2
-                            boosted_confidence = min(avg_confidence + 10, 100)
-                            consensus_expiry = max(expiry1, expiry2)
-                            print(f"✅ BOTH AGREE: {action1.upper()} @ {boosted_confidence}% ⏰ {consensus_expiry}s")
-                            return action1, boosted_confidence, f"ANY MODE (CONSENSUS): {reason1[:80]}", consensus_expiry
-                        else:
-                            # Different actions, pick highest confidence
-                            if conf1 >= conf2:
-                                print(f"✅ {ai_names[0]} HIGHER CONFIDENCE: {action1.upper()} @ {conf1}% ⏰ {expiry1}s")
-                                return action1, conf1, f"ANY MODE: {ai_names[0]} (higher conf) - {reason1[:80]}", expiry1
-                            else:
-                                print(f"✅ {ai_names[1]} HIGHER CONFIDENCE: {action2.upper()} @ {conf2}% ⏰ {expiry2}s")
-                                return action2, conf2, f"ANY MODE: {ai_names[1]} (higher conf) - {reason2[:80]}", expiry2
-                    else:
-                        # Both recommend hold
-                        avg_confidence = (conf1 + conf2) / 2
-                        avg_expiry = int((expiry1 + expiry2) / 2)
-                        return "hold", avg_confidence, "Both AIs recommend holding", avg_expiry
-
-            # Single AI mode
-            else:
+            # VOTING SYSTEM: Behavior depends on ai_mode and number of AIs
+            if len(decisions) == 1:
+                # Single AI mode
                 return decisions[0]
+
+            # Multi-AI voting
+            if ai_mode == 'ensemble':
+                # ENSEMBLE MODE: All AIs must agree
+                actions = [d[0] for d in decisions]
+
+                # Check if all agree
+                if all(action == actions[0] for action in actions) and actions[0] != "hold":
+                    # All AIs agree on same action
+                    avg_confidence = sum(d[1] for d in decisions) / len(decisions)
+                    # Boost confidence based on number of AIs agreeing
+                    boost = 10 * len(decisions)  # 20 for 2 AIs, 30 for 3 AIs
+                    boosted_confidence = min(avg_confidence + boost, 100)
+                    max_expiry = max(d[3] for d in decisions)
+                    ai_list = ", ".join(ai_names)
+                    reason = decisions[0][2]
+                    combined_reason = f"🎯 CONSENSUS: All {len(decisions)} AIs ({ai_list}) agree! {reason[:60]}"
+                    print(f"✅ {len(decisions)}-AI CONSENSUS: {actions[0].upper()} @ {boosted_confidence}% ⏰ {max_expiry}s")
+                    return actions[0], boosted_confidence, combined_reason, max_expiry
+                else:
+                    # Disagreement
+                    action_summary = ", ".join([f"{ai_names[i]}:{decisions[i][0]}" for i in range(len(decisions))])
+                    print(f"⚠️ DISAGREEMENT: {action_summary} - HOLDING")
+                    avg_confidence = sum(d[1] for d in decisions) / len(decisions)
+                    avg_expiry = int(sum(d[3] for d in decisions) / len(decisions))
+                    if all(action == "hold" for action in actions):
+                        return "hold", avg_confidence, f"All {len(decisions)} AIs recommend holding", avg_expiry
+                    else:
+                        return "hold", 0.0, f"AIs disagree - {action_summary}", avg_expiry
+
+            elif ai_mode == 'any':
+                # ANY MODE: Any AI can trigger, pick highest confidence
+                non_hold_decisions = [(i, d) for i, d in enumerate(decisions) if d[0] != "hold"]
+
+                if non_hold_decisions:
+                    # Check if multiple AIs agree on same action
+                    actions = [d[1][0] for d in non_hold_decisions]
+                    if len(set(actions)) == 1:
+                        # All non-hold AIs agree on same action
+                        avg_confidence = sum(d[1][1] for d in non_hold_decisions) / len(non_hold_decisions)
+                        boost = 10 * len(non_hold_decisions)
+                        boosted_confidence = min(avg_confidence + boost, 100)
+                        max_expiry = max(d[1][3] for d in non_hold_decisions)
+                        agreeing_ais = ", ".join([ai_names[i] for i, _ in non_hold_decisions])
+                        reason = non_hold_decisions[0][1][2]
+                        print(f"✅ {len(non_hold_decisions)} AIs AGREE: {actions[0].upper()} @ {boosted_confidence}% ⏰ {max_expiry}s")
+                        return actions[0], boosted_confidence, f"ANY MODE ({agreeing_ais}): {reason[:60]}", max_expiry
+                    else:
+                        # Different actions, pick highest confidence
+                        best_idx, best_decision = max(non_hold_decisions, key=lambda x: x[1][1])
+                        action, conf, reason, expiry = best_decision
+                        print(f"✅ {ai_names[best_idx]} HIGHEST CONFIDENCE: {action.upper()} @ {conf}% ⏰ {expiry}s")
+                        return action, conf, f"ANY MODE: {ai_names[best_idx]} - {reason[:60]}", expiry
+                else:
+                    # All recommend hold
+                    avg_confidence = sum(d[1] for d in decisions) / len(decisions)
+                    avg_expiry = int(sum(d[3] for d in decisions) / len(decisions))
+                    return "hold", avg_confidence, f"All {len(decisions)} AIs recommend holding", avg_expiry
 
         except Exception as e:
             print(f"Ensemble Analysis Error: {e}")
