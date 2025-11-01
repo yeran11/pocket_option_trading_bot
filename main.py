@@ -2424,6 +2424,50 @@ async def detect_current_expiry(driver):
                 } catch(e) {}
             });
 
+            // SCAN 6: SPECIAL HANDLING - Look for minute/second pairs (Pocket Option splits time!)
+            debugLog.push('\\n=== SCANNING FOR SPLIT TIME INPUTS (minutes + seconds) ===');
+            try {
+                // Find all inputs within expiration containers
+                var expirationContainers = document.querySelectorAll('[class*="expir"], [class*="time"], [class*="deal"]');
+                for (var c = 0; c < expirationContainers.length && c < 10; c++) {
+                    var container = expirationContainers[c];
+                    var inputs = container.querySelectorAll('input');
+
+                    if (inputs.length >= 2) {
+                        debugLog.push('Container with ' + inputs.length + ' inputs: class="' + (container.className || 'no-class').substring(0, 40) + '"');
+
+                        // Check if we have minute + second inputs
+                        var allValues = [];
+                        for (var i = 0; i < inputs.length; i++) {
+                            var inp = inputs[i];
+                            if (inp.value) {
+                                allValues.push(inp.value);
+                                debugLog.push('  Input[' + i + ']: value="' + inp.value + '" class="' + (inp.className || '').substring(0, 30) + '"');
+                            }
+                        }
+
+                        // Try to construct time from multiple inputs
+                        if (allValues.length === 2) {
+                            // Format 1: "2" + "00" = "2:00" (2 minutes)
+                            var val0 = allValues[0].trim();
+                            var val1 = allValues[1].trim();
+
+                            // Check if first is number (minutes) and second is number (seconds)
+                            if (/^\\d{1,2}$/.test(val0) && /^\\d{2}$/.test(val1)) {
+                                var combined = val0 + ':' + val1;
+                                debugLog.push('  🔍 COMBINED: "' + val0 + '" + "' + val1 + '" = "' + combined + '"');
+                                if (isValidExpiry(combined)) {
+                                    foundExpiry = combined;
+                                    debugLog.push('  ✅ FOUND SPLIT TIME!');
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch(e) {
+                debugLog.push('Error in split time scan: ' + e.message);
+            }
+
             // Return result with debug log
             return {
                 expiry: foundExpiry,
