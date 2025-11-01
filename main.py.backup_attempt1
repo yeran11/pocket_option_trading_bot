@@ -111,19 +111,9 @@ if STRATEGY_SYSTEMS_AVAILABLE:
         print(f"⚠️ Strategy systems init error: {e}")
 
 # ===================================================================
-# AI SYSTEM - GPT-4 + Claude + DeepSeek
+# AI SYSTEM REMOVED - Custom Strategies Only
+# AI will be added back in a future update
 # ===================================================================
-try:
-    from ai_config import ai_brain, OPENAI_API_KEY, CLAUDE_API_KEY, DEEPSEEK_API_KEY
-    AI_AVAILABLE = any([OPENAI_API_KEY, CLAUDE_API_KEY, DEEPSEEK_API_KEY])
-    if AI_AVAILABLE:
-        print("✅ AI System loaded - GPT-4, Claude, and DeepSeek available!")
-    else:
-        print("ℹ️ AI System loaded but no API keys configured")
-except ImportError as e:
-    AI_AVAILABLE = False
-    ai_brain = None
-    print(f"⚠️ AI system not available: {e}")
 
 # Global variables
 DRIVER = None
@@ -149,9 +139,6 @@ ACTIVE_STRATEGY_NAME = None
 LAST_TRADE_EXPIRY = 60  # Expiry time in seconds
 LAST_TRADE_REASON = ""  # Reason/indicators used
 LAST_TRADE_CONFIDENCE = 0  # Confidence level
-
-# 🚀 TRADE EXECUTION LOCK - Prevents signal spam during trade placement
-TRADE_IN_PROGRESS = False  # Set to True while placing trade, blocks new signals
 
 # Bot state
 bot_state = {
@@ -184,8 +171,7 @@ settings = {
     'ai_enabled': True,  # Default to enabled
     'use_gpt4': True,  # Enable GPT-4
     'use_claude': True,  # Enable Claude
-    'use_deepseek': True,  # Enable DeepSeek
-    'ai_mode': 'ensemble',  # ensemble, any, gpt4_only, claude_only, deepseek_only
+    'ai_mode': 'ensemble',  # ensemble, any, gpt4_only, claude_only
     'ai_min_confidence': 70,
     'ai_strategy': 'ULTRA_SCALPING',
 
@@ -343,14 +329,7 @@ settings = {
     'take_profit': 100,
     'stop_loss': 50,
     'trailing_stop': False,
-    'max_consecutive_losses': 5,
-
-    # ⏰ Trading Hours Scheduler
-    'trading_hours_enabled': False,  # Enable/disable trading hours restriction
-    'trading_hours_timezone': 'UTC',  # Timezone for trading hours
-    'trading_hours_ranges': [  # List of time ranges when trading is allowed
-        {'start': '09:00', 'end': '17:00'}  # Default: 9 AM to 5 PM
-    ]
+    'max_consecutive_losses': 5
 }
 
 # 💾 Load settings from file if it exists
@@ -1188,14 +1167,9 @@ async def detect_candlestick_patterns(candles):
 
 # ==================== TRADING STRATEGY ====================
 
-async def enhanced_strategy(candles, all_timeframes=None, detected_expiry=None):
+async def enhanced_strategy(candles):
     """
-    🚀 FULLY AUTONOMOUS AI STRATEGY - Multi-Timeframe Analysis
-
-    Args:
-        candles: Primary timeframe candles (usually 1m)
-        all_timeframes: Dict of all timeframes {60: candles_1m, 300: candles_5m, ...}
-        detected_expiry: Expiry time detected from UI (seconds)
+    Advanced AI-enhanced strategy with multiple indicators
     """
     global ACTIVE_STRATEGY_ID, ACTIVE_STRATEGY_NAME, LAST_TRADE_CONFIDENCE
 
@@ -1290,116 +1264,7 @@ async def enhanced_strategy(candles, all_timeframes=None, detected_expiry=None):
         return None
 
     # ===================================================================
-    # AI ANALYSIS (If enabled in settings)
-    # ===================================================================
-    if settings.get('ai_enabled', False) and AI_AVAILABLE and ai_brain:
-        try:
-            print(f"\n{'='*70}")
-            print(f"🤖 AI ANALYSIS - Consulting AI Models")
-            print(f"{'='*70}")
-
-            # 🚀 MULTI-TIMEFRAME ANALYSIS - Calculate indicators for ALL available timeframes
-            multi_tf_data = {}
-            if all_timeframes:
-                for period, tf_candles in all_timeframes.items():
-                    if len(tf_candles) >= 50:
-                        # Calculate indicators for this timeframe
-                        tf_ema_fast = await calculate_ema(tf_candles, settings['fast_ema'])
-                        tf_ema_slow = await calculate_ema(tf_candles, settings['slow_ema'])
-                        tf_rsi = await calculate_rsi(tf_candles, settings['rsi_period'])
-                        tf_macd_line, tf_macd_signal, tf_macd_hist = await calculate_macd(tf_candles)
-                        tf_supertrend_val, tf_supertrend_dir = await calculate_supertrend(tf_candles)
-
-                        # Determine timeframe name
-                        tf_name = f"{period//60}m" if period >= 60 else f"{period}s"
-
-                        multi_tf_data[tf_name] = {
-                            'ema_cross': 'Bullish' if tf_ema_fast > tf_ema_slow else 'Bearish',
-                            'rsi': tf_rsi,
-                            'macd_trend': 'Bullish' if tf_macd_hist > 0 else 'Bearish',
-                            'supertrend': 'BUY' if tf_supertrend_dir == 1 else 'SELL'
-                        }
-                        print(f"📊 {tf_name} Timeframe: EMA {multi_tf_data[tf_name]['ema_cross']}, RSI {tf_rsi:.1f}, ST {multi_tf_data[tf_name]['supertrend']}")
-
-            # Prepare market data for AI
-            market_data = {
-                'asset': 'CURRENT',
-                'current_price': current_price,
-                'change_1m': ((current_price - candles[-2][2]) / candles[-2][2] * 100) if len(candles) > 1 else 0,
-                'change_5m': 0,
-                'volume': 'High' if volume_signal == 'high_volume' else 'Normal',
-                'win_rate': (bot_state['wins'] / bot_state['total_trades'] * 100) if bot_state['total_trades'] > 0 else 0,
-                'total_trades': bot_state['total_trades'],
-                'streak': f"{bot_state['wins']}W/{bot_state['losses']}L",
-                'multi_timeframe': multi_tf_data,  # 🚀 ALL timeframes
-                'detected_expiry': detected_expiry  # 🚀 User's current expiry setting
-            }
-
-            # Prepare indicators for AI
-            ai_indicators = {
-                'rsi': rsi,
-                'ema_cross': 'Bullish' if ema_fast > ema_slow else 'Bearish',
-                'supertrend': 'BUY' if supertrend_direction == 1 else 'SELL',
-                'macd_histogram': macd_histogram,
-                'macd_line': macd_line,
-                'macd_signal_line': macd_signal,
-                'stochastic_k': stoch_k,
-                'stochastic_d': stoch_d,
-                'bollinger_position': 'Upper' if current_price > upper_bb else 'Lower' if current_price < lower_bb else 'Middle',
-                'atr': atr,
-                'volume_signal': volume_signal,
-                'adx': adx_value,
-                'heikin_ashi': heikin_ashi_trend,
-                'vwap_position': vwap_position,
-                'support': support,
-                'resistance': resistance
-            }
-
-            # Debug: Show AI settings
-            ai_mode_setting = settings.get('ai_mode', 'ensemble')
-            use_gpt4_setting = settings.get('use_gpt4', True)
-            use_claude_setting = settings.get('use_claude', True)
-            use_deepseek_setting = settings.get('use_deepseek', True)
-
-            print(f"🔍 DEBUG: ai_mode={ai_mode_setting}, use_gpt4={use_gpt4_setting}, use_claude={use_claude_setting}, use_deepseek={use_deepseek_setting}")
-
-            # Call AI ensemble
-            ai_action, ai_confidence, ai_reason, ai_expiry = await ai_brain.analyze_with_ensemble(
-                market_data=market_data,
-                indicators=ai_indicators,
-                ai_mode=ai_mode_setting,
-                use_gpt4=use_gpt4_setting,
-                use_claude=use_claude_setting,
-                use_deepseek=use_deepseek_setting
-            )
-
-            # Check if AI made a decision
-            if ai_action != 'hold' and ai_confidence >= settings.get('ai_min_confidence', 70):
-                print(f"✅ AI DECISION: {ai_action.upper()} @ {ai_confidence}% confidence ⏰ {ai_expiry}s")
-                print(f"📝 Reason: {ai_reason}")
-                print(f"{'='*70}\n")
-
-                # Set active strategy tracking
-                ACTIVE_STRATEGY_ID = 'ai_ensemble'
-                ACTIVE_STRATEGY_NAME = f"AI {settings.get('ai_mode', 'ensemble').upper()}"
-                LAST_TRADE_CONFIDENCE = ai_confidence
-
-                # Add log and return AI decision
-                add_log(f"🤖 AI: {ai_action.upper()} - {ai_reason} ({ai_confidence:.0f}%)")
-                return ai_action, ai_reason, ai_expiry
-            else:
-                print(f"ℹ️ AI says HOLD (confidence: {ai_confidence}%)")
-                print(f"📝 Reason: {ai_reason}")
-                print(f"⏭️ Falling back to Custom Strategies...")
-
-        except Exception as e:
-            print(f"⚠️ AI Analysis error: {e}")
-            import traceback
-            traceback.print_exc()
-            print(f"⏭️ Falling back to Custom Strategies...")
-
-    # ===================================================================
-    # CUSTOM STRATEGY MODE (Fallback if AI disabled or no signal)
+    # CUSTOM STRATEGY ONLY MODE
     # Evaluate custom strategies using indicators calculated above
     # ===================================================================
 
@@ -1898,7 +1763,7 @@ async def enhanced_strategy(candles, all_timeframes=None, detected_expiry=None):
 # ==================== POCKET OPTION INTEGRATION ====================
 
 async def websocket_log(driver):
-    """🚀 MULTI-TIMEFRAME WebSocket - Captures ALL timeframes (1m, 5m, 15m) simultaneously"""
+    """Process WebSocket data and update candles"""
     global CANDLES, PERIOD, CURRENT_ASSET, FAVORITES_REANIMATED
 
     for wsData in driver.get_log('performance'):
@@ -1909,25 +1774,12 @@ async def websocket_log(driver):
             data = json.loads(payload_str)
 
             if 'history' in data:
-                asset = data['asset']
-                period = data['period']  # 60=1min, 300=5min, 900=15min, etc.
-
                 if not CURRENT_ASSET:
-                    CURRENT_ASSET = asset
-
-                # Track primary period (for UI display)
-                if PERIOD != period:
-                    PERIOD = period
+                    CURRENT_ASSET = data['asset']
+                if PERIOD != data['period']:
+                    PERIOD = data['period']
+                    CANDLES = {}
                     FAVORITES_REANIMATED = False
-
-                # 🚀 MULTI-TIMEFRAME: Store each timeframe separately
-                # Initialize asset dictionary if needed
-                if asset not in CANDLES:
-                    CANDLES[asset] = {}
-
-                # Initialize this timeframe if needed
-                if period not in CANDLES[asset]:
-                    CANDLES[asset][period] = []
 
                 candles = list(reversed(data['candles']))
                 for tstamp, value in data['history']:
@@ -1938,32 +1790,24 @@ async def websocket_log(driver):
                         candle[3] = value
                     if value < candle[4]:  # low
                         candle[4] = value
-                    if tstamp % period == 0:
+                    if tstamp % PERIOD == 0:
                         if tstamp not in [c[0] for c in candles]:
                             candles.append([tstamp, value, value, value, value])
-
-                # Store candles for THIS specific timeframe
-                CANDLES[asset][period] = candles
+                CANDLES[data['asset']] = candles
 
             try:
                 asset = data[0][0]
+                candles = CANDLES[asset]
                 current_value = data[0][2]
+                candles[-1][2] = current_value  # close
+                if current_value > candles[-1][3]:  # high
+                    candles[-1][3] = current_value
+                if current_value < candles[-1][4]:  # low
+                    candles[-1][4] = current_value
                 tstamp = int(float(data[0][1]))
-
-                # Update ALL timeframes for this asset with current price
-                if asset in CANDLES:
-                    for period, candles in CANDLES[asset].items():
-                        if len(candles) > 0:
-                            candles[-1][2] = current_value  # close
-                            if current_value > candles[-1][3]:  # high
-                                candles[-1][3] = current_value
-                            if current_value < candles[-1][4]:  # low
-                                candles[-1][4] = current_value
-
-                            # Add new candle if period rolled over
-                            if tstamp % period == 0:
-                                if tstamp not in [c[0] for c in candles]:
-                                    candles.append([tstamp, current_value, current_value, current_value, current_value])
+                if tstamp % PERIOD == 0:
+                    if tstamp not in [c[0] for c in candles]:
+                        candles.append([tstamp, current_value, current_value, current_value, current_value])
             except:
                 pass
 
@@ -1974,92 +1818,40 @@ async def websocket_log(driver):
             pass
 
 
-def safe_click_asset_element(driver, element, asset_id="unknown"):
+def safe_click_asset_element(driver, element):
     """
     Safely click on an asset element without hitting the favorite star icon.
-    CRITICAL FIX: Finds child elements and clicks ONLY non-star elements.
+    Uses JavaScript to click on the left portion of the element (safe zone).
     """
     try:
-        # STRATEGY 1: Find and click a child element that's NOT the star icon
-        # This is the safest approach - click a specific child, not the parent
-        try:
-            child_elements = element.find_elements(By.XPATH, ".//*")
+        # Get element dimensions and position
+        size = element.size
+        location = element.location
 
-            # DEBUG: Log what we found
-            # add_log(f"🔍 Checking {len(child_elements)} child elements for {asset_id}")
+        # Calculate safe click position: 30% from left, 50% from top
+        # This avoids the star icon which is typically on the right side
+        safe_x = location['x'] + (size['width'] * 0.3)
+        safe_y = location['y'] + (size['height'] * 0.5)
 
-            for child in child_elements:
-                try:
-                    child_class = (child.get_attribute('class') or '').lower()
-                    child_tag = child.tag_name.lower()
+        # Use JavaScript to click at specific coordinates within the element
+        driver.execute_script("""
+            var element = arguments[0];
+            var event = new MouseEvent('click', {
+                view: window,
+                bubbles: true,
+                cancelable: true
+            });
+            element.dispatchEvent(event);
+        """, element)
 
-                    # Skip elements that look like star/favorite icons
-                    if any(keyword in child_class for keyword in ['star', 'favorite', 'icon', 'fav', 'svg', 'img']):
-                        # add_log(f"⏭️ Skipping {child_tag} with class '{child_class}' (looks like star)")
-                        continue
-
-                    # Skip input/button elements (might be the star)
-                    if child_tag in ['button', 'input', 'i']:
-                        # add_log(f"⏭️ Skipping {child_tag} (button/input/icon)")
-                        continue
-
-                    # Found a safe text element - click it!
-                    if child_tag in ['span', 'div', 'p', 'a', 'label']:
-                        if child.is_displayed() and child.is_enabled():
-                            # add_log(f"✅ Clicking safe child element: {child_tag} for {asset_id}")
-                            child.click()
-                            return True
-                except:
-                    continue
-
-        except:
-            pass
-
-        # STRATEGY 2: Use JavaScript to find and click the leftmost clickable area
-        # This targets the asset name area, not the right-side star
-        try:
-            success = driver.execute_script("""
-                var parentElement = arguments[0];
-                var rect = parentElement.getBoundingClientRect();
-
-                // Click at 20% from left edge (far from right-side star icon)
-                var safeX = rect.left + (rect.width * 0.2);
-                var safeY = rect.top + (rect.height * 0.5);
-
-                // Find the actual element at that position
-                var targetElement = document.elementFromPoint(safeX, safeY);
-
-                // Make sure we're not clicking a star/favorite element
-                if (targetElement) {
-                    var classList = targetElement.className || '';
-                    var tagName = targetElement.tagName.toLowerCase();
-
-                    // Reject if it looks like a star icon
-                    if (classList.includes('star') || classList.includes('fav') ||
-                        classList.includes('icon') || tagName === 'svg' ||
-                        tagName === 'i' || tagName === 'button') {
-                        return false;
-                    }
-
-                    // Click the safe element
-                    targetElement.click();
-                    return true;
-                }
-                return false;
-            """, element)
-
-            if success:
-                return True
-
-        except:
-            pass
-
-        # STRATEGY 3: DON'T fall back to regular click - it's not safe!
-        # If we can't find a safe element to click, better to skip than risk unfavoriting
-        return False
-
+        return True
     except Exception as e:
-        return False
+        # Fallback to regular click if JavaScript fails
+        try:
+            element.click()
+            return True
+        except:
+            return False
 
 
 async def reanimate_favorites(driver):
@@ -2089,14 +1881,13 @@ async def reanimate_favorites(driver):
                     break
 
                 # Needs activation - use safe click
-                asset_name = item.get_attribute('data-id') or 'unknown'
-                if safe_click_asset_element(driver, item, asset_name):
+                if safe_click_asset_element(driver, item):
                     FAVORITES_REANIMATED = True
-                    await asyncio.sleep(0.3)  # Small delay after click
+                    await asyncio.sleep(0.2)  # Small delay after click
                     retry_count += 1
                 else:
                     # Click failed - element out of reach
-                    out_of_reach.append(asset_name)
+                    out_of_reach.append(item.get_attribute('data-id'))
                     break
 
             except ElementNotInteractableException:
@@ -2147,8 +1938,8 @@ async def switch_to_asset(driver, asset):
                     CURRENT_ASSET = asset
                     return True
 
-                # Try to click using safe method with asset name for logging
-                click_success = safe_click_asset_element(driver, item, asset)
+                # Try to click using safe method
+                click_success = safe_click_asset_element(driver, item)
 
                 if not click_success:
                     # Element not clickable
@@ -2254,320 +2045,12 @@ def check_trade_limits():
     return True, "Within limits"
 
 
-async def detect_current_expiry(driver):
-    """
-    🔍 ULTRA-ROBUST EXPIRY DETECTION WITH COMPREHENSIVE DEBUGGING
-    Returns: expiry in seconds (e.g., 60, 120, 300) or None if can't detect
-    """
-    try:
-        print(f"\n🔍 EXPIRY DETECTION - Ultra-Deep Scan with Debug Logging...")
-
-        # METHOD 1: COMPREHENSIVE JAVASCRIPT SCAN WITH FULL DEBUG LOGGING
-        try:
-            js_detection = """
-            // COMPREHENSIVE EXPIRY DETECTION - Log EVERYTHING we find
-            var debugLog = [];
-            var foundExpiry = null;
-
-            function isValidExpiry(val) {
-                if (!val) return false;
-                val = val.toString().trim();
-
-                // REJECT dates (contains dots, commas, or year patterns)
-                if (val.includes('.') || val.includes(',') || val.match(/20\\d{2}/)) {
-                    return false;
-                }
-
-                // REJECT very long strings (dates/times are long)
-                if (val.length > 15) return false;
-
-                // ACCEPT: Must contain 'm', 's', or ':' AND be reasonably short
-                if (val.includes('m') || val.includes('s') || (val.includes(':') && val.length <= 8)) {
-                    return true;
-                }
-
-                return false;
-            }
-
-            // SCAN 1: Window variables
-            debugLog.push('=== SCANNING WINDOW VARIABLES ===');
-            ['expiryTime', 'expiration', 'tradeExpiry', 'selectedExpiry', 'currentExpiry'].forEach(function(prop) {
-                if (window[prop]) {
-                    debugLog.push('window.' + prop + ' = "' + window[prop] + '"');
-                    if (!foundExpiry && isValidExpiry(window[prop])) {
-                        foundExpiry = window[prop];
-                        debugLog.push('✅ FOUND IN: window.' + prop);
-                    }
-                }
-            });
-
-            // SCAN 2: ALL INPUT ELEMENTS (with full details)
-            debugLog.push('\\n=== SCANNING ALL INPUTS ===');
-            var inputs = document.querySelectorAll('input');
-            var inputCount = 0;
-            for (var i = 0; i < inputs.length && inputCount < 30; i++) {
-                var input = inputs[i];
-                var val = input.value;
-                var placeholder = input.placeholder;
-                var type = input.type;
-
-                if (val || placeholder) {
-                    inputCount++;
-                    var classes = input.className || 'no-class';
-                    debugLog.push('Input #' + inputCount + ': type="' + type + '" class="' + classes + '"');
-
-                    if (val) {
-                        debugLog.push('  value="' + val + '"' + (isValidExpiry(val) ? ' ✅ VALID!' : ''));
-                        if (!foundExpiry && isValidExpiry(val)) {
-                            foundExpiry = val;
-                            debugLog.push('✅ FOUND IN: input.value');
-                        }
-                    }
-                    if (placeholder) {
-                        debugLog.push('  placeholder="' + placeholder + '"' + (isValidExpiry(placeholder) ? ' ✅ VALID!' : ''));
-                        if (!foundExpiry && isValidExpiry(placeholder)) {
-                            foundExpiry = placeholder;
-                            debugLog.push('✅ FOUND IN: input.placeholder');
-                        }
-                    }
-                }
-            }
-
-            // SCAN 3: Elements with 'expir', 'time', 'duration' in class
-            debugLog.push('\\n=== SCANNING TIME-RELATED ELEMENTS ===');
-            var timeSelectors = ['[class*="expir"]', '[class*="time"]', '[class*="duration"]', '[class*="timer"]'];
-            var elemCount = 0;
-            timeSelectors.forEach(function(selector) {
-                var elems = document.querySelectorAll(selector);
-                for (var i = 0; i < elems.length && elemCount < 20; i++) {
-                    var elem = elems[i];
-                    var text = (elem.textContent || elem.innerText || '').trim();
-                    var val = elem.value;
-
-                    if (text || val) {
-                        elemCount++;
-                        var classes = elem.className || 'no-class';
-                        debugLog.push('Element #' + elemCount + ': class="' + classes.substring(0, 50) + '"');
-
-                        if (text && text.length < 50) {
-                            debugLog.push('  text="' + text + '"' + (isValidExpiry(text) ? ' ✅ VALID!' : ''));
-                            if (!foundExpiry && isValidExpiry(text)) {
-                                foundExpiry = text;
-                                debugLog.push('✅ FOUND IN: element.text (class contains "' + selector + '")');
-                            }
-                        }
-                        if (val) {
-                            debugLog.push('  value="' + val + '"' + (isValidExpiry(val) ? ' ✅ VALID!' : ''));
-                            if (!foundExpiry && isValidExpiry(val)) {
-                                foundExpiry = val;
-                                debugLog.push('✅ FOUND IN: element.value');
-                            }
-                        }
-                    }
-                }
-            });
-
-            // SCAN 4: Buttons with data attributes
-            debugLog.push('\\n=== SCANNING BUTTONS ===');
-            var buttons = document.querySelectorAll('button, [class*="button"], [class*="btn"]');
-            var btnCount = 0;
-            for (var i = 0; i < buttons.length && btnCount < 15; i++) {
-                var btn = buttons[i];
-                if (btn.dataset.expiry || btn.dataset.expiration || btn.dataset.time) {
-                    btnCount++;
-                    var classes = btn.className || 'no-class';
-                    debugLog.push('Button #' + btnCount + ': class="' + classes.substring(0, 50) + '"');
-
-                    ['expiry', 'expiration', 'time'].forEach(function(attr) {
-                        if (btn.dataset[attr]) {
-                            debugLog.push('  data-' + attr + '="' + btn.dataset[attr] + '"' + (isValidExpiry(btn.dataset[attr]) ? ' ✅ VALID!' : ''));
-                            if (!foundExpiry && isValidExpiry(btn.dataset[attr])) {
-                                foundExpiry = btn.dataset[attr];
-                                debugLog.push('✅ FOUND IN: button.dataset.' + attr);
-                            }
-                        }
-                    });
-                }
-            }
-
-            // SCAN 5: Specific Pocket Option selectors
-            debugLog.push('\\n=== SCANNING POCKET OPTION SPECIFIC ===');
-            var poSelectors = [
-                '.expiration-control',
-                '.trade-expiration',
-                '.deal-expiry',
-                '[class*="expiration"]',
-                '[class*="deal-control"]'
-            ];
-            poSelectors.forEach(function(selector) {
-                try {
-                    var elem = document.querySelector(selector);
-                    if (elem) {
-                        var text = (elem.textContent || elem.innerText || '').trim();
-                        var val = elem.value;
-                        debugLog.push('PO Selector "' + selector + '"');
-                        if (text) {
-                            debugLog.push('  text="' + text.substring(0, 50) + '"' + (isValidExpiry(text) ? ' ✅ VALID!' : ''));
-                            if (!foundExpiry && isValidExpiry(text)) {
-                                foundExpiry = text;
-                                debugLog.push('✅ FOUND IN: PO selector "' + selector + '"');
-                            }
-                        }
-                        if (val) {
-                            debugLog.push('  value="' + val + '"' + (isValidExpiry(val) ? ' ✅ VALID!' : ''));
-                            if (!foundExpiry && isValidExpiry(val)) {
-                                foundExpiry = val;
-                                debugLog.push('✅ FOUND IN: PO selector "' + selector + '" value');
-                            }
-                        }
-                    }
-                } catch(e) {}
-            });
-
-            // Return result with debug log
-            return {
-                expiry: foundExpiry,
-                debug: debugLog.join('\\n')
-            };
-            """
-
-            js_result = driver.execute_script(js_detection)
-
-            if js_result and isinstance(js_result, dict):
-                # Print debug log
-                print(f"\n📋 DEBUG SCAN RESULTS:")
-                print(f"{js_result.get('debug', 'No debug info')}")
-
-                expiry_val = js_result.get('expiry')
-                if expiry_val:
-                    print(f"\n✅ EXPIRY DETECTED: '{expiry_val}'")
-                    # Parse the result
-                    expiry_str = str(expiry_val).strip().lower()
-
-                    # ADDITIONAL VALIDATION - Skip if it looks like a date
-                    if '.' in expiry_str or ',' in expiry_str or '2024' in expiry_str or '2025' in expiry_str:
-                        print(f"   ⚠️ Rejected as date/time: '{expiry_str}'")
-                        raise ValueError("Date detected, not expiry")
-
-                    # Handle different formats
-                    if 'm' in expiry_str and 's' not in expiry_str:  # "2m", "5m"
-                        digits = ''.join(filter(str.isdigit, expiry_str))
-                        if digits:
-                            minutes = int(digits)
-                            if 1 <= minutes <= 60:  # Reasonable range
-                                seconds = minutes * 60
-                                print(f"   ✅ PARSED: {minutes}m = {seconds}s")
-                                return seconds
-                    elif 's' in expiry_str and len(expiry_str) <= 6:  # "60s", "120s"
-                        digits = ''.join(filter(str.isdigit, expiry_str))
-                        if digits:
-                            seconds = int(digits)
-                            if 10 <= seconds <= 3600:  # Reasonable range
-                                print(f"   ✅ PARSED: {seconds}s")
-                                return seconds
-                    elif ':' in expiry_str and len(expiry_str) <= 8:  # "01:00", "02:00"
-                        parts = expiry_str.split(':')
-                        if len(parts) == 2:
-                            try:
-                                minutes = int(parts[0])
-                                secs = int(parts[1])
-                                if 0 <= minutes <= 60 and 0 <= secs <= 59:
-                                    total_seconds = (minutes * 60) + secs
-                                    print(f"   ✅ PARSED: {minutes}:{secs:02d} = {total_seconds}s")
-                                    return total_seconds
-                            except:
-                                pass
-
-                print(f"\n⚠️ Found value but couldn't parse: '{expiry_val}'")
-        except Exception as e:
-            print(f"   ⚠️ JavaScript method failed: {e}")
-
-        print(f"\n❌ NO EXPIRY TIME FOUND IN UI")
-        print(f"ℹ️  Review the debug scan above to identify where expiry is displayed")
-        print(f"ℹ️  AI will choose optimal expiry time autonomously for now")
-        return None
-
-    except Exception as e:
-        print(f"\n❌ Expiry detection error: {e}")
-        print(f"ℹ️  AI will choose optimal expiry time autonomously")
-        return None
-
-
 async def set_expiry_time(driver, expiry_seconds):
     """Set the expiry time in Pocket Option's interface before placing trade"""
-    print(f"📍 set_expiry_time called with: {expiry_seconds}s")
-
-    # METHOD 1: Try JavaScript injection first (FASTEST & MOST RELIABLE)
     try:
-        print(f"🚀 Trying JavaScript injection to set {expiry_seconds}s...")
-
-        # Try multiple JavaScript approaches to set expiry
-        js_attempts = [
-            # Attempt 1: Direct input value setting
-            f"""
-            var expiryInputs = document.querySelectorAll('input[type="text"], input[type="number"]');
-            for (var i = 0; i < expiryInputs.length; i++) {{
-                if (expiryInputs[i].value && (expiryInputs[i].value.includes('m') || expiryInputs[i].value.includes('s'))) {{
-                    expiryInputs[i].value = '{expiry_seconds}';
-                    expiryInputs[i].dispatchEvent(new Event('input', {{ bubbles: true }}));
-                    expiryInputs[i].dispatchEvent(new Event('change', {{ bubbles: true }}));
-                    return true;
-                }}
-            }}
-            return false;
-            """,
-
-            # Attempt 2: Find expiry time element and set via data attribute
-            f"""
-            var timeElements = document.querySelectorAll('[class*="time"], [class*="expir"]');
-            for (var i = 0; i < timeElements.length; i++) {{
-                if (timeElements[i].hasAttribute('data-value') || timeElements[i].hasAttribute('value')) {{
-                    timeElements[i].setAttribute('data-value', '{expiry_seconds}');
-                    timeElements[i].setAttribute('value', '{expiry_seconds}');
-                    return true;
-                }}
-            }}
-            return false;
-            """,
-
-            # Attempt 3: Trigger Pocket Option's internal expiry setter (if it exists)
-            f"""
-            if (window.setExpiryTime) {{
-                window.setExpiryTime({expiry_seconds});
-                return true;
-            }}
-            if (window.setExpiry) {{
-                window.setExpiry({expiry_seconds});
-                return true;
-            }}
-            return false;
-            """
-        ]
-
-        for idx, js_code in enumerate(js_attempts):
-            try:
-                result = driver.execute_script(js_code)
-                if result:
-                    print(f"✅ JavaScript method {idx+1} succeeded!")
-                    add_log(f"✅ Expiry set to {expiry_seconds}s (JavaScript)")
-                    return True
-            except Exception as e:
-                print(f"⚠️ JavaScript method {idx+1} failed: {e}")
-                continue
-
-        print(f"⚠️ JavaScript injection failed, falling back to UI clicking...")
-    except Exception as e:
-        print(f"⚠️ JavaScript injection error: {e}")
-
-    # METHOD 2: Fallback to UI clicking (original method)
-    try:
-        from selenium.webdriver.support.ui import WebDriverWait
-        from selenium.webdriver.support import expected_conditions as EC
-
         # Convert seconds to format Pocket Option uses
         if expiry_seconds >= 60:
             expiry_minutes = expiry_seconds // 60
-            print(f"🔄 Converting {expiry_seconds}s to {expiry_minutes} minutes")
             expiry_text_options = [
                 f"{expiry_minutes}m",
                 f"{expiry_minutes} min",
@@ -2595,10 +2078,7 @@ async def set_expiry_time(driver, expiry_seconds):
         expiry_button = None
         for selector in expiry_selectors:
             try:
-                # Wait for element to be clickable (not just present)
-                expiry_button = WebDriverWait(driver, 2).until(
-                    EC.element_to_be_clickable((By.CSS_SELECTOR, selector))
-                )
+                expiry_button = driver.find_element(By.CSS_SELECTOR, selector)
                 if expiry_button:
                     break
             except:
@@ -2611,29 +2091,9 @@ async def set_expiry_time(driver, expiry_seconds):
             except:
                 return False
 
-        # Scroll element into view
-        try:
-            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", expiry_button)
-            await asyncio.sleep(0.2)
-        except:
-            pass
-
-        # Try multiple click methods
-        clicked = False
-        try:
-            # Method 1: Regular click
-            expiry_button.click()
-            clicked = True
-        except:
-            try:
-                # Method 2: JavaScript click (works when element is not interactable)
-                driver.execute_script("arguments[0].click();", expiry_button)
-                clicked = True
-            except:
-                return False
-
-        if clicked:
-            await asyncio.sleep(0.5)  # Increased wait for dropdown to open
+        # Click to open dropdown
+        expiry_button.click()
+        await asyncio.sleep(0.3)
 
         # Try to find and click the expiry option
         for expiry_text in expiry_text_options:
@@ -2649,36 +2109,15 @@ async def set_expiry_time(driver, expiry_seconds):
                 for selector in option_selectors:
                     try:
                         option = driver.find_element(By.XPATH, selector)
-
-                        # Scroll option into view
-                        try:
-                            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", option)
-                            await asyncio.sleep(0.1)
-                        except:
-                            pass
-
-                        # Try regular click first
-                        try:
-                            option.click()
-                            print(f"✅ Clicked expiry option: {expiry_text}")
-                        except Exception as e:
-                            # Fallback to JS click
-                            print(f"⚠️ Regular click failed, trying JS click: {e}")
-                            driver.execute_script("arguments[0].click();", option)
-                            print(f"✅ JS clicked expiry option: {expiry_text}")
-
+                        option.click()
                         add_log(f"✅ Expiry set to {expiry_seconds}s")
-                        print(f"🎯 Expiry confirmed: {expiry_seconds}s")
                         await asyncio.sleep(0.2)
                         return True
-                    except Exception as e:
-                        print(f"❌ Failed to click option {expiry_text}: {e}")
+                    except:
                         continue
-            except Exception as e:
-                print(f"❌ Error trying expiry text '{expiry_text}': {e}")
+            except:
                 continue
 
-        print(f"❌ Could not set expiry to {expiry_seconds}s - no matching options found")
         return False
 
     except Exception as e:
@@ -2711,13 +2150,9 @@ async def create_order(driver, action, asset, reason="", expiry=60):
 
         # 🆕 SET EXPIRY TIME BEFORE CLICKING CALL/PUT
         if settings.get('ai_dynamic_expiry_enabled', True):
-            print(f"🔍 Attempting to set expiry to {expiry}s...")
             expiry_set = await set_expiry_time(driver, expiry)
             if not expiry_set:
                 add_log(f"⚠️ Using manual expiry (auto-set failed for {expiry}s)")
-                print(f"❌ Failed to set expiry to {expiry}s")
-            else:
-                print(f"✅ Successfully set expiry to {expiry}s")
 
         driver.find_element(by=By.CLASS_NAME, value=f'btn-{action}').click()
         ACTIONS[asset] = datetime.now()
@@ -3103,28 +2538,13 @@ async def detect_account_mode(driver):
 
 async def wait_for_login(driver):
     """Wait for user to login manually"""
-    # Check if running in Electron with mode specified
-    trading_mode = os.getenv('TRADING_MODE', 'manual').lower()
-    demo_mode = os.getenv('DEMO_MODE', 'false').lower() == 'true'
-
     add_log("=" * 40)
     add_log("👉 WAITING FOR YOU TO LOGIN")
     add_log("=" * 40)
     add_log("")
     add_log("A Chrome window has opened")
     add_log("Please LOGIN to your Pocket Option account")
-
-    # Display mode based on environment
-    if trading_mode == 'demo' or demo_mode:
-        add_log("📊 Mode: DEMO TRADING (Virtual Money)")
-        add_log("Please select DEMO account (top-right)")
-    elif trading_mode == 'live':
-        add_log("💰 Mode: LIVE TRADING (Real Money)")
-        add_log("⚠️ WARNING: Real money will be used!")
-        add_log("Please select REAL account (top-right)")
-    else:
-        add_log("Choose DEMO or REAL account (top-right)")
-
+    add_log("Choose DEMO or REAL account (top-right)")
     add_log("Add 2-5 FAVORITE assets (star icon)")
     add_log("Bot will detect login automatically...")
     add_log("")
@@ -3157,45 +2577,21 @@ async def wait_for_login(driver):
 
 async def check_indicators(driver):
     """Main trading logic loop"""
-    global CANDLES, TRADE_IN_PROGRESS
-
-    # 🚀 FAST ENTRY FIX: Skip analysis if trade is currently being placed
-    # This ensures we enter on the FIRST signal, not 2-3 signals later!
-    if TRADE_IN_PROGRESS:
-        return
+    global CANDLES
 
     # Check if we have any candle data
     if not CANDLES:
         return
 
-    # 🔍 DETECT CURRENT EXPIRY from UI (what user has set)
-    detected_expiry = await detect_current_expiry(driver)
-
     # Check each asset
-    for asset, timeframes in CANDLES.items():
-        # 🚀 MULTI-TIMEFRAME: Get all available timeframes for this asset
-        # timeframes is now a dict: {60: [...candles...], 300: [...candles...], etc.}
-
-        if not isinstance(timeframes, dict):
-            # Old format (single timeframe) - skip for now
-            continue
-
-        # Get the primary timeframe (smallest period = most data)
-        # Usually 60 (1min), but could be 300 (5min) or 900 (15min)
-        primary_period = min(timeframes.keys()) if timeframes else None
-        if not primary_period:
-            continue
-
-        primary_candles = timeframes[primary_period]
-
-        if len(primary_candles) < 50:
+    for asset, candles in CANDLES.items():
+        if len(candles) < 50:
             # Log when we're still collecting data
-            if len(primary_candles) > 0 and len(primary_candles) % 10 == 0:
-                add_log(f"📊 {asset}: Collecting data ({len(primary_candles)}/50 candles)")
+            if len(candles) > 0 and len(candles) % 10 == 0:
+                add_log(f"📊 {asset}: Collecting data ({len(candles)}/50 candles)")
             continue
 
-        # Pass ALL timeframes to enhanced_strategy for multi-timeframe analysis
-        result = await enhanced_strategy(primary_candles, all_timeframes=timeframes, detected_expiry=detected_expiry)
+        result = await enhanced_strategy(candles)
 
         if not result:
             continue
@@ -3208,37 +2604,11 @@ async def check_indicators(driver):
             action, reason = result
             expiry = settings.get('ai_expiry_default', 60)
 
-        # ⏰ Check trading hours before placing trade
-        in_trading_window, window_message = is_in_trading_window()
-        if not in_trading_window:
-            # Skip this trade - outside trading hours
-            if hasattr(check_indicators, '_last_hours_log_time'):
-                # Log every 60 seconds to avoid spam
-                import time
-                if time.time() - check_indicators._last_hours_log_time > 60:
-                    add_log(f"⏸️ {window_message} - Bot running but not trading")
-                    check_indicators._last_hours_log_time = time.time()
-            else:
-                import time
-                add_log(f"⏸️ {window_message} - Bot running but not trading")
-                check_indicators._last_hours_log_time = time.time()
-            continue
+        order_created = await create_order(driver, action, asset, reason, expiry)
 
-        # 🚀 FAST ENTRY FIX: Lock signals NOW - this is the FIRST valid signal!
-        # No more analysis until this trade completes = optimal entry timing
-        TRADE_IN_PROGRESS = True
-        print(f"🔒 Trade lock engaged - entering on FIRST signal!")
-
-        try:
-            order_created = await create_order(driver, action, asset, reason, expiry)
-
-            if order_created:
-                await asyncio.sleep(1)
-                return
-        finally:
-            # Always unlock, even if trade fails
-            TRADE_IN_PROGRESS = False
-            print(f"🔓 Trade lock released - resuming analysis")
+        if order_created:
+            await asyncio.sleep(1)
+            return
 
 
 async def trading_loop():
@@ -3483,109 +2853,6 @@ def get_chart_data():
 
 
 # ========================================================================
-# TRADING HOURS SCHEDULER API ENDPOINTS
-# ========================================================================
-
-def is_in_trading_window():
-    """Check if current time is within configured trading hours"""
-    from datetime import datetime
-    import pytz
-
-    if not settings.get('trading_hours_enabled', False):
-        return True, "Trading hours restriction disabled"
-
-    try:
-        # Get timezone
-        timezone_str = settings.get('trading_hours_timezone', 'UTC')
-        tz = pytz.timezone(timezone_str)
-
-        # Get current time in the selected timezone
-        now = datetime.now(tz)
-        current_time = now.strftime('%H:%M')
-
-        # Get time ranges
-        time_ranges = settings.get('trading_hours_ranges', [])
-
-        if not time_ranges:
-            return False, "No trading time windows configured"
-
-        # Check if current time falls within any range
-        for time_range in time_ranges:
-            start_time = time_range.get('start', '00:00')
-            end_time = time_range.get('end', '23:59')
-
-            # Handle ranges that cross midnight
-            if start_time <= end_time:
-                # Normal range (e.g., 09:00 to 17:00)
-                if start_time <= current_time <= end_time:
-                    return True, f"In trading window: {start_time} - {end_time} ({timezone_str})"
-            else:
-                # Range crosses midnight (e.g., 22:00 to 02:00)
-                if current_time >= start_time or current_time <= end_time:
-                    return True, f"In trading window: {start_time} - {end_time} ({timezone_str})"
-
-        # Not in any trading window
-        next_window = time_ranges[0] if time_ranges else None
-        if next_window:
-            return False, f"Outside trading hours. Next window: {next_window['start']} - {next_window['end']} ({timezone_str})"
-        else:
-            return False, "Outside trading hours"
-
-    except Exception as e:
-        print(f"Error checking trading hours: {e}")
-        return True, f"Error checking trading hours: {e}"
-
-
-@app.route('/api/trading-hours', methods=['GET'])
-def get_trading_hours():
-    """Get trading hours settings"""
-    return jsonify({
-        'enabled': settings.get('trading_hours_enabled', False),
-        'timezone': settings.get('trading_hours_timezone', 'UTC'),
-        'time_ranges': settings.get('trading_hours_ranges', [{'start': '09:00', 'end': '17:00'}])
-    })
-
-
-@app.route('/api/trading-hours', methods=['POST'])
-def update_trading_hours():
-    """Update trading hours settings"""
-    global settings
-    try:
-        data = request.json
-
-        # Update settings
-        settings['trading_hours_enabled'] = data.get('enabled', False)
-        settings['trading_hours_timezone'] = data.get('timezone', 'UTC')
-        settings['trading_hours_ranges'] = data.get('time_ranges', [])
-
-        # Save to file
-        try:
-            with open('bot_settings.json', 'w') as f:
-                json.dump(settings, f, indent=2)
-            add_log(f"⏰ Trading hours updated: {'ENABLED' if data.get('enabled') else 'DISABLED'} ({data.get('timezone', 'UTC')})")
-        except Exception as save_error:
-            print(f"Warning: Could not save trading hours to file: {save_error}")
-
-        return jsonify({'success': True, 'message': 'Trading hours updated'})
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return jsonify({'success': False, 'error': str(e)})
-
-
-@app.route('/api/trading-hours/status', methods=['GET'])
-def get_trading_hours_status():
-    """Check if currently in trading window"""
-    in_window, message = is_in_trading_window()
-    return jsonify({
-        'in_trading_window': in_window,
-        'message': message,
-        'enabled': settings.get('trading_hours_enabled', False),
-        'timezone': settings.get('trading_hours_timezone', 'UTC')
-    })
-
-
-# ========================================================================
 # ULTRA SYSTEMS API ENDPOINTS
 # ========================================================================
 
@@ -3622,104 +2889,37 @@ def create_strategy():
     try:
         strategy_data = request.json
         success, message = strategy_builder.create_strategy(strategy_data)
-
-        # Sync both builders after creation
-        if success:
-            if advanced_strategy_builder:
-                advanced_strategy_builder.reload_strategies()
-
         return jsonify({'success': success, 'message': message})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
 
 
-@app.route('/api/strategies/toggle/<path:strategy_id>', methods=['POST'])
+@app.route('/api/strategies/toggle/<strategy_id>', methods=['POST'])
 def toggle_strategy(strategy_id):
     """Toggle strategy active state"""
     if not strategy_builder:
-        return jsonify({'success': False, 'message': 'Strategy builder not available'}), 500
+        return jsonify({'success': False})
 
     try:
         data = request.json
         active = data.get('active', False)
-        print(f"🔄 Toggle strategy '{strategy_id}' to {'ACTIVE' if active else 'INACTIVE'}")
         success, message = strategy_builder.update_strategy(strategy_id, {'active': active})
-
-        # Sync both builders after toggle
-        if success:
-            if advanced_strategy_builder:
-                advanced_strategy_builder.reload_strategies()
-                print(f"✅ Builders synced after toggle")
-
-        return jsonify({'success': success, 'message': message}), 200
+        return jsonify({'success': success, 'message': message})
     except Exception as e:
-        print(f"❌ Error toggling strategy: {e}")
-        return jsonify({'success': False, 'message': str(e)}), 500
+        return jsonify({'success': False, 'message': str(e)})
 
 
-@app.route('/api/strategies/delete/<path:strategy_id>', methods=['DELETE'])
+@app.route('/api/strategies/delete/<strategy_id>', methods=['DELETE'])
 def delete_strategy(strategy_id):
-    """Delete a strategy completely from both builders"""
-    print(f"\n🗑️  DELETE REQUEST for strategy: '{strategy_id}'")
-
-    if not strategy_builder and not advanced_strategy_builder:
-        return jsonify({'success': False, 'message': 'Strategy builders not available'}), 500
+    """Delete a strategy"""
+    if not strategy_builder:
+        return jsonify({'success': False})
 
     try:
-        success = False
-        message = ""
-        found_in_any_builder = False
-
-        # Check both builders to see if strategy exists anywhere
-        print(f"📋 Checking advanced builder...")
-        if advanced_strategy_builder:
-            if strategy_id in advanced_strategy_builder.strategies:
-                found_in_any_builder = True
-                success, message = advanced_strategy_builder.delete_strategy(strategy_id)
-                if success:
-                    print(f"✅ Deleted '{strategy_id}' from advanced builder")
-            else:
-                print(f"⚠️  Strategy '{strategy_id}' not found in advanced builder")
-
-        # If not found in advanced builder, try basic builder
-        print(f"📋 Checking basic builder...")
-        if not success and strategy_builder:
-            if strategy_id in strategy_builder.strategies:
-                found_in_any_builder = True
-                success, message = strategy_builder.delete_strategy(strategy_id)
-                if success:
-                    print(f"✅ Deleted '{strategy_id}' from basic builder")
-            else:
-                print(f"⚠️  Strategy '{strategy_id}' not found in basic builder")
-
-        # If strategy wasn't found in any builder, treat as already deleted
-        if not found_in_any_builder:
-            print(f"⚠️  Strategy '{strategy_id}' not found in any builder - treating as already deleted")
-            # Return success=True so UI removes the stale card
-            return jsonify({
-                'success': True,
-                'message': f"Strategy '{strategy_id}' not found (already deleted or doesn't exist)",
-                'was_cached': True
-            }), 200
-
-        # Sync both builders by reloading from file
-        if success:
-            if strategy_builder:
-                strategy_builder.reload_strategies()
-                print(f"🔄 Basic builder reloaded")
-            if advanced_strategy_builder:
-                advanced_strategy_builder.reload_strategies()
-                print(f"🔄 Advanced builder reloaded")
-
-            return jsonify({'success': True, 'message': message}), 200
-        else:
-            return jsonify({'success': False, 'message': message}), 200
-
+        success, message = strategy_builder.delete_strategy(strategy_id)
+        return jsonify({'success': success, 'message': message})
     except Exception as e:
-        print(f"❌ Error deleting strategy: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({'success': False, 'message': str(e)}), 500
+        return jsonify({'success': False, 'message': str(e)})
 
 
 @app.route('/api/strategies/execution-mode', methods=['POST'])
@@ -3737,21 +2937,19 @@ def set_execution_mode():
         return jsonify({'success': False, 'message': str(e)})
 
 
-@app.route('/api/strategies/priority/<path:strategy_id>', methods=['POST'])
+@app.route('/api/strategies/priority/<strategy_id>', methods=['POST'])
 def update_strategy_priority(strategy_id):
     """Update strategy priority (1-10)"""
     if not advanced_strategy_builder:
-        return jsonify({'success': False, 'message': 'Advanced strategy builder not available'}), 500
+        return jsonify({'success': False, 'message': 'Advanced strategy builder not available'})
 
     try:
         data = request.json
         priority = data.get('priority', 5)
-        print(f"📊 Update priority for '{strategy_id}' to {priority}")
         success, message = advanced_strategy_builder.update_strategy_priority(strategy_id, priority)
-        return jsonify({'success': success, 'message': message}), 200
+        return jsonify({'success': success, 'message': message})
     except Exception as e:
-        print(f"❌ Error updating priority: {e}")
-        return jsonify({'success': False, 'message': str(e)}), 500
+        return jsonify({'success': False, 'message': str(e)})
 
 
 @app.route('/api/strategies/import', methods=['POST'])
@@ -3904,27 +3102,24 @@ def export_strategies():
         return jsonify({'success': False, 'message': str(e)})
 
 
-@app.route('/api/strategies/export/<path:strategy_id>', methods=['GET'])
+@app.route('/api/strategies/export/<strategy_id>', methods=['GET'])
 def export_single_strategy(strategy_id):
     """Export a single strategy as JSON"""
     if not strategy_builder:
-        return jsonify({'success': False, 'message': 'Strategy builder not available'}), 500
+        return jsonify({'success': False, 'message': 'Strategy builder not available'})
 
     try:
-        print(f"📤 Export request for strategy: '{strategy_id}'")
         strategies = strategy_builder.get_all_strategies()
         if strategy_id not in strategies:
-            print(f"⚠️  Strategy '{strategy_id}' not found for export")
-            return jsonify({'success': False, 'message': f"Strategy '{strategy_id}' not found"}), 404
+            return jsonify({'success': False, 'message': f"Strategy '{strategy_id}' not found"})
 
         return jsonify({
             'success': True,
             'id': strategy_id,
             'data': strategies[strategy_id]
-        }), 200
+        })
     except Exception as e:
-        print(f"❌ Error exporting strategy: {e}")
-        return jsonify({'success': False, 'message': str(e)}), 500
+        return jsonify({'success': False, 'message': str(e)})
 
 
 @app.route('/api/strategies/template/<template_name>', methods=['GET'])

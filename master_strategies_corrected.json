@@ -1,0 +1,431 @@
+{
+  "momentum_reversal_master": {
+    "name": "Momentum Reversal Master",
+    "description": "Catches strong reversals using RSI divergence, volume analysis, and momentum indicators",
+    "action": "call",
+    "active": false,
+    "priority": 10,
+    "asset_filter": {
+      "enabled": true,
+      "whitelist": ["EUR/USD", "GBP/USD", "USD/JPY", "AUD/USD"],
+      "blacklist": []
+    },
+    "condition_groups": [
+      {
+        "logic": "AND",
+        "conditions": [
+          {
+            "indicator": "rsi",
+            "operator": "<",
+            "value": 25,
+            "weight": 2.0
+          },
+          {
+            "indicator": "macd_histogram",
+            "operator": ">",
+            "value": 0,
+            "weight": 3.0
+          }
+        ]
+      },
+      {
+        "logic": "AND",
+        "conditions": [
+          {
+            "indicator": "stochastic_k",
+            "operator": "<",
+            "value": 20,
+            "weight": 1.5
+          }
+        ]
+      }
+    ],
+    "regime_filter": ["trending_down", "ranging"],
+    "signal_strength": {
+      "condition_weights": true,
+      "min_confidence": 80
+    },
+    "risk_management": {
+      "position_size_percent": 1.5,
+      "max_consecutive_losses": 2,
+      "max_trades_per_hour": 5,
+      "max_trades_per_day": 20,
+      "stop_on_drawdown_percent": 3.0,
+      "take_profit_target_percent": 15.0
+    },
+    "time_filter": {
+      "enabled": true,
+      "timezone": "UTC",
+      "allowed_hours": [[8, 20]]
+    },
+    "timeframe_alignment": true,
+    "performance": {
+      "wins": 0,
+      "losses": 0,
+      "total_trades": 0,
+      "win_rate": 0.0,
+      "avg_profit_per_trade": 0.0,
+      "total_profit": 0.0,
+      "consecutive_losses": 0,
+      "max_drawdown": 0.0,
+      "sharpe_ratio": 0.0,
+      "trades_today": 0,
+      "trades_this_hour": 0,
+      "last_trade_time": null
+    }
+  },
+  "trend_continuation_elite": {
+    "name": "Trend Continuation Elite",
+    "description": "Rides strong trends using moving averages, ADX, and momentum confirmation",
+    "action": "call",
+    "active": false,
+    "priority": 9,
+    "asset_filter": {
+      "enabled": false,
+      "whitelist": [],
+      "blacklist": []
+    },
+    "condition_groups": [
+      {
+        "logic": "AND",
+        "conditions": [
+          {
+            "indicator": "adx",
+            "operator": ">",
+            "value": 25,
+            "weight": 2.5
+          },
+          {
+            "indicator": "rsi",
+            "operator": ">",
+            "value": 50,
+            "weight": 1.5
+          }
+        ]
+      },
+      {
+        "logic": "AND",
+        "conditions": [
+          {
+            "indicator": "macd_histogram",
+            "operator": ">",
+            "value": 0,
+            "weight": 2.0
+          }
+        ]
+      }
+    ],
+    "regime_filter": ["trending_up"],
+    "signal_strength": {
+      "condition_weights": true,
+      "min_confidence": 75
+    },
+    "risk_management": {
+      "position_size_percent": 2.0,
+      "max_consecutive_losses": 3,
+      "max_trades_per_hour": 8,
+      "max_trades_per_day": 30,
+      "stop_on_drawdown_percent": 5.0,
+      "take_profit_target_percent": 20.0
+    },
+    "time_filter": {
+      "enabled": true,
+      "timezone": "UTC",
+      "allowed_hours": [[6, 22]]
+    },
+    "timeframe_alignment": true,
+    "performance": {
+      "wins": 0,
+      "losses": 0,
+      "total_trades": 0,
+      "win_rate": 0.0,
+      "avg_profit_per_trade": 0.0,
+      "total_profit": 0.0,
+      "consecutive_losses": 0,
+      "max_drawdown": 0.0,
+      "sharpe_ratio": 0.0,
+      "trades_today": 0,
+      "trades_this_hour": 0,
+      "last_trade_time": null
+    }
+  },
+  "volatility_breakout_sniper": {
+    "name": "Volatility Breakout Sniper",
+    "description": "Captures explosive moves using Bollinger Bands and momentum",
+    "action": "call",
+    "active": false,
+    "priority": 8,
+    "asset_filter": {
+      "enabled": true,
+      "whitelist": ["EUR/USD", "GBP/USD", "USD/JPY", "XAU/USD"],
+      "blacklist": []
+    },
+    "condition_groups": [
+      {
+        "logic": "AND",
+        "conditions": [
+          {
+            "indicator": "bollinger_position",
+            "operator": ">",
+            "value": 80,
+            "weight": 3.0
+          },
+          {
+            "indicator": "rsi",
+            "operator": ">",
+            "value": 60,
+            "weight": 2.0
+          }
+        ]
+      }
+    ],
+    "regime_filter": ["trending_up", "high_volatility"],
+    "signal_strength": {
+      "condition_weights": true,
+      "min_confidence": 85
+    },
+    "risk_management": {
+      "position_size_percent": 1.0,
+      "max_consecutive_losses": 2,
+      "max_trades_per_hour": 3,
+      "max_trades_per_day": 15,
+      "stop_on_drawdown_percent": 4.0,
+      "take_profit_target_percent": 25.0
+    },
+    "time_filter": {
+      "enabled": true,
+      "timezone": "UTC",
+      "allowed_hours": [[7, 19]]
+    },
+    "timeframe_alignment": true,
+    "performance": {
+      "wins": 0,
+      "losses": 0,
+      "total_trades": 0,
+      "win_rate": 0.0,
+      "avg_profit_per_trade": 0.0,
+      "total_profit": 0.0,
+      "consecutive_losses": 0,
+      "max_drawdown": 0.0,
+      "sharpe_ratio": 0.0,
+      "trades_today": 0,
+      "trades_this_hour": 0,
+      "last_trade_time": null
+    }
+  },
+  "mean_reversion_precision": {
+    "name": "Mean Reversion Precision",
+    "description": "Trades extreme deviations with high probability of snapback",
+    "action": "put",
+    "active": false,
+    "priority": 8,
+    "asset_filter": {
+      "enabled": true,
+      "whitelist": ["EUR/USD", "GBP/USD", "USD/JPY", "AUD/USD", "USD/CAD"],
+      "blacklist": ["XAU/USD", "XAG/USD"]
+    },
+    "condition_groups": [
+      {
+        "logic": "AND",
+        "conditions": [
+          {
+            "indicator": "rsi",
+            "operator": ">",
+            "value": 75,
+            "weight": 2.0
+          },
+          {
+            "indicator": "bollinger_position",
+            "operator": ">",
+            "value": 90,
+            "weight": 2.5
+          },
+          {
+            "indicator": "stochastic_k",
+            "operator": ">",
+            "value": 80,
+            "weight": 1.5
+          }
+        ]
+      }
+    ],
+    "regime_filter": ["ranging", "trending_up"],
+    "signal_strength": {
+      "condition_weights": true,
+      "min_confidence": 78
+    },
+    "risk_management": {
+      "position_size_percent": 1.5,
+      "max_consecutive_losses": 3,
+      "max_trades_per_hour": 6,
+      "max_trades_per_day": 25,
+      "stop_on_drawdown_percent": 4.5,
+      "take_profit_target_percent": 18.0
+    },
+    "time_filter": {
+      "enabled": true,
+      "timezone": "UTC",
+      "allowed_hours": [[9, 21]]
+    },
+    "timeframe_alignment": true,
+    "performance": {
+      "wins": 0,
+      "losses": 0,
+      "total_trades": 0,
+      "win_rate": 0.0,
+      "avg_profit_per_trade": 0.0,
+      "total_profit": 0.0,
+      "consecutive_losses": 0,
+      "max_drawdown": 0.0,
+      "sharpe_ratio": 0.0,
+      "trades_today": 0,
+      "trades_this_hour": 0,
+      "last_trade_time": null
+    }
+  },
+  "multi_timeframe_confluence": {
+    "name": "Multi-Timeframe Confluence",
+    "description": "Combines signals from multiple indicators for ultra-high probability trades",
+    "action": "call",
+    "active": false,
+    "priority": 10,
+    "asset_filter": {
+      "enabled": true,
+      "whitelist": ["EUR/USD", "GBP/USD", "USD/JPY", "AUD/USD", "USD/CAD"],
+      "blacklist": []
+    },
+    "condition_groups": [
+      {
+        "logic": "AND",
+        "conditions": [
+          {
+            "indicator": "rsi",
+            "operator": ">",
+            "value": 45,
+            "weight": 1.5
+          },
+          {
+            "indicator": "rsi",
+            "operator": "<",
+            "value": 65,
+            "weight": 1.5
+          },
+          {
+            "indicator": "macd_histogram",
+            "operator": ">",
+            "value": 0,
+            "weight": 2.0
+          }
+        ]
+      },
+      {
+        "logic": "AND",
+        "conditions": [
+          {
+            "indicator": "adx",
+            "operator": ">",
+            "value": 20,
+            "weight": 2.0
+          }
+        ]
+      }
+    ],
+    "regime_filter": ["trending_up", "trending_down"],
+    "signal_strength": {
+      "condition_weights": true,
+      "min_confidence": 88
+    },
+    "risk_management": {
+      "position_size_percent": 2.5,
+      "max_consecutive_losses": 2,
+      "max_trades_per_hour": 2,
+      "max_trades_per_day": 12,
+      "stop_on_drawdown_percent": 4.0,
+      "take_profit_target_percent": 30.0
+    },
+    "time_filter": {
+      "enabled": true,
+      "timezone": "UTC",
+      "allowed_hours": [[7, 21]]
+    },
+    "timeframe_alignment": true,
+    "performance": {
+      "wins": 0,
+      "losses": 0,
+      "total_trades": 0,
+      "win_rate": 0.0,
+      "avg_profit_per_trade": 0.0,
+      "total_profit": 0.0,
+      "consecutive_losses": 0,
+      "max_drawdown": 0.0,
+      "sharpe_ratio": 0.0,
+      "trades_today": 0,
+      "trades_this_hour": 0,
+      "last_trade_time": null
+    }
+  },
+  "smart_money_flow": {
+    "name": "Smart Money Flow",
+    "description": "Follows institutional order flow using RSI and MACD signals",
+    "action": "call",
+    "active": false,
+    "priority": 9,
+    "asset_filter": {
+      "enabled": false,
+      "whitelist": [],
+      "blacklist": []
+    },
+    "condition_groups": [
+      {
+        "logic": "AND",
+        "conditions": [
+          {
+            "indicator": "rsi",
+            "operator": "<",
+            "value": 30,
+            "weight": 2.0
+          },
+          {
+            "indicator": "macd_histogram",
+            "operator": ">",
+            "value": 0,
+            "weight": 2.5
+          }
+        ]
+      }
+    ],
+    "regime_filter": ["trending_up", "ranging"],
+    "signal_strength": {
+      "condition_weights": true,
+      "min_confidence": 82
+    },
+    "risk_management": {
+      "position_size_percent": 1.8,
+      "max_consecutive_losses": 2,
+      "max_trades_per_hour": 4,
+      "max_trades_per_day": 18,
+      "stop_on_drawdown_percent": 3.5,
+      "take_profit_target_percent": 22.0
+    },
+    "time_filter": {
+      "enabled": true,
+      "timezone": "UTC",
+      "allowed_hours": [[8, 20]]
+    },
+    "timeframe_alignment": true,
+    "performance": {
+      "wins": 0,
+      "losses": 0,
+      "total_trades": 0,
+      "win_rate": 0.0,
+      "avg_profit_per_trade": 0.0,
+      "total_profit": 0.0,
+      "consecutive_losses": 0,
+      "max_drawdown": 0.0,
+      "sharpe_ratio": 0.0,
+      "trades_today": 0,
+      "trades_this_hour": 0,
+      "last_trade_time": null
+    }
+  }
+}
