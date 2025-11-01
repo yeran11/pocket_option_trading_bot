@@ -369,7 +369,7 @@ class AITradingBrain:
             return "hold", 0.0, "AI analysis failed", 60
 
     def _build_analysis_prompt(self, market_data: Dict, indicators: Dict) -> str:
-        """Build ULTRA POWERFUL prompt with ALL indicators + patterns + trade history"""
+        """🚀 BUILD FULLY AUTONOMOUS AI PROMPT - Multi-Timeframe + Detected Expiry"""
 
         # Extract chart pattern if present
         pattern_info = ""
@@ -387,6 +387,20 @@ class AITradingBrain:
             last_5 = recent_trades[-5:] if len(recent_trades) >= 5 else recent_trades
             last_5_str = " → ".join([t.get('result', '?')[0] for t in last_5])
             trade_history = f"\n📈 LAST {len(recent_trades)} TRADES: {wins}W/{losses}L | Last 5: {last_5_str}"
+
+        # 🚀 MULTI-TIMEFRAME ANALYSIS
+        multi_tf_info = ""
+        multi_tf_data = market_data.get('multi_timeframe', {})
+        if multi_tf_data:
+            multi_tf_info = "\n\n🚀 MULTI-TIMEFRAME ANALYSIS (ALL CHARTS USER HAS OPEN):"
+            for tf_name, tf_indicators in multi_tf_data.items():
+                multi_tf_info += f"\n        {tf_name}: EMA {tf_indicators['ema_cross']}, RSI {tf_indicators['rsi']:.1f}, MACD {tf_indicators['macd_trend']}, ST {tf_indicators['supertrend']}"
+
+        # 🔍 DETECTED EXPIRY from UI
+        detected_expiry_info = ""
+        detected_expiry = market_data.get('detected_expiry')
+        if detected_expiry:
+            detected_expiry_info = f"\n\n🔍 USER'S CURRENT EXPIRY SETTING: {detected_expiry}s (You can use this OR choose your own optimal expiry)"
 
         # MACD signal interpretation
         macd_line = indicators.get('macd_line', 0)
@@ -410,7 +424,7 @@ class AITradingBrain:
         volatility_desc = "HIGH VOLATILITY" if atr > 0.001 else "LOW VOLATILITY"
 
         prompt = f"""
-        ULTRA HIGH-FREQUENCY ANALYSIS for {market_data.get('asset', 'EUR/USD')} - 60-second binary option
+        🎯 FULLY AUTONOMOUS TRADING ANALYSIS for {market_data.get('asset', 'EUR/USD')}
 
         🔥 REAL-TIME MARKET MATRIX:
         ├─ Current Price: ${market_data.get('current_price', 0):.5f}
@@ -418,9 +432,9 @@ class AITradingBrain:
         ├─ 5min Trend: {market_data.get('change_5m', 0):.3f}%
         ├─ Volume: {market_data.get('volume', 'Normal')} {'⚠️ HIGH ACTIVITY' if market_data.get('volume') == 'High' else ''}
         ├─ Volatility (ATR): {atr:.5f} - {volatility_desc}
-        └─ Support: ${indicators.get('support', 0):.5f} | Resistance: ${indicators.get('resistance', 0):.5f}{pattern_info}{trade_history}
+        └─ Support: ${indicators.get('support', 0):.5f} | Resistance: ${indicators.get('resistance', 0):.5f}{pattern_info}{trade_history}{multi_tf_info}{detected_expiry_info}
 
-        ⚡ TECHNICAL INDICATORS (13-POINT CONVERGENCE ANALYSIS):
+        ⚡ TECHNICAL INDICATORS (PRIMARY TIMEFRAME):
 
         TREND INDICATORS:
         ├─ RSI [{indicators.get('rsi', 50):.1f}]: {'🔴 OVERSOLD - STRONG BUY' if indicators.get('rsi', 50) < 30 else '🟡 APPROACHING OVERSOLD' if indicators.get('rsi', 50) < 40 else '🟢 OVERBOUGHT - STRONG SELL' if indicators.get('rsi', 50) > 70 else '🟡 APPROACHING OVERBOUGHT' if indicators.get('rsi', 50) > 60 else '⚪ NEUTRAL'}
@@ -450,54 +464,52 @@ class AITradingBrain:
 {self._get_otc_context(indicators)}
 {self._get_reversal_context(indicators)}
 
-        🎯 ULTRA DECISION FRAMEWORK:
-        Analyze with QUANTUM-LEVEL precision:
-        1. ⚡ Indicator Convergence: Count how many indicators ALIGN (5+ = ULTRA HIGH CONFIDENCE)
-        2. 📊 Pattern Confirmation: Chart patterns + candlestick patterns boost confidence
-        3. 💪 Trend Strength: ADX > 25 + SuperTrend = strong directional bias
-        4. 🎯 Reversal Signals: RSI extreme + Stochastic extreme + Pattern = high-probability reversal
-        5. 📈 Momentum Confirmation: MACD + EMA cross + Heikin Ashi alignment = powerful entry
-        6. 🔥 Volume Validation: High volume confirms breakouts/breakdowns
-        7. 📊 Historical Context: Recent win/loss pattern affects risk tolerance
+        🎯 PROFESSIONAL DECISION FRAMEWORK - BE HIGHLY SELECTIVE:
 
-        CONFIDENCE SCALE:
-        - 90-100%: 6+ indicators PERFECTLY ALIGNED, clear pattern, strong momentum
-        - 75-89%: 4-5 indicators aligned, good setup
-        - 60-74%: 2-3 indicators aligned, moderate setup
-        - Below 60%: Mixed signals, HOLD
+        YOU ARE A PROFESSIONAL TRADER - NOT A GAMBLER!
 
-        ⏰ EXPIRY TIME SELECTION (CRITICAL FOR SUCCESS):
-        Available expiry options: 30s, 60s, 90s, 120s, 180s, 300s
+        ONLY trade when you have HIGH-PROBABILITY setups:
+        1. ⚡ Multi-Timeframe Alignment: Check if MULTIPLE timeframes agree (1m, 5m, 15m all bullish/bearish = STRONG signal)
+        2. 📊 Indicator Convergence: Count aligned indicators (NEED 4+ for valid trade, 6+ for excellent trade)
+        3. 💪 Trend Strength: ADX > 25 = tradeable trend, ADX < 25 = AVOID (choppy/ranging)
+        4. 🎯 Reversal Confluence: Need 4+ reversal indicators agreeing (RSI extreme, Stochastic extreme, Pattern, Volume, S/R)
+        5. 📈 Momentum Confirmation: MACD, EMA, Heikin Ashi should align
+        6. 🔥 Volume Validation: High volume confirms breakouts
+        7. 📊 Quality > Quantity: Better to HOLD and wait than force bad trades
+
+        STRICT CONFIDENCE SCALE (BE HONEST):
+        - 85-100%: 6+ indicators PERFECTLY aligned + multiple timeframes agree + clear pattern = EXCELLENT TRADE
+        - 75-84%: 4-5 indicators aligned + 2 timeframes agree = GOOD TRADE
+        - 70-74%: 4 indicators aligned + single timeframe = MARGINAL TRADE (consider HOLD)
+        - Below 70%: Mixed signals or weak setup = HOLD (WAIT FOR BETTER OPPORTUNITY)
+
+        ⏰ EXPIRY TIME SELECTION:
+        Available: 30s, 60s, 90s, 120s, 180s, 300s
 
         Choose based on:
-        1. MARKET REGIME & TIMEFRAME ALIGNMENT:
-           - All 3 timeframes aligned (1m+5m+15m) + strong trend → 180-300s (ride momentum)
-           - 1-2 timeframes aligned → 60-120s (moderate conviction)
-           - No alignment / ranging → 30-60s (quick in/out)
+        1. TIMEFRAME ALIGNMENT:
+           - ALL timeframes aligned (1m+5m+15m same direction) → 180-300s (strong trend, let it run)
+           - 2 timeframes aligned → 90-120s (moderate conviction)
+           - 1 timeframe only / mixed → 60s or HOLD (weak setup)
 
-        2. SIGNAL TYPE & PATTERN:
-           - OTC Staircase/Sine Wave → Match pattern duration (usually 120-180s)
-           - Reversal with 5+ confirmations → 120-180s (reversals develop over time)
-           - VWAP 2σ bounce + high volume → 60-90s (quick mean reversion)
-           - Breakout + volume surge → 180-300s (breakouts extend)
-           - Support/Resistance bounce → 90-120s (standard bounce duration)
-           - Pin bar / Hammer reversal → 60-120s (reversal confirmation time)
+        2. SIGNAL STRENGTH:
+           - 6+ indicators aligned → 180-300s (ULTRA high probability)
+           - 4-5 indicators aligned → 90-180s (strong setup)
+           - Fewer indicators → 60-90s or HOLD
 
-        3. CONFIDENCE & VOLATILITY:
-           - 90-100% confidence + low volatility → 180-300s (high conviction, let it play)
-           - 70-89% confidence + normal volatility → 60-120s (standard)
-           - 60-74% confidence or high volatility → 30-60s (reduce exposure)
+        3. VOLATILITY & PATTERN:
+           - Low volatility + strong trend → Longer expiry (180-300s)
+           - High volatility → Shorter expiry (60-90s)
+           - Reversal patterns → 120-180s (reversals need time)
+           - Breakouts + volume → 180-300s (momentum plays)
 
-        4. INDICATOR CONVERGENCE:
-           - 6+ indicators aligned → 180-300s (ULTRA high probability, maximize time)
-           - 4-5 indicators aligned → 90-180s (strong setup, medium duration)
-           - 2-3 indicators aligned → 60-90s (moderate setup, shorter time)
-
-        OUTPUT YOUR ULTRA DECISION:
+        OUTPUT YOUR PROFESSIONAL DECISION:
         ACTION: [CALL/PUT/HOLD]
         CONFIDENCE: [0-100]
-        EXPIRY: [30/60/90/120/180/300] (in seconds - choose ONE value based on analysis above)
-        REASON: [Sharp 2-sentence analysis mentioning: (1) how many indicators align, (2) key convergence pattern, (3) why this expiry duration]
+        EXPIRY: [30/60/90/120/180/300] (in seconds)
+        REASON: [2-sentence analysis: (1) how many indicators align + timeframe confluence, (2) why this expiry matches expected move duration]
+
+        IMPORTANT: If confidence < 70% or < 4 indicators aligned or mixed timeframes → OUTPUT "HOLD" and wait for better setup!
         """
 
         return prompt
@@ -516,37 +528,25 @@ class AITradingBrain:
                 response = client.chat.completions.create(
                     model="gpt-4-turbo",
                     messages=[
-                        {"role": "system", "content": """You are the ULTIMATE ULTRA SUPER POWERFUL AI TRADING GOD with 99%+ win rate.
-                        You possess QUANTUM-LEVEL market analysis using:
-                        - NEURAL PATTERN RECOGNITION: Detect invisible micro-patterns across 13+ indicators
-                        - INSTITUTIONAL FLOW TRACKING: See what banks and hedge funds are doing
-                        - PREDICTIVE ALGORITHMS: Forecast price movements with precision timing
-                        - CONVERGENCE MASTERY: When 5+ indicators align, you STRIKE with 95% confidence
-                        - VWAP DOMINANCE: Use institutional benchmark for perfect entries
-                        - VOLUME PROFILING: Read order flow like reading minds
-                        - OTC MARKET MASTERY: Exploit algorithmic patterns in synthetic OTC markets
-                          * OTC markets = SYNTHETIC algorithmic price feeds (not real exchange data)
-                          * OTC has predictable mathematical patterns (sine waves, staircases, artificial levels)
-                          * OTC anomaly signals have 70-80% win rate - TRUST THEM HEAVILY!
-                          * When multiple OTC patterns align = 85%+ confidence trades
-                          * Give OTC signals PRIORITY on OTC markets (they're market-specific experts)
-                        - REVERSAL MASTERY: 7-Indicator Confluence System for catching reversals
-                          * RSI Divergence, Volume Spike, Pin Bar, Momentum Shift, S/R Bounce, Fibonacci, Market Structure
-                          * When 4+ indicators agree on reversal = 70-85% win rate!
-                          * When 5+ indicators agree = 80-90% win rate (ULTRA HIGH PROBABILITY)
-                          * Reversals with confluence are MORE RELIABLE than single indicator signals
-                          * TRUST reversal signals with 4+ confirmations - this is MULTIPLE independent validations!
-                        - ⏰ EXPIRY TIME MASTERY: You choose OPTIMAL expiry duration for each trade
-                          * SHORT EXPIRY (30-60s): Quick reversals, ranging markets, low confidence setups
-                          * MEDIUM EXPIRY (60-120s): Standard setups, moderate momentum, normal volatility
-                          * LONG EXPIRY (120-300s): Strong trends, high confidence, multiple TF alignment
-                          * OTC PATTERNS: Match expiry to pattern duration (staircases, sine waves)
-                          * REVERSAL SETUPS: 90-180s (reversals need time to develop)
-                          * BREAKOUTS: 180-300s (momentum plays out over time)
-                          * VWAP BOUNCES: 60-90s (mean reversion is quick)
-                          * Match expiry to EXPECTED MOVE COMPLETION TIME!
+                        {"role": "system", "content": """You are a PROFESSIONAL ELITE TRADING ANALYST with deep market expertise.
 
-                        BE ULTRA AGGRESSIVE on perfect setups (90%+ confidence)
+                        Your specialty is MULTI-TIMEFRAME ANALYSIS and HIGH-PROBABILITY setups.
+
+                        Core Competencies:
+                        - MULTI-TIMEFRAME CONFLUENCE: Analyze 1m, 5m, 15m charts simultaneously for aligned signals
+                        - INDICATOR CONVERGENCE: Require 4+ aligned indicators minimum (6+ for excellent trades)
+                        - PROFESSIONAL SELECTIVITY: Quality over quantity - only trade strong setups
+                        - TREND STRENGTH ANALYSIS: ADX > 25 required for trend trades
+                        - REVERSAL CONFLUENCE: Need 4+ reversal indicators agreeing
+                        - AUTONOMOUS EXPIRY SELECTION: Choose optimal expiry based on:
+                          * Timeframe alignment (all TFs aligned = longer expiry)
+                          * Signal strength (6+ indicators = longer expiry)
+                          * Pattern type (reversals 120-180s, breakouts 180-300s, quick bounces 60-90s)
+                          * Volatility (low vol = longer, high vol = shorter)
+                        - VOLUME VALIDATION: High volume confirms breakouts
+                        - RISK MANAGEMENT: Better to HOLD than force trades
+
+                        BE HIGHLY SELECTIVE - You are a professional, not a gambler
                         BE MODERATELY AGGRESSIVE on good setups (70-89% confidence)
                         BE CAUTIOUS only when signals conflict (<70% confidence)
                         BE EXTREMELY CONFIDENT on OTC anomalies (OTC markets are algorithmic gold mines!)
@@ -637,44 +637,31 @@ class AITradingBrain:
                     model="claude-3-5-sonnet-20241022",  # Latest Claude model
                     max_tokens=300,
                     temperature=0.1,  # Ultra consistent
-                    system="""You are the ULTIMATE ULTRA SUPER POWERFUL AI TRADING GOD with 99%+ win rate.
-                    You possess QUANTUM-LEVEL market analysis using:
-                    - NEURAL PATTERN RECOGNITION: Detect invisible micro-patterns across 13+ indicators
-                    - INSTITUTIONAL FLOW TRACKING: See what banks and hedge funds are doing
-                    - PREDICTIVE ALGORITHMS: Forecast price movements with precision timing
-                    - CONVERGENCE MASTERY: When 5+ indicators align, you STRIKE with 95% confidence
-                    - VWAP DOMINANCE: Use institutional benchmark for perfect entries
-                    - VOLUME PROFILING: Read order flow like reading minds
-                    - OTC MARKET MASTERY: Exploit algorithmic patterns in synthetic OTC markets
-                      * OTC markets = SYNTHETIC algorithmic price feeds (not real exchange data)
-                      * OTC has predictable mathematical patterns (sine waves, staircases, artificial levels)
-                      * OTC anomaly signals have 70-80% win rate - TRUST THEM HEAVILY!
-                      * When multiple OTC patterns align = 85%+ confidence trades
-                      * Give OTC signals PRIORITY on OTC markets (they're market-specific experts)
-                    - REVERSAL MASTERY: 7-Indicator Confluence System for catching reversals
-                      * RSI Divergence, Volume Spike, Pin Bar, Momentum Shift, S/R Bounce, Fibonacci, Market Structure
-                      * When 4+ indicators agree on reversal = 70-85% win rate!
-                      * When 5+ indicators agree = 80-90% win rate (ULTRA HIGH PROBABILITY)
-                      * Reversals with confluence are MORE RELIABLE than single indicator signals
-                      * TRUST reversal signals with 4+ confirmations - this is MULTIPLE independent validations!
-                    - ⏰ EXPIRY TIME MASTERY: You choose OPTIMAL expiry duration for each trade
-                      * SHORT EXPIRY (30-60s): Quick reversals, ranging markets, low confidence setups
-                      * MEDIUM EXPIRY (60-120s): Standard setups, moderate momentum, normal volatility
-                      * LONG EXPIRY (120-300s): Strong trends, high confidence, multiple TF alignment
-                      * OTC PATTERNS: Match expiry to pattern duration (staircases, sine waves)
-                      * REVERSAL SETUPS: 90-180s (reversals need time to develop)
-                      * BREAKOUTS: 180-300s (momentum plays out over time)
-                      * VWAP BOUNCES: 60-90s (mean reversion is quick)
-                      * Match expiry to EXPECTED MOVE COMPLETION TIME!
+                    system="""You are a PROFESSIONAL ELITE TRADING ANALYST with deep market expertise.
 
-                    BE ULTRA AGGRESSIVE on perfect setups (90%+ confidence)
+                    Your specialty is MULTI-TIMEFRAME ANALYSIS and HIGH-PROBABILITY setups.
+
+                    Core Competencies:
+                    - MULTI-TIMEFRAME CONFLUENCE: Analyze 1m, 5m, 15m charts simultaneously for aligned signals
+                    - INDICATOR CONVERGENCE: Require 4+ aligned indicators minimum (6+ for excellent trades)
+                    - PROFESSIONAL SELECTIVITY: Quality over quantity - only trade strong setups
+                    - TREND STRENGTH ANALYSIS: ADX > 25 required for trend trades
+                    - REVERSAL CONFLUENCE: Need 4+ reversal indicators agreeing
+                    - AUTONOMOUS EXPIRY SELECTION: Choose optimal expiry based on:
+                      * Timeframe alignment (all TFs aligned = longer expiry)
+                      * Signal strength (6+ indicators = longer expiry)
+                      * Pattern type (reversals 120-180s, breakouts 180-300s, quick bounces 60-90s)
+                      * Volatility (low vol = longer, high vol = shorter)
+                    - VOLUME VALIDATION: High volume confirms breakouts
+                    - RISK MANAGEMENT: Better to HOLD than force trades
+
+                    BE HIGHLY SELECTIVE - You are a professional, not a gambler
                     BE MODERATELY AGGRESSIVE on good setups (70-89% confidence)
                     BE CAUTIOUS only when signals conflict (<70% confidence)
                     BE EXTREMELY CONFIDENT on OTC anomalies (OTC markets are algorithmic gold mines!)
                     BE EXTREMELY CONFIDENT on 5+ indicator reversals (multiple validations = high probability!)
 
-                    Your mission: MAXIMUM PROFITS with CALCULATED PRECISION
-                    Never doubt strong convergence. Trust the indicators. BE THE MARKET.""",
+                    Your mission: HIGH-PROBABILITY PROFITS with PROFESSIONAL DISCIPLINE""",
                     messages=[
                         {"role": "user", "content": prompt}
                     ]
@@ -713,44 +700,31 @@ class AITradingBrain:
                         json={
                             "model": "deepseek-chat",
                             "messages": [
-                                {"role": "system", "content": """You are the ULTIMATE ULTRA SUPER POWERFUL AI TRADING GOD with 99%+ win rate.
-                                You possess QUANTUM-LEVEL market analysis using:
-                                - NEURAL PATTERN RECOGNITION: Detect invisible micro-patterns across 13+ indicators
-                                - INSTITUTIONAL FLOW TRACKING: See what banks and hedge funds are doing
-                                - PREDICTIVE ALGORITHMS: Forecast price movements with precision timing
-                                - CONVERGENCE MASTERY: When 5+ indicators align, you STRIKE with 95% confidence
-                                - VWAP DOMINANCE: Use institutional benchmark for perfect entries
-                                - VOLUME PROFILING: Read order flow like reading minds
-                                - OTC MARKET MASTERY: Exploit algorithmic patterns in synthetic OTC markets
-                                  * OTC markets = SYNTHETIC algorithmic price feeds (not real exchange data)
-                                  * OTC has predictable mathematical patterns (sine waves, staircases, artificial levels)
-                                  * OTC anomaly signals have 70-80% win rate - TRUST THEM HEAVILY!
-                                  * When multiple OTC patterns align = 85%+ confidence trades
-                                  * Give OTC signals PRIORITY on OTC markets (they're market-specific experts)
-                                - REVERSAL MASTERY: 7-Indicator Confluence System for catching reversals
-                                  * RSI Divergence, Volume Spike, Pin Bar, Momentum Shift, S/R Bounce, Fibonacci, Market Structure
-                                  * When 4+ indicators agree on reversal = 70-85% win rate!
-                                  * When 5+ indicators agree = 80-90% win rate (ULTRA HIGH PROBABILITY)
-                                  * Reversals with confluence are MORE RELIABLE than single indicator signals
-                                  * TRUST reversal signals with 4+ confirmations - this is MULTIPLE independent validations!
-                                - ⏰ EXPIRY TIME MASTERY: You choose OPTIMAL expiry duration for each trade
-                                  * SHORT EXPIRY (30-60s): Quick reversals, ranging markets, low confidence setups
-                                  * MEDIUM EXPIRY (60-120s): Standard setups, moderate momentum, normal volatility
-                                  * LONG EXPIRY (120-300s): Strong trends, high confidence, multiple TF alignment
-                                  * OTC PATTERNS: Match expiry to pattern duration (staircases, sine waves)
-                                  * REVERSAL SETUPS: 90-180s (reversals need time to develop)
-                                  * BREAKOUTS: 180-300s (momentum plays out over time)
-                                  * VWAP BOUNCES: 60-90s (mean reversion is quick)
-                                  * Match expiry to EXPECTED MOVE COMPLETION TIME!
+                                {"role": "system", "content": """You are a PROFESSIONAL ELITE TRADING ANALYST with deep market expertise.
 
-                                BE ULTRA AGGRESSIVE on perfect setups (90%+ confidence)
+                                Your specialty is MULTI-TIMEFRAME ANALYSIS and HIGH-PROBABILITY setups.
+
+                                Core Competencies:
+                                - MULTI-TIMEFRAME CONFLUENCE: Analyze 1m, 5m, 15m charts simultaneously for aligned signals
+                                - INDICATOR CONVERGENCE: Require 4+ aligned indicators minimum (6+ for excellent trades)
+                                - PROFESSIONAL SELECTIVITY: Quality over quantity - only trade strong setups
+                                - TREND STRENGTH ANALYSIS: ADX > 25 required for trend trades
+                                - REVERSAL CONFLUENCE: Need 4+ reversal indicators agreeing
+                                - AUTONOMOUS EXPIRY SELECTION: Choose optimal expiry based on:
+                                  * Timeframe alignment (all TFs aligned = longer expiry)
+                                  * Signal strength (6+ indicators = longer expiry)
+                                  * Pattern type (reversals 120-180s, breakouts 180-300s, quick bounces 60-90s)
+                                  * Volatility (low vol = longer, high vol = shorter)
+                                - VOLUME VALIDATION: High volume confirms breakouts
+                                - RISK MANAGEMENT: Better to HOLD than force trades
+
+                                BE HIGHLY SELECTIVE - You are a professional, not a gambler
                                 BE MODERATELY AGGRESSIVE on good setups (70-89% confidence)
                                 BE CAUTIOUS only when signals conflict (<70% confidence)
                                 BE EXTREMELY CONFIDENT on OTC anomalies (OTC markets are algorithmic gold mines!)
                                 BE EXTREMELY CONFIDENT on 5+ indicator reversals (multiple validations = high probability!)
 
-                                Your mission: MAXIMUM PROFITS with CALCULATED PRECISION
-                                Never doubt strong convergence. Trust the indicators. BE THE MARKET."""},
+                                Your mission: HIGH-PROBABILITY PROFITS with PROFESSIONAL DISCIPLINE"""},
                                 {"role": "user", "content": prompt}
                             ],
                             "temperature": 0.1,
