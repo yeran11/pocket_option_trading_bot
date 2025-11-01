@@ -85,6 +85,11 @@ def load_desktop_credentials():
                     api_key_preview = credentials['CLAUDE_API_KEY']
                     print(f"✅ Loaded CLAUDE_API_KEY from desktop: {api_key_preview[:20]}...{api_key_preview[-4:]} (length: {len(api_key_preview)})")
 
+                if 'DEEPSEEK_API_KEY' in credentials:
+                    os.environ['DEEPSEEK_API_KEY'] = credentials['DEEPSEEK_API_KEY']
+                    api_key_preview = credentials['DEEPSEEK_API_KEY']
+                    print(f"✅ Loaded DEEPSEEK_API_KEY from desktop: {api_key_preview[:20]}...{api_key_preview[-4:]} (length: {len(api_key_preview)})")
+
                 print(f"🎉 Desktop credentials loaded successfully from {cred_file}!")
                 return True
 

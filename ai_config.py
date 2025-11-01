@@ -129,8 +129,10 @@ if not OPENAI_API_KEY or not CLAUDE_API_KEY or not DEEPSEEK_API_KEY:
                     elif line.startswith('DEEPSEEK_API_KEY=') and not DEEPSEEK_API_KEY:
                         DEEPSEEK_API_KEY = line.split('=', 1)[1].strip().strip('"').strip("'")
                         print(f"✅ Loaded DEEPSEEK API key from .env file (length: {len(DEEPSEEK_API_KEY)})")
+            print(f"📋 After reading .env: OPENAI={OPENAI_API_KEY is not None}, CLAUDE={CLAUDE_API_KEY is not None}, DEEPSEEK={DEEPSEEK_API_KEY is not None}")
     except Exception as e:
         # Could not read .env file - that's okay
+        print(f"⚠️ Error reading .env file: {e}")
         pass
 
 # Method 4: Fallback - if still nothing found
