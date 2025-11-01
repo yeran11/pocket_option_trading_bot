@@ -1188,9 +1188,14 @@ async def detect_candlestick_patterns(candles):
 
 # ==================== TRADING STRATEGY ====================
 
-async def enhanced_strategy(candles):
+async def enhanced_strategy(candles, all_timeframes=None, detected_expiry=None):
     """
-    Advanced AI-enhanced strategy with multiple indicators
+    🚀 FULLY AUTONOMOUS AI STRATEGY - Multi-Timeframe Analysis
+
+    Args:
+        candles: Primary timeframe candles (usually 1m)
+        all_timeframes: Dict of all timeframes {60: candles_1m, 300: candles_5m, ...}
+        detected_expiry: Expiry time detected from UI (seconds)
     """
     global ACTIVE_STRATEGY_ID, ACTIVE_STRATEGY_NAME, LAST_TRADE_CONFIDENCE
 
@@ -1293,16 +1298,41 @@ async def enhanced_strategy(candles):
             print(f"🤖 AI ANALYSIS - Consulting AI Models")
             print(f"{'='*70}")
 
+            # 🚀 MULTI-TIMEFRAME ANALYSIS - Calculate indicators for ALL available timeframes
+            multi_tf_data = {}
+            if all_timeframes:
+                for period, tf_candles in all_timeframes.items():
+                    if len(tf_candles) >= 50:
+                        # Calculate indicators for this timeframe
+                        tf_ema_fast = await calculate_ema(tf_candles, settings['fast_ema'])
+                        tf_ema_slow = await calculate_ema(tf_candles, settings['slow_ema'])
+                        tf_rsi = await calculate_rsi(tf_candles, settings['rsi_period'])
+                        tf_macd_line, tf_macd_signal, tf_macd_hist = await calculate_macd(tf_candles)
+                        tf_supertrend_val, tf_supertrend_dir = await calculate_supertrend(tf_candles)
+
+                        # Determine timeframe name
+                        tf_name = f"{period//60}m" if period >= 60 else f"{period}s"
+
+                        multi_tf_data[tf_name] = {
+                            'ema_cross': 'Bullish' if tf_ema_fast > tf_ema_slow else 'Bearish',
+                            'rsi': tf_rsi,
+                            'macd_trend': 'Bullish' if tf_macd_hist > 0 else 'Bearish',
+                            'supertrend': 'BUY' if tf_supertrend_dir == 1 else 'SELL'
+                        }
+                        print(f"📊 {tf_name} Timeframe: EMA {multi_tf_data[tf_name]['ema_cross']}, RSI {tf_rsi:.1f}, ST {multi_tf_data[tf_name]['supertrend']}")
+
             # Prepare market data for AI
             market_data = {
-                'asset': 'CURRENT',  # Asset name is set by check_indicators
+                'asset': 'CURRENT',
                 'current_price': current_price,
                 'change_1m': ((current_price - candles[-2][2]) / candles[-2][2] * 100) if len(candles) > 1 else 0,
                 'change_5m': 0,
                 'volume': 'High' if volume_signal == 'high_volume' else 'Normal',
                 'win_rate': (bot_state['wins'] / bot_state['total_trades'] * 100) if bot_state['total_trades'] > 0 else 0,
                 'total_trades': bot_state['total_trades'],
-                'streak': f"{bot_state['wins']}W/{bot_state['losses']}L"
+                'streak': f"{bot_state['wins']}W/{bot_state['losses']}L",
+                'multi_timeframe': multi_tf_data,  # 🚀 ALL timeframes
+                'detected_expiry': detected_expiry  # 🚀 User's current expiry setting
             }
 
             # Prepare indicators for AI
@@ -1868,7 +1898,7 @@ async def enhanced_strategy(candles):
 # ==================== POCKET OPTION INTEGRATION ====================
 
 async def websocket_log(driver):
-    """Process WebSocket data and update candles"""
+    """🚀 MULTI-TIMEFRAME WebSocket - Captures ALL timeframes (1m, 5m, 15m) simultaneously"""
     global CANDLES, PERIOD, CURRENT_ASSET, FAVORITES_REANIMATED
 
     for wsData in driver.get_log('performance'):
@@ -1879,12 +1909,25 @@ async def websocket_log(driver):
             data = json.loads(payload_str)
 
             if 'history' in data:
+                asset = data['asset']
+                period = data['period']  # 60=1min, 300=5min, 900=15min, etc.
+
                 if not CURRENT_ASSET:
-                    CURRENT_ASSET = data['asset']
-                if PERIOD != data['period']:
-                    PERIOD = data['period']
-                    CANDLES = {}
+                    CURRENT_ASSET = asset
+
+                # Track primary period (for UI display)
+                if PERIOD != period:
+                    PERIOD = period
                     FAVORITES_REANIMATED = False
+
+                # 🚀 MULTI-TIMEFRAME: Store each timeframe separately
+                # Initialize asset dictionary if needed
+                if asset not in CANDLES:
+                    CANDLES[asset] = {}
+
+                # Initialize this timeframe if needed
+                if period not in CANDLES[asset]:
+                    CANDLES[asset][period] = []
 
                 candles = list(reversed(data['candles']))
                 for tstamp, value in data['history']:
@@ -1895,24 +1938,32 @@ async def websocket_log(driver):
                         candle[3] = value
                     if value < candle[4]:  # low
                         candle[4] = value
-                    if tstamp % PERIOD == 0:
+                    if tstamp % period == 0:
                         if tstamp not in [c[0] for c in candles]:
                             candles.append([tstamp, value, value, value, value])
-                CANDLES[data['asset']] = candles
+
+                # Store candles for THIS specific timeframe
+                CANDLES[asset][period] = candles
 
             try:
                 asset = data[0][0]
-                candles = CANDLES[asset]
                 current_value = data[0][2]
-                candles[-1][2] = current_value  # close
-                if current_value > candles[-1][3]:  # high
-                    candles[-1][3] = current_value
-                if current_value < candles[-1][4]:  # low
-                    candles[-1][4] = current_value
                 tstamp = int(float(data[0][1]))
-                if tstamp % PERIOD == 0:
-                    if tstamp not in [c[0] for c in candles]:
-                        candles.append([tstamp, current_value, current_value, current_value, current_value])
+
+                # Update ALL timeframes for this asset with current price
+                if asset in CANDLES:
+                    for period, candles in CANDLES[asset].items():
+                        if len(candles) > 0:
+                            candles[-1][2] = current_value  # close
+                            if current_value > candles[-1][3]:  # high
+                                candles[-1][3] = current_value
+                            if current_value < candles[-1][4]:  # low
+                                candles[-1][4] = current_value
+
+                            # Add new candle if period rolled over
+                            if tstamp % period == 0:
+                                if tstamp not in [c[0] for c in candles]:
+                                    candles.append([tstamp, current_value, current_value, current_value, current_value])
             except:
                 pass
 
@@ -2201,6 +2252,51 @@ def check_trade_limits():
                     return False, f"Limit reached: {max_trades} trades in {minutes}min (wait {wait_time}s)"
 
     return True, "Within limits"
+
+
+async def detect_current_expiry(driver):
+    """
+    🔍 DETECT CURRENT EXPIRY TIME - Read what user has set in UI
+    Returns: expiry in seconds (e.g., 60, 120, 300) or None if can't detect
+    """
+    try:
+        # Try multiple possible selectors for expiry time display
+        expiry_selectors = [
+            "input[type='text'][value*='m']",  # Input showing "2m", "5m", etc.
+            "input[type='text'][value*='s']",  # Input showing "60s", "120s", etc.
+            "[class*='time'][class*='value']",
+            "[class*='expir']",
+            "input[type='number']"
+        ]
+
+        for selector in expiry_selectors:
+            try:
+                elem = driver.find_element(By.CSS_SELECTOR, selector)
+                value = elem.get_attribute('value')
+                if value:
+                    # Parse expiry time
+                    value = value.strip().lower()
+                    if 'm' in value:  # Minutes
+                        minutes = int(value.replace('m', '').strip())
+                        seconds = minutes * 60
+                        print(f"✅ Detected UI expiry: {minutes}m ({seconds}s)")
+                        return seconds
+                    elif 's' in value:  # Seconds
+                        seconds = int(value.replace('s', '').strip())
+                        print(f"✅ Detected UI expiry: {seconds}s")
+                        return seconds
+                    else:  # Pure number (assume seconds)
+                        seconds = int(value)
+                        print(f"✅ Detected UI expiry: {seconds}s")
+                        return seconds
+            except:
+                continue
+
+        print(f"⚠️ Could not detect expiry from UI, using default")
+        return None
+    except Exception as e:
+        print(f"⚠️ Expiry detection error: {e}")
+        return None
 
 
 async def set_expiry_time(driver, expiry_seconds):
@@ -2878,15 +2974,34 @@ async def check_indicators(driver):
     if not CANDLES:
         return
 
+    # 🔍 DETECT CURRENT EXPIRY from UI (what user has set)
+    detected_expiry = await detect_current_expiry(driver)
+
     # Check each asset
-    for asset, candles in CANDLES.items():
-        if len(candles) < 50:
-            # Log when we're still collecting data
-            if len(candles) > 0 and len(candles) % 10 == 0:
-                add_log(f"📊 {asset}: Collecting data ({len(candles)}/50 candles)")
+    for asset, timeframes in CANDLES.items():
+        # 🚀 MULTI-TIMEFRAME: Get all available timeframes for this asset
+        # timeframes is now a dict: {60: [...candles...], 300: [...candles...], etc.}
+
+        if not isinstance(timeframes, dict):
+            # Old format (single timeframe) - skip for now
             continue
 
-        result = await enhanced_strategy(candles)
+        # Get the primary timeframe (smallest period = most data)
+        # Usually 60 (1min), but could be 300 (5min) or 900 (15min)
+        primary_period = min(timeframes.keys()) if timeframes else None
+        if not primary_period:
+            continue
+
+        primary_candles = timeframes[primary_period]
+
+        if len(primary_candles) < 50:
+            # Log when we're still collecting data
+            if len(primary_candles) > 0 and len(primary_candles) % 10 == 0:
+                add_log(f"📊 {asset}: Collecting data ({len(primary_candles)}/50 candles)")
+            continue
+
+        # Pass ALL timeframes to enhanced_strategy for multi-timeframe analysis
+        result = await enhanced_strategy(primary_candles, all_timeframes=timeframes, detected_expiry=detected_expiry)
 
         if not result:
             continue
