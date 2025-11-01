@@ -150,6 +150,9 @@ LAST_TRADE_EXPIRY = 60  # Expiry time in seconds
 LAST_TRADE_REASON = ""  # Reason/indicators used
 LAST_TRADE_CONFIDENCE = 0  # Confidence level
 
+# 🚀 TRADE EXECUTION LOCK - Prevents signal spam during trade placement
+TRADE_IN_PROGRESS = False  # Set to True while placing trade, blocks new signals
+
 # Bot state
 bot_state = {
     'running': False,
@@ -2864,7 +2867,12 @@ async def wait_for_login(driver):
 
 async def check_indicators(driver):
     """Main trading logic loop"""
-    global CANDLES
+    global CANDLES, TRADE_IN_PROGRESS
+
+    # 🚀 FAST ENTRY FIX: Skip analysis if trade is currently being placed
+    # This ensures we enter on the FIRST signal, not 2-3 signals later!
+    if TRADE_IN_PROGRESS:
+        return
 
     # Check if we have any candle data
     if not CANDLES:
@@ -2907,11 +2915,21 @@ async def check_indicators(driver):
                 check_indicators._last_hours_log_time = time.time()
             continue
 
-        order_created = await create_order(driver, action, asset, reason, expiry)
+        # 🚀 FAST ENTRY FIX: Lock signals NOW - this is the FIRST valid signal!
+        # No more analysis until this trade completes = optimal entry timing
+        TRADE_IN_PROGRESS = True
+        print(f"🔒 Trade lock engaged - entering on FIRST signal!")
 
-        if order_created:
-            await asyncio.sleep(1)
-            return
+        try:
+            order_created = await create_order(driver, action, asset, reason, expiry)
+
+            if order_created:
+                await asyncio.sleep(1)
+                return
+        finally:
+            # Always unlock, even if trade fails
+            TRADE_IN_PROGRESS = False
+            print(f"🔓 Trade lock released - resuming analysis")
 
 
 async def trading_loop():
