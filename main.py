@@ -2268,25 +2268,51 @@ async def detect_current_expiry(driver):
             // COMPREHENSIVE EXPIRY DETECTION - Log EVERYTHING we find
             var debugLog = [];
             var foundExpiry = null;
+            var bestScore = 0;
 
-            function isValidExpiry(val) {
-                if (!val) return false;
+            function getExpiryScore(val) {
+                // Returns a score for how likely this is a valid expiry time
+                // Higher score = better match
+                if (!val) return 0;
                 val = val.toString().trim();
 
                 // REJECT dates (contains dots, commas, or year patterns)
                 if (val.includes('.') || val.includes(',') || val.match(/20\\d{2}/)) {
-                    return false;
+                    return 0;
                 }
 
                 // REJECT very long strings (dates/times are long)
-                if (val.length > 15) return false;
+                if (val.length > 15) return 0;
 
-                // ACCEPT: Must contain 'm', 's', or ':' AND be reasonably short
-                if (val.includes('m') || val.includes('s') || (val.includes(':') && val.length <= 8)) {
-                    return true;
+                // REJECT placeholder text and words (must have numbers for time-like values)
+                if (!val.match(/\d/)) return 0;  // Must contain at least one digit
+
+                // PRIORITY 1: HH:MM:SS format (00:02:00) - STRONGEST indicator - Score: 100
+                if (val.match(/^\d{2}:\d{2}:\d{2}$/)) return 100;
+
+                // PRIORITY 2: MM:SS format (02:00, 2:00) - Very strong - Score: 90
+                if (val.match(/^\d{1,2}:\d{2}$/)) return 90;
+
+                // PRIORITY 3: Pure time with units (2m, 60s, 120s) - Strong - Score: 80
+                if (val.match(/^\d+[ms]$/)) return 80;
+
+                // PRIORITY 4: Mixed format (2m30s) - Good - Score: 70
+                if (val.match(/^\d+m\d+s$/)) return 70;
+
+                return 0;
+            }
+
+            function isValidExpiry(val) {
+                return getExpiryScore(val) > 0;
+            }
+
+            function updateBestExpiry(val, source) {
+                var score = getExpiryScore(val);
+                if (score > bestScore) {
+                    bestScore = score;
+                    foundExpiry = val;
+                    debugLog.push('✅ NEW BEST (score=' + score + '): ' + val + ' from ' + source);
                 }
-
-                return false;
             }
 
             // SCAN 1: Window variables
@@ -2294,9 +2320,8 @@ async def detect_current_expiry(driver):
             ['expiryTime', 'expiration', 'tradeExpiry', 'selectedExpiry', 'currentExpiry'].forEach(function(prop) {
                 if (window[prop]) {
                     debugLog.push('window.' + prop + ' = "' + window[prop] + '"');
-                    if (!foundExpiry && isValidExpiry(window[prop])) {
-                        foundExpiry = window[prop];
-                        debugLog.push('✅ FOUND IN: window.' + prop);
+                    if (isValidExpiry(window[prop])) {
+                        updateBestExpiry(window[prop], 'window.' + prop);
                     }
                 }
             });
@@ -2317,17 +2342,17 @@ async def detect_current_expiry(driver):
                     debugLog.push('Input #' + inputCount + ': type="' + type + '" class="' + classes + '"');
 
                     if (val) {
-                        debugLog.push('  value="' + val + '"' + (isValidExpiry(val) ? ' ✅ VALID!' : ''));
-                        if (!foundExpiry && isValidExpiry(val)) {
-                            foundExpiry = val;
-                            debugLog.push('✅ FOUND IN: input.value');
+                        var score = getExpiryScore(val);
+                        debugLog.push('  value="' + val + '"' + (score > 0 ? ' ✅ VALID (score=' + score + ')' : ''));
+                        if (score > 0) {
+                            updateBestExpiry(val, 'input.value');
                         }
                     }
                     if (placeholder) {
-                        debugLog.push('  placeholder="' + placeholder + '"' + (isValidExpiry(placeholder) ? ' ✅ VALID!' : ''));
-                        if (!foundExpiry && isValidExpiry(placeholder)) {
-                            foundExpiry = placeholder;
-                            debugLog.push('✅ FOUND IN: input.placeholder');
+                        var score = getExpiryScore(placeholder);
+                        debugLog.push('  placeholder="' + placeholder + '"' + (score > 0 ? ' ✅ VALID (score=' + score + ')' : ''));
+                        if (score > 0) {
+                            updateBestExpiry(placeholder, 'input.placeholder');
                         }
                     }
                 }
@@ -2350,17 +2375,17 @@ async def detect_current_expiry(driver):
                         debugLog.push('Element #' + elemCount + ': class="' + classes.substring(0, 50) + '"');
 
                         if (text && text.length < 50) {
-                            debugLog.push('  text="' + text + '"' + (isValidExpiry(text) ? ' ✅ VALID!' : ''));
-                            if (!foundExpiry && isValidExpiry(text)) {
-                                foundExpiry = text;
-                                debugLog.push('✅ FOUND IN: element.text (class contains "' + selector + '")');
+                            var score = getExpiryScore(text);
+                            debugLog.push('  text="' + text + '"' + (score > 0 ? ' ✅ VALID (score=' + score + ')' : ''));
+                            if (score > 0) {
+                                updateBestExpiry(text, 'element.text');
                             }
                         }
                         if (val) {
-                            debugLog.push('  value="' + val + '"' + (isValidExpiry(val) ? ' ✅ VALID!' : ''));
-                            if (!foundExpiry && isValidExpiry(val)) {
-                                foundExpiry = val;
-                                debugLog.push('✅ FOUND IN: element.value');
+                            var score = getExpiryScore(val);
+                            debugLog.push('  value="' + val + '"' + (score > 0 ? ' ✅ VALID (score=' + score + ')' : ''));
+                            if (score > 0) {
+                                updateBestExpiry(val, 'element.value');
                             }
                         }
                     }
@@ -2380,10 +2405,10 @@ async def detect_current_expiry(driver):
 
                     ['expiry', 'expiration', 'time'].forEach(function(attr) {
                         if (btn.dataset[attr]) {
-                            debugLog.push('  data-' + attr + '="' + btn.dataset[attr] + '"' + (isValidExpiry(btn.dataset[attr]) ? ' ✅ VALID!' : ''));
-                            if (!foundExpiry && isValidExpiry(btn.dataset[attr])) {
-                                foundExpiry = btn.dataset[attr];
-                                debugLog.push('✅ FOUND IN: button.dataset.' + attr);
+                            var score = getExpiryScore(btn.dataset[attr]);
+                            debugLog.push('  data-' + attr + '="' + btn.dataset[attr] + '"' + (score > 0 ? ' ✅ VALID (score=' + score + ')' : ''));
+                            if (score > 0) {
+                                updateBestExpiry(btn.dataset[attr], 'button.dataset.' + attr);
                             }
                         }
                     });
@@ -2407,17 +2432,17 @@ async def detect_current_expiry(driver):
                         var val = elem.value;
                         debugLog.push('PO Selector "' + selector + '"');
                         if (text) {
-                            debugLog.push('  text="' + text.substring(0, 50) + '"' + (isValidExpiry(text) ? ' ✅ VALID!' : ''));
-                            if (!foundExpiry && isValidExpiry(text)) {
-                                foundExpiry = text;
-                                debugLog.push('✅ FOUND IN: PO selector "' + selector + '"');
+                            var score = getExpiryScore(text);
+                            debugLog.push('  text="' + text.substring(0, 50) + '"' + (score > 0 ? ' ✅ VALID (score=' + score + ')' : ''));
+                            if (score > 0) {
+                                updateBestExpiry(text, 'PO selector "' + selector + '"');
                             }
                         }
                         if (val) {
-                            debugLog.push('  value="' + val + '"' + (isValidExpiry(val) ? ' ✅ VALID!' : ''));
-                            if (!foundExpiry && isValidExpiry(val)) {
-                                foundExpiry = val;
-                                debugLog.push('✅ FOUND IN: PO selector "' + selector + '" value');
+                            var score = getExpiryScore(val);
+                            debugLog.push('  value="' + val + '"' + (score > 0 ? ' ✅ VALID (score=' + score + ')' : ''));
+                            if (score > 0) {
+                                updateBestExpiry(val, 'PO selector value');
                             }
                         }
                     }
@@ -2456,9 +2481,10 @@ async def detect_current_expiry(driver):
                             if (/^\\d{1,2}$/.test(val0) && /^\\d{2}$/.test(val1)) {
                                 var combined = val0 + ':' + val1;
                                 debugLog.push('  🔍 COMBINED: "' + val0 + '" + "' + val1 + '" = "' + combined + '"');
-                                if (isValidExpiry(combined)) {
-                                    foundExpiry = combined;
-                                    debugLog.push('  ✅ FOUND SPLIT TIME!');
+                                var score = getExpiryScore(combined);
+                                if (score > 0) {
+                                    updateBestExpiry(combined, 'split-time inputs');
+                                    debugLog.push('  ✅ FOUND SPLIT TIME (score=' + score + ')!');
                                 }
                             }
                         }
@@ -2468,9 +2494,18 @@ async def detect_current_expiry(driver):
                 debugLog.push('Error in split time scan: ' + e.message);
             }
 
+            // Add final summary
+            debugLog.push('\\n=== FINAL RESULT ===');
+            if (foundExpiry) {
+                debugLog.push('🎯 SELECTED: "' + foundExpiry + '" (score=' + bestScore + ')');
+            } else {
+                debugLog.push('❌ No valid expiry found');
+            }
+
             // Return result with debug log
             return {
                 expiry: foundExpiry,
+                score: bestScore,
                 debug: debugLog.join('\\n')
             };
             """
@@ -2509,18 +2544,26 @@ async def detect_current_expiry(driver):
                             if 10 <= seconds <= 3600:  # Reasonable range
                                 print(f"   ✅ PARSED: {seconds}s")
                                 return seconds
-                    elif ':' in expiry_str and len(expiry_str) <= 8:  # "01:00", "02:00"
+                    elif ':' in expiry_str and len(expiry_str) <= 10:  # "01:00", "02:00", "00:02:00"
                         parts = expiry_str.split(':')
-                        if len(parts) == 2:
-                            try:
+                        try:
+                            if len(parts) == 3:  # HH:MM:SS format (00:02:00)
+                                hours = int(parts[0])
+                                minutes = int(parts[1])
+                                secs = int(parts[2])
+                                if 0 <= hours <= 2 and 0 <= minutes <= 59 and 0 <= secs <= 59:
+                                    total_seconds = (hours * 3600) + (minutes * 60) + secs
+                                    print(f"   ✅ PARSED: {hours:02d}:{minutes:02d}:{secs:02d} = {total_seconds}s")
+                                    return total_seconds
+                            elif len(parts) == 2:  # MM:SS format (02:00)
                                 minutes = int(parts[0])
                                 secs = int(parts[1])
                                 if 0 <= minutes <= 60 and 0 <= secs <= 59:
                                     total_seconds = (minutes * 60) + secs
                                     print(f"   ✅ PARSED: {minutes}:{secs:02d} = {total_seconds}s")
                                     return total_seconds
-                            except:
-                                pass
+                        except:
+                            pass
 
                 print(f"\n⚠️ Found value but couldn't parse: '{expiry_val}'")
         except Exception as e:
