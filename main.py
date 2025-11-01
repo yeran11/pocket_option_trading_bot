@@ -2256,46 +2256,165 @@ def check_trade_limits():
 
 async def detect_current_expiry(driver):
     """
-    🔍 DETECT CURRENT EXPIRY TIME - Read what user has set in UI
+    🔍 ULTRA-ROBUST EXPIRY DETECTION - Multiple methods to find user's expiry setting
     Returns: expiry in seconds (e.g., 60, 120, 300) or None if can't detect
     """
     try:
-        # Try multiple possible selectors for expiry time display
-        expiry_selectors = [
-            "input[type='text'][value*='m']",  # Input showing "2m", "5m", etc.
-            "input[type='text'][value*='s']",  # Input showing "60s", "120s", etc.
-            "[class*='time'][class*='value']",
-            "[class*='expir']",
-            "input[type='number']"
-        ]
+        print(f"\n🔍 EXPIRY DETECTION - Scanning Pocket Option UI...")
 
-        for selector in expiry_selectors:
-            try:
-                elem = driver.find_element(By.CSS_SELECTOR, selector)
-                value = elem.get_attribute('value')
-                if value:
-                    # Parse expiry time
-                    value = value.strip().lower()
-                    if 'm' in value:  # Minutes
-                        minutes = int(value.replace('m', '').strip())
-                        seconds = minutes * 60
-                        print(f"✅ Detected UI expiry: {minutes}m ({seconds}s)")
-                        return seconds
-                    elif 's' in value:  # Seconds
-                        seconds = int(value.replace('s', '').strip())
-                        print(f"✅ Detected UI expiry: {seconds}s")
-                        return seconds
-                    else:  # Pure number (assume seconds)
-                        seconds = int(value)
-                        print(f"✅ Detected UI expiry: {seconds}s")
-                        return seconds
-            except:
-                continue
+        # METHOD 1: JavaScript - Read from window variables or data attributes
+        try:
+            js_detection = """
+            // Try to find expiry time from various sources
+            var expiry = null;
 
-        print(f"⚠️ Could not detect expiry from UI, using default")
+            // Check window variables
+            if (window.expiryTime) expiry = window.expiryTime;
+            if (window.expiration) expiry = window.expiration;
+            if (window.tradeExpiry) expiry = window.tradeExpiry;
+
+            // Check data attributes on trade buttons
+            var callBtn = document.querySelector('[class*="call"]');
+            var putBtn = document.querySelector('[class*="put"]');
+            if (callBtn && callBtn.dataset.expiry) expiry = callBtn.dataset.expiry;
+            if (putBtn && putBtn.dataset.expiry) expiry = putBtn.dataset.expiry;
+
+            // Check all inputs for time-related values
+            var inputs = document.querySelectorAll('input');
+            for (var i = 0; i < inputs.length; i++) {
+                var val = inputs[i].value;
+                if (val && (val.includes('m') || val.includes('s') || val.includes(':'))) {
+                    expiry = val;
+                    break;
+                }
+            }
+
+            // Check text content of elements with 'time' or 'expir' in class
+            var timeElems = document.querySelectorAll('[class*="time"], [class*="expir"]');
+            for (var i = 0; i < timeElems.length; i++) {
+                var text = timeElems[i].textContent || timeElems[i].innerText;
+                if (text && (text.includes('m') || text.includes('s') || text.includes(':'))) {
+                    expiry = text;
+                    break;
+                }
+            }
+
+            return expiry;
+            """
+
+            js_result = driver.execute_script(js_detection)
+            if js_result:
+                print(f"   🔍 JavaScript detected: '{js_result}'")
+                # Parse the result
+                expiry_str = str(js_result).strip().lower()
+
+                # Handle different formats
+                if 'm' in expiry_str and 's' not in expiry_str:  # "2m", "5m"
+                    minutes = int(''.join(filter(str.isdigit, expiry_str)))
+                    seconds = minutes * 60
+                    print(f"   ✅ Parsed as {minutes}m = {seconds}s")
+                    return seconds
+                elif 's' in expiry_str:  # "60s", "120s"
+                    seconds = int(''.join(filter(str.isdigit, expiry_str)))
+                    print(f"   ✅ Parsed as {seconds}s")
+                    return seconds
+                elif ':' in expiry_str:  # "01:00", "02:00"
+                    parts = expiry_str.split(':')
+                    if len(parts) == 2:
+                        minutes = int(parts[0])
+                        secs = int(parts[1])
+                        total_seconds = (minutes * 60) + secs
+                        print(f"   ✅ Parsed as {minutes}:{secs:02d} = {total_seconds}s")
+                        return total_seconds
+                else:  # Pure number
+                    try:
+                        seconds = int(''.join(filter(str.isdigit, expiry_str)))
+                        if seconds > 0:
+                            print(f"   ✅ Parsed as {seconds}s")
+                            return seconds
+                    except:
+                        pass
+        except Exception as e:
+            print(f"   ⚠️ JavaScript method failed: {e}")
+
+        # METHOD 2: Find all visible text elements and search for time patterns
+        try:
+            all_text_elements = driver.find_elements(By.XPATH, "//*[contains(text(), 'm') or contains(text(), 's') or contains(text(), ':')]")
+            for elem in all_text_elements[:20]:  # Check first 20 matches
+                try:
+                    text = elem.text.strip().lower()
+                    if not text or len(text) > 20:  # Skip empty or very long text
+                        continue
+
+                    # Look for patterns like "2m", "60s", "01:00"
+                    if 'm' in text and 's' not in text and len(text) <= 5:
+                        minutes = int(''.join(filter(str.isdigit, text)))
+                        if 1 <= minutes <= 60:
+                            seconds = minutes * 60
+                            print(f"   ✅ Found in text '{text}': {minutes}m = {seconds}s")
+                            return seconds
+                    elif 's' in text and len(text) <= 6:
+                        secs = int(''.join(filter(str.isdigit, text)))
+                        if 10 <= secs <= 3600:
+                            print(f"   ✅ Found in text '{text}': {secs}s")
+                            return secs
+                    elif ':' in text and len(text) <= 6:
+                        parts = text.split(':')
+                        if len(parts) == 2 and parts[0].isdigit() and parts[1].isdigit():
+                            minutes = int(parts[0])
+                            secs = int(parts[1])
+                            if 0 <= minutes <= 60 and 0 <= secs <= 59:
+                                total = (minutes * 60) + secs
+                                print(f"   ✅ Found in text '{text}': {total}s")
+                                return total
+                except:
+                    continue
+        except Exception as e:
+            print(f"   ⚠️ Text search method failed: {e}")
+
+        # METHOD 3: Screenshot OCR-like - look at specific UI areas
+        try:
+            # Look for common Pocket Option expiry selector classes
+            po_selectors = [
+                "div.expiration__input",
+                "input.expiration-select",
+                "div[class*='expiration'] input",
+                "div[class*='time-select'] input",
+                ".timer-input",
+                ".expiry-time",
+                "[data-expiry]",
+                "[data-expiration]"
+            ]
+
+            for selector in po_selectors:
+                try:
+                    elem = driver.find_element(By.CSS_SELECTOR, selector)
+                    value = elem.get_attribute('value') or elem.get_attribute('data-expiry') or elem.text
+                    if value:
+                        print(f"   🔍 Selector '{selector}' found: '{value}'")
+                        value = value.strip().lower()
+                        if 'm' in value or 's' in value or ':' in value:
+                            # Parse it
+                            if 'm' in value and 's' not in value:
+                                minutes = int(''.join(filter(str.isdigit, value)))
+                                seconds = minutes * 60
+                                print(f"   ✅ Parsed: {seconds}s")
+                                return seconds
+                            elif 's' in value:
+                                seconds = int(''.join(filter(str.isdigit, value)))
+                                print(f"   ✅ Parsed: {seconds}s")
+                                return seconds
+                except:
+                    continue
+        except Exception as e:
+            print(f"   ⚠️ Selector method failed: {e}")
+
+        print(f"   ❌ Could not detect expiry from UI (tried 3 methods)")
+        print(f"   ℹ️  AI will choose optimal expiry autonomously")
         return None
+
     except Exception as e:
-        print(f"⚠️ Expiry detection error: {e}")
+        print(f"   ❌ Expiry detection error: {e}")
         return None
 
 
