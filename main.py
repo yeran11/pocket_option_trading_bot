@@ -2195,6 +2195,9 @@ def check_trade_limits():
 async def set_expiry_time(driver, expiry_seconds):
     """Set the expiry time in Pocket Option's interface before placing trade"""
     try:
+        from selenium.webdriver.support.ui import WebDriverWait
+        from selenium.webdriver.support import expected_conditions as EC
+
         # Convert seconds to format Pocket Option uses
         if expiry_seconds >= 60:
             expiry_minutes = expiry_seconds // 60
@@ -2225,7 +2228,10 @@ async def set_expiry_time(driver, expiry_seconds):
         expiry_button = None
         for selector in expiry_selectors:
             try:
-                expiry_button = driver.find_element(By.CSS_SELECTOR, selector)
+                # Wait for element to be clickable (not just present)
+                expiry_button = WebDriverWait(driver, 2).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, selector))
+                )
                 if expiry_button:
                     break
             except:
@@ -2238,9 +2244,29 @@ async def set_expiry_time(driver, expiry_seconds):
             except:
                 return False
 
-        # Click to open dropdown
-        expiry_button.click()
-        await asyncio.sleep(0.3)
+        # Scroll element into view
+        try:
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", expiry_button)
+            await asyncio.sleep(0.2)
+        except:
+            pass
+
+        # Try multiple click methods
+        clicked = False
+        try:
+            # Method 1: Regular click
+            expiry_button.click()
+            clicked = True
+        except:
+            try:
+                # Method 2: JavaScript click (works when element is not interactable)
+                driver.execute_script("arguments[0].click();", expiry_button)
+                clicked = True
+            except:
+                return False
+
+        if clicked:
+            await asyncio.sleep(0.5)  # Increased wait for dropdown to open
 
         # Try to find and click the expiry option
         for expiry_text in expiry_text_options:
@@ -2256,7 +2282,21 @@ async def set_expiry_time(driver, expiry_seconds):
                 for selector in option_selectors:
                     try:
                         option = driver.find_element(By.XPATH, selector)
-                        option.click()
+
+                        # Scroll option into view
+                        try:
+                            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", option)
+                            await asyncio.sleep(0.1)
+                        except:
+                            pass
+
+                        # Try regular click first
+                        try:
+                            option.click()
+                        except:
+                            # Fallback to JS click
+                            driver.execute_script("arguments[0].click();", option)
+
                         add_log(f"✅ Expiry set to {expiry_seconds}s")
                         await asyncio.sleep(0.2)
                         return True
