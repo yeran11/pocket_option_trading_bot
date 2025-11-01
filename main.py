@@ -2202,6 +2202,7 @@ def check_trade_limits():
 
 async def set_expiry_time(driver, expiry_seconds):
     """Set the expiry time in Pocket Option's interface before placing trade"""
+    print(f"📍 set_expiry_time called with: {expiry_seconds}s")
     try:
         from selenium.webdriver.support.ui import WebDriverWait
         from selenium.webdriver.support import expected_conditions as EC
@@ -2209,6 +2210,7 @@ async def set_expiry_time(driver, expiry_seconds):
         # Convert seconds to format Pocket Option uses
         if expiry_seconds >= 60:
             expiry_minutes = expiry_seconds // 60
+            print(f"🔄 Converting {expiry_seconds}s to {expiry_minutes} minutes")
             expiry_text_options = [
                 f"{expiry_minutes}m",
                 f"{expiry_minutes} min",
@@ -2301,18 +2303,25 @@ async def set_expiry_time(driver, expiry_seconds):
                         # Try regular click first
                         try:
                             option.click()
-                        except:
+                            print(f"✅ Clicked expiry option: {expiry_text}")
+                        except Exception as e:
                             # Fallback to JS click
+                            print(f"⚠️ Regular click failed, trying JS click: {e}")
                             driver.execute_script("arguments[0].click();", option)
+                            print(f"✅ JS clicked expiry option: {expiry_text}")
 
                         add_log(f"✅ Expiry set to {expiry_seconds}s")
+                        print(f"🎯 Expiry confirmed: {expiry_seconds}s")
                         await asyncio.sleep(0.2)
                         return True
-                    except:
+                    except Exception as e:
+                        print(f"❌ Failed to click option {expiry_text}: {e}")
                         continue
-            except:
+            except Exception as e:
+                print(f"❌ Error trying expiry text '{expiry_text}': {e}")
                 continue
 
+        print(f"❌ Could not set expiry to {expiry_seconds}s - no matching options found")
         return False
 
     except Exception as e:
@@ -2345,9 +2354,13 @@ async def create_order(driver, action, asset, reason="", expiry=60):
 
         # 🆕 SET EXPIRY TIME BEFORE CLICKING CALL/PUT
         if settings.get('ai_dynamic_expiry_enabled', True):
+            print(f"🔍 Attempting to set expiry to {expiry}s...")
             expiry_set = await set_expiry_time(driver, expiry)
             if not expiry_set:
                 add_log(f"⚠️ Using manual expiry (auto-set failed for {expiry}s)")
+                print(f"❌ Failed to set expiry to {expiry}s")
+            else:
+                print(f"✅ Successfully set expiry to {expiry}s")
 
         driver.find_element(by=By.CLASS_NAME, value=f'btn-{action}').click()
         ACTIONS[asset] = datetime.now()
