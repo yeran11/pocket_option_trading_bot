@@ -1322,14 +1322,22 @@ async def enhanced_strategy(candles):
                 'resistance': resistance
             }
 
+            # Debug: Show AI settings
+            ai_mode_setting = settings.get('ai_mode', 'ensemble')
+            use_gpt4_setting = settings.get('use_gpt4', True)
+            use_claude_setting = settings.get('use_claude', True)
+            use_deepseek_setting = settings.get('use_deepseek', True)
+
+            print(f"🔍 DEBUG: ai_mode={ai_mode_setting}, use_gpt4={use_gpt4_setting}, use_claude={use_claude_setting}, use_deepseek={use_deepseek_setting}")
+
             # Call AI ensemble
             ai_action, ai_confidence, ai_reason, ai_expiry = await ai_brain.analyze_with_ensemble(
                 market_data=market_data,
                 indicators=ai_indicators,
-                ai_mode=settings.get('ai_mode', 'ensemble'),
-                use_gpt4=settings.get('use_gpt4', True),
-                use_claude=settings.get('use_claude', True),
-                use_deepseek=settings.get('use_deepseek', True)
+                ai_mode=ai_mode_setting,
+                use_gpt4=use_gpt4_setting,
+                use_claude=use_claude_setting,
+                use_deepseek=use_deepseek_setting
             )
 
             # Check if AI made a decision

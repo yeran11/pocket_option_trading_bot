@@ -797,6 +797,11 @@ class AITradingBrain:
             claude_available = CLAUDE_API_KEY is not None and use_claude
             deepseek_available = DEEPSEEK_API_KEY is not None and use_deepseek
 
+            # Debug logging
+            print(f"🔍 AI KEY STATUS: OPENAI={OPENAI_API_KEY is not None}, CLAUDE={CLAUDE_API_KEY is not None}, DEEPSEEK={DEEPSEEK_API_KEY is not None}")
+            print(f"🔍 USE SETTINGS: use_gpt4={use_gpt4}, use_claude={use_claude}, use_deepseek={use_deepseek}")
+            print(f"🔍 AVAILABLE: gpt4={gpt4_available}, claude={claude_available}, deepseek={deepseek_available}")
+
             # Override based on ai_mode
             if ai_mode == 'gpt4_only':
                 claude_available = False
@@ -808,17 +813,23 @@ class AITradingBrain:
                 gpt4_available = False
                 claude_available = False
 
+            print(f"🔍 After ai_mode='{ai_mode}': gpt4={gpt4_available}, claude={claude_available}, deepseek={deepseek_available}")
+
             if gpt4_available:
                 tasks.append(self._call_gpt4(prompt))
                 ai_mapping.append('gpt4')
+                print(f"✅ Added GPT-4 to tasks")
             if claude_available:
                 tasks.append(self._call_claude(prompt))
                 ai_mapping.append('claude')
+                print(f"✅ Added Claude to tasks")
             if deepseek_available:
                 tasks.append(self._call_deepseek(prompt))
                 ai_mapping.append('deepseek')
+                print(f"✅ Added DeepSeek to tasks")
 
             if not tasks:
+                print(f"❌ NO TASKS ADDED - Returning 'No AI models available'")
                 return "hold", 0.0, "No AI models available", 60
 
             # Run all AIs concurrently
