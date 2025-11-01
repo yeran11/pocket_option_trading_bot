@@ -2203,6 +2203,70 @@ def check_trade_limits():
 async def set_expiry_time(driver, expiry_seconds):
     """Set the expiry time in Pocket Option's interface before placing trade"""
     print(f"📍 set_expiry_time called with: {expiry_seconds}s")
+
+    # METHOD 1: Try JavaScript injection first (FASTEST & MOST RELIABLE)
+    try:
+        print(f"🚀 Trying JavaScript injection to set {expiry_seconds}s...")
+
+        # Try multiple JavaScript approaches to set expiry
+        js_attempts = [
+            # Attempt 1: Direct input value setting
+            f"""
+            var expiryInputs = document.querySelectorAll('input[type="text"], input[type="number"]');
+            for (var i = 0; i < expiryInputs.length; i++) {{
+                if (expiryInputs[i].value && (expiryInputs[i].value.includes('m') || expiryInputs[i].value.includes('s'))) {{
+                    expiryInputs[i].value = '{expiry_seconds}';
+                    expiryInputs[i].dispatchEvent(new Event('input', {{ bubbles: true }}));
+                    expiryInputs[i].dispatchEvent(new Event('change', {{ bubbles: true }}));
+                    return true;
+                }}
+            }}
+            return false;
+            """,
+
+            # Attempt 2: Find expiry time element and set via data attribute
+            f"""
+            var timeElements = document.querySelectorAll('[class*="time"], [class*="expir"]');
+            for (var i = 0; i < timeElements.length; i++) {{
+                if (timeElements[i].hasAttribute('data-value') || timeElements[i].hasAttribute('value')) {{
+                    timeElements[i].setAttribute('data-value', '{expiry_seconds}');
+                    timeElements[i].setAttribute('value', '{expiry_seconds}');
+                    return true;
+                }}
+            }}
+            return false;
+            """,
+
+            # Attempt 3: Trigger Pocket Option's internal expiry setter (if it exists)
+            f"""
+            if (window.setExpiryTime) {{
+                window.setExpiryTime({expiry_seconds});
+                return true;
+            }}
+            if (window.setExpiry) {{
+                window.setExpiry({expiry_seconds});
+                return true;
+            }}
+            return false;
+            """
+        ]
+
+        for idx, js_code in enumerate(js_attempts):
+            try:
+                result = driver.execute_script(js_code)
+                if result:
+                    print(f"✅ JavaScript method {idx+1} succeeded!")
+                    add_log(f"✅ Expiry set to {expiry_seconds}s (JavaScript)")
+                    return True
+            except Exception as e:
+                print(f"⚠️ JavaScript method {idx+1} failed: {e}")
+                continue
+
+        print(f"⚠️ JavaScript injection failed, falling back to UI clicking...")
+    except Exception as e:
+        print(f"⚠️ JavaScript injection error: {e}")
+
+    # METHOD 2: Fallback to UI clicking (original method)
     try:
         from selenium.webdriver.support.ui import WebDriverWait
         from selenium.webdriver.support import expected_conditions as EC
