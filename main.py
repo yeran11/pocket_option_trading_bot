@@ -2796,15 +2796,10 @@ async def create_order(driver, action, asset, reason="", expiry=60):
         if not ok_payout:
             return False
 
-        # 🆕 SET EXPIRY TIME BEFORE CLICKING CALL/PUT
-        if settings.get('ai_dynamic_expiry_enabled', True):
-            print(f"🔍 Attempting to set expiry to {expiry}s...")
-            expiry_set = await set_expiry_time(driver, expiry)
-            if not expiry_set:
-                add_log(f"⚠️ Using manual expiry (auto-set failed for {expiry}s)")
-                print(f"❌ Failed to set expiry to {expiry}s")
-            else:
-                print(f"✅ Successfully set expiry to {expiry}s")
+        # ✅ EXPIRY DETECTION (NOT SETTING) - Bot uses whatever is already set in UI
+        # The bot already detects the expiry from UI (get_current_expiry_time)
+        # No need to SET expiry - just use what's already there for instant execution!
+        print(f"⚡ Using UI expiry ({expiry}s) - Entering trade immediately!")
 
         driver.find_element(by=By.CLASS_NAME, value=f'btn-{action}').click()
         ACTIONS[asset] = datetime.now()
