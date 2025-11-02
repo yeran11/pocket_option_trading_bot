@@ -1186,6 +1186,178 @@ async def detect_candlestick_patterns(candles):
     return None, 0, 'neutral'
 
 
+# ==================== TREND VALIDATION FOR SCALPING ====================
+
+async def validate_trend_alignment(action: str, indicators: dict, multi_tf_data: dict, settings: dict) -> tuple:
+    """
+    🎯 ULTRA-STRICT TREND FILTER FOR SCALPING
+
+    Scalping requires trading WITH the trend, not against it.
+    This function validates if a proposed trade aligns with the dominant trend.
+
+    Returns: (is_valid: bool, reason: str, trend_strength: int)
+
+    RULES:
+    - Strong trend (ADX > 25): MUST trade with trend
+    - Moderate trend (ADX 20-25): Prefer trend, allow reversals if 4+ reversal signals
+    - Weak trend (ADX < 20): Allow counter-trend trades (reversals)
+    - Multi-timeframe must agree (5m and 15m)
+    """
+
+    # Extract indicators
+    ema_fast = indicators.get('ema_fast', 0)
+    ema_slow = indicators.get('ema_slow', 0)
+    supertrend_dir = indicators.get('supertrend_direction', 0)
+    macd_hist = indicators.get('macd_histogram', 0)
+    adx = indicators.get('adx', 0)
+    rsi = indicators.get('rsi', 50)
+
+    # Determine primary trend from multiple indicators
+    trend_signals = []
+
+    # EMA Trend
+    if ema_fast and ema_slow:
+        if ema_fast > ema_slow:
+            trend_signals.append('bullish')
+        elif ema_fast < ema_slow:
+            trend_signals.append('bearish')
+
+    # SuperTrend
+    if supertrend_dir == 1:
+        trend_signals.append('bullish')
+    elif supertrend_dir == -1:
+        trend_signals.append('bearish')
+
+    # MACD Histogram
+    if macd_hist and macd_hist > 0:
+        trend_signals.append('bullish')
+    elif macd_hist and macd_hist < 0:
+        trend_signals.append('bearish')
+
+    # Count trend consensus
+    bullish_count = trend_signals.count('bullish')
+    bearish_count = trend_signals.count('bearish')
+
+    # Determine dominant trend
+    if bullish_count > bearish_count:
+        primary_trend = 'bullish'
+        trend_strength = bullish_count
+    elif bearish_count > bullish_count:
+        primary_trend = 'bearish'
+        trend_strength = bearish_count
+    else:
+        primary_trend = 'neutral'
+        trend_strength = 0
+
+    # Multi-timeframe validation
+    mtf_agreement = True
+    mtf_bullish = 0
+    mtf_bearish = 0
+
+    if multi_tf_data:
+        for tf_name, tf_indicators in multi_tf_data.items():
+            # Check higher timeframes (5m, 15m)
+            if '5m' in tf_name or '15m' in tf_name or '30m' in tf_name:
+                tf_ema_cross = tf_indicators.get('ema_cross', 'Neutral')
+                tf_supertrend = tf_indicators.get('supertrend', 'Neutral')
+                tf_macd = tf_indicators.get('macd_trend', 'Neutral')
+
+                # Count signals
+                if 'Bullish' in tf_ema_cross or 'BUY' in tf_supertrend or 'Bullish' in tf_macd:
+                    mtf_bullish += 1
+                if 'Bearish' in tf_ema_cross or 'SELL' in tf_supertrend or 'Bearish' in tf_macd:
+                    mtf_bearish += 1
+
+    # Multi-timeframe consensus
+    if mtf_bullish > mtf_bearish + 1:
+        mtf_trend = 'bullish'
+    elif mtf_bearish > mtf_bullish + 1:
+        mtf_trend = 'bearish'
+    else:
+        mtf_trend = 'neutral'
+
+    # ========== VALIDATION LOGIC ==========
+
+    # Convert action to trend direction
+    action_direction = 'bullish' if action == 'call' else 'bearish' if action == 'put' else 'neutral'
+
+    # ADX-based trend strength classification
+    if adx >= 25:
+        trend_category = 'strong'
+    elif adx >= 20:
+        trend_category = 'moderate'
+    else:
+        trend_category = 'weak'
+
+    # ===== RULE 1: STRONG TREND (ADX >= 25) - MUST TRADE WITH TREND =====
+    if trend_category == 'strong':
+        # Check if trade is WITH the trend
+        if action_direction != primary_trend and primary_trend != 'neutral':
+            return (False,
+                    f"❌ COUNTER-TREND REJECTED: ADX={adx:.1f} (Strong {primary_trend} trend). " +
+                    f"Scalping against strong trend is high risk! {action.upper()} conflicts with {primary_trend.upper()} trend.",
+                    trend_strength)
+
+        # Check multi-timeframe agreement
+        if mtf_trend != 'neutral' and mtf_trend != action_direction:
+            return (False,
+                    f"❌ MULTI-TIMEFRAME CONFLICT: Higher TFs show {mtf_trend.upper()} trend, " +
+                    f"but signal is {action.upper()}. MTF must agree for scalping!",
+                    trend_strength)
+
+        # All checks passed for strong trend
+        return (True,
+                f"✅ TREND ALIGNED: Strong {primary_trend.upper()} trend (ADX={adx:.1f}), " +
+                f"{action.upper()} trade is with trend. MTF confirms.",
+                trend_strength)
+
+    # ===== RULE 2: MODERATE TREND (ADX 20-25) - PREFER TREND, ALLOW STRONG REVERSALS =====
+    elif trend_category == 'moderate':
+        # If trading WITH trend, allow
+        if action_direction == primary_trend:
+            return (True,
+                    f"✅ TREND ALIGNED: Moderate {primary_trend.upper()} trend (ADX={adx:.1f}), " +
+                    f"{action.upper()} trade is with trend.",
+                    trend_strength)
+
+        # If counter-trend, check for strong reversal signals
+        reversal_signals = 0
+
+        # RSI reversal zones
+        if action == 'call' and rsi < 30:
+            reversal_signals += 1
+        elif action == 'put' and rsi > 70:
+            reversal_signals += 1
+
+        # Check if indicators show divergence (trend weakening)
+        if trend_strength <= 1:  # Only 1 indicator shows trend
+            reversal_signals += 1
+
+        # Multi-timeframe shows potential reversal
+        if mtf_trend == 'neutral' or mtf_trend == action_direction:
+            reversal_signals += 1
+
+        # Need at least 2 strong reversal signals
+        if reversal_signals >= 2:
+            return (True,
+                    f"⚠️ REVERSAL ALLOWED: Moderate trend but {reversal_signals} reversal signals detected. " +
+                    f"ADX={adx:.1f}, RSI={rsi:.1f}. Counter-trend trade acceptable.",
+                    trend_strength)
+        else:
+            return (False,
+                    f"❌ WEAK REVERSAL: Moderate {primary_trend.upper()} trend (ADX={adx:.1f}), " +
+                    f"but only {reversal_signals}/2 reversal signals. Need stronger confirmation!",
+                    trend_strength)
+
+    # ===== RULE 3: WEAK TREND (ADX < 20) - ALLOW REVERSALS (RANGING MARKET) =====
+    else:  # weak trend
+        # In ranging/choppy markets, allow both directions
+        return (True,
+                f"✅ RANGE TRADING: Weak trend (ADX={adx:.1f}), market is ranging. " +
+                f"{action.upper()} trade allowed (reversals work in ranging markets).",
+                trend_strength)
+
+
 # ==================== TRADING STRATEGY ====================
 
 async def enhanced_strategy(candles, all_timeframes=None, detected_expiry=None):
@@ -1378,6 +1550,41 @@ async def enhanced_strategy(candles, all_timeframes=None, detected_expiry=None):
                 print(f"✅ AI DECISION: {ai_action.upper()} @ {ai_confidence}% confidence ⏰ {ai_expiry}s")
                 print(f"📝 Reason: {ai_reason}")
                 print(f"{'='*70}\n")
+
+                # ========== 🎯 TREND VALIDATION FILTER (NEW!) ==========
+                # For scalping, we MUST validate trade is WITH the trend, not against it
+                print(f"🔍 TREND FILTER: Validating {ai_action.upper()} trade against trend...")
+
+                # Prepare complete indicators dict for validation
+                validation_indicators = {
+                    'ema_fast': ema_fast,
+                    'ema_slow': ema_slow,
+                    'supertrend_direction': supertrend_direction,
+                    'macd_histogram': macd_histogram,
+                    'adx': adx_value,
+                    'rsi': rsi
+                }
+
+                # Run trend validation
+                is_valid, validation_reason, trend_strength = await validate_trend_alignment(
+                    action=ai_action,
+                    indicators=validation_indicators,
+                    multi_tf_data=multi_tf_data,
+                    settings=settings
+                )
+
+                print(f"{validation_reason}")
+                print(f"{'='*70}\n")
+
+                # If trade is counter-trend and rejected, return None (HOLD)
+                if not is_valid:
+                    add_log(f"🚫 TREND FILTER BLOCKED: {validation_reason}")
+                    print(f"⚠️ AI wanted {ai_action.upper()} but TREND FILTER rejected it!")
+                    print(f"⏸️ Waiting for trend-aligned opportunity...")
+                    return None  # Block counter-trend trade
+
+                # Trade passed trend validation - proceed
+                add_log(f"✅ TREND VALIDATED: {validation_reason}")
 
                 # Set active strategy tracking
                 ACTIVE_STRATEGY_ID = 'ai_ensemble'
