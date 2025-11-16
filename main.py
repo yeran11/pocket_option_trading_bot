@@ -1831,23 +1831,24 @@ async def enhanced_strategy(candles, all_timeframes=None, detected_expiry=None):
     call_confidence = (call_score / total_score) * 100 if total_score > 0 else 0
     put_confidence = (put_score / total_score) * 100 if total_score > 0 else 0
 
-    # Minimum score threshold (adjustable)
-    min_score_threshold = 40.0  # Out of 100 possible points
+    # Minimum score threshold (lowered from 40 to work without AI)
+    min_score_threshold = 20.0  # Out of 100 possible points
 
-    # Strong directional bias required
+    # Strong directional bias required (lowered from 15 to work without AI)
     score_diff = abs(call_score - put_score)
+    min_diff_threshold = 8.0
 
     # Determine traditional decision
     trad_action = None
     trad_confidence = 0
     trad_reason = ""
 
-    if call_score > put_score and call_score >= min_score_threshold and score_diff >= 15:
+    if call_score > put_score and call_score >= min_score_threshold and score_diff >= min_diff_threshold:
         trad_action = 'call'
         trad_confidence = call_confidence
         trad_reason = f'🎯 Ultra Score: {call_score:.1f}/100 ({call_confidence:.0f}% conf)'
         add_log(f"✅ CALL Signal - Score: {call_score:.1f} vs {put_score:.1f} | Confidence: {call_confidence:.1f}%")
-    elif put_score > call_score and put_score >= min_score_threshold and score_diff >= 15:
+    elif put_score > call_score and put_score >= min_score_threshold and score_diff >= min_diff_threshold:
         trad_action = 'put'
         trad_confidence = put_confidence
         trad_reason = f'🎯 Ultra Score: {put_score:.1f}/100 ({put_confidence:.0f}% conf)'
@@ -2343,17 +2344,33 @@ async def detect_current_expiry(driver):
                 // REJECT placeholder text and words (must have numbers for time-like values)
                 if (!val.match(/\d/)) return 0;  // Must contain at least one digit
 
-                // PRIORITY 1: HH:MM:SS format (00:02:00) - STRONGEST indicator - Score: 100
-                if (val.match(/^\d{2}:\d{2}:\d{2}$/)) return 100;
+                // REJECT clock times (HH:MM:SS with hours > 12, or typical clock patterns)
+                // Clock times like 22:09:38, 15:14:20 etc should be rejected
+                var hhmmss = val.match(/^(\d{2}):(\d{2}):(\d{2})$/);
+                if (hhmmss) {
+                    var hours = parseInt(hhmmss[1]);
+                    // If hours > 5, it's likely a clock time, not an expiry
+                    // (expiries are typically 0-5 minutes max)
+                    if (hours > 5) return 0;
+                    return 100;  // Valid expiry in HH:MM:SS format
+                }
 
-                // PRIORITY 2: MM:SS format (02:00, 2:00) - Very strong - Score: 90
+                // PRIORITY 1: Pure numbers 1-300 (likely expiry in seconds) - HIGHEST - Score: 100
+                if (val.match(/^\d+$/)) {
+                    var num = parseInt(val);
+                    if (num >= 10 && num <= 300) return 100;  // 10s to 5min
+                    if (num >= 1 && num <= 10) return 85;     // 1-10 seconds
+                    return 0;
+                }
+
+                // PRIORITY 2: Pure time with units (2m, 60s, 120s) - Very Strong - Score: 95
+                if (val.match(/^\d+[ms]$/)) return 95;
+
+                // PRIORITY 3: MM:SS format (02:00, 2:00) - Strong - Score: 90
                 if (val.match(/^\d{1,2}:\d{2}$/)) return 90;
 
-                // PRIORITY 3: Pure time with units (2m, 60s, 120s) - Strong - Score: 80
-                if (val.match(/^\d+[ms]$/)) return 80;
-
-                // PRIORITY 4: Mixed format (2m30s) - Good - Score: 70
-                if (val.match(/^\d+m\d+s$/)) return 70;
+                // PRIORITY 4: Mixed format (2m30s) - Good - Score: 80
+                if (val.match(/^\d+m\d+s$/)) return 80;
 
                 return 0;
             }
