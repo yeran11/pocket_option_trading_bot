@@ -111,19 +111,12 @@ if STRATEGY_SYSTEMS_AVAILABLE:
         print(f"⚠️ Strategy systems init error: {e}")
 
 # ===================================================================
-# AI SYSTEM - GPT-4 + Claude + DeepSeek
+# AI SYSTEM REMOVED - CUSTOM STRATEGIES ONLY
 # ===================================================================
-try:
-    from ai_config import ai_brain, OPENAI_API_KEY, CLAUDE_API_KEY, DEEPSEEK_API_KEY
-    AI_AVAILABLE = any([OPENAI_API_KEY, CLAUDE_API_KEY, DEEPSEEK_API_KEY])
-    if AI_AVAILABLE:
-        print("✅ AI System loaded - GPT-4, Claude, and DeepSeek available!")
-    else:
-        print("ℹ️ AI System loaded but no API keys configured")
-except ImportError as e:
-    AI_AVAILABLE = False
-    ai_brain = None
-    print(f"⚠️ AI system not available: {e}")
+# AI imports removed - bot now uses only custom strategies
+AI_AVAILABLE = False
+ai_brain = None
+print("✅ Custom Strategy Mode - AI systems disabled")
 
 # Global variables
 DRIVER = None
@@ -1462,152 +1455,8 @@ async def enhanced_strategy(candles, all_timeframes=None, detected_expiry=None):
         return None
 
     # ===================================================================
-    # AI ANALYSIS (If enabled in settings)
-    # ===================================================================
-    if settings.get('ai_enabled', False) and AI_AVAILABLE and ai_brain:
-        try:
-            print(f"\n{'='*70}")
-            print(f"🤖 AI ANALYSIS - Consulting AI Models")
-            print(f"{'='*70}")
-
-            # 🚀 MULTI-TIMEFRAME ANALYSIS - Calculate indicators for ALL available timeframes
-            multi_tf_data = {}
-            if all_timeframes:
-                for period, tf_candles in all_timeframes.items():
-                    if len(tf_candles) >= 50:
-                        # Calculate indicators for this timeframe
-                        tf_ema_fast = await calculate_ema(tf_candles, settings['fast_ema'])
-                        tf_ema_slow = await calculate_ema(tf_candles, settings['slow_ema'])
-                        tf_rsi = await calculate_rsi(tf_candles, settings['rsi_period'])
-                        tf_macd_line, tf_macd_signal, tf_macd_hist = await calculate_macd(tf_candles)
-                        tf_supertrend_val, tf_supertrend_dir = await calculate_supertrend(tf_candles)
-
-                        # Determine timeframe name
-                        tf_name = f"{period//60}m" if period >= 60 else f"{period}s"
-
-                        multi_tf_data[tf_name] = {
-                            'ema_cross': 'Bullish' if tf_ema_fast > tf_ema_slow else 'Bearish',
-                            'rsi': tf_rsi,
-                            'macd_trend': 'Bullish' if tf_macd_hist > 0 else 'Bearish',
-                            'supertrend': 'BUY' if tf_supertrend_dir == 1 else 'SELL'
-                        }
-                        print(f"📊 {tf_name} Timeframe: EMA {multi_tf_data[tf_name]['ema_cross']}, RSI {tf_rsi:.1f}, ST {multi_tf_data[tf_name]['supertrend']}")
-
-            # Prepare market data for AI
-            market_data = {
-                'asset': 'CURRENT',
-                'current_price': current_price,
-                'change_1m': ((current_price - candles[-2][2]) / candles[-2][2] * 100) if len(candles) > 1 else 0,
-                'change_5m': 0,
-                'volume': 'High' if volume_signal == 'high_volume' else 'Normal',
-                'win_rate': (bot_state['wins'] / bot_state['total_trades'] * 100) if bot_state['total_trades'] > 0 else 0,
-                'total_trades': bot_state['total_trades'],
-                'streak': f"{bot_state['wins']}W/{bot_state['losses']}L",
-                'multi_timeframe': multi_tf_data,  # 🚀 ALL timeframes
-                'detected_expiry': detected_expiry  # 🚀 User's current expiry setting
-            }
-
-            # Prepare indicators for AI
-            ai_indicators = {
-                'rsi': rsi,
-                'ema_cross': 'Bullish' if ema_fast > ema_slow else 'Bearish',
-                'supertrend': 'BUY' if supertrend_direction == 1 else 'SELL',
-                'macd_histogram': macd_histogram,
-                'macd_line': macd_line,
-                'macd_signal_line': macd_signal,
-                'stochastic_k': stoch_k,
-                'stochastic_d': stoch_d,
-                'bollinger_position': 'Upper' if current_price > upper_bb else 'Lower' if current_price < lower_bb else 'Middle',
-                'atr': atr,
-                'volume_signal': volume_signal,
-                'adx': adx_value,
-                'heikin_ashi': heikin_ashi_trend,
-                'vwap_position': vwap_position,
-                'support': support,
-                'resistance': resistance
-            }
-
-            # Debug: Show AI settings
-            ai_mode_setting = settings.get('ai_mode', 'ensemble')
-            use_gpt4_setting = settings.get('use_gpt4', True)
-            use_claude_setting = settings.get('use_claude', True)
-            use_deepseek_setting = settings.get('use_deepseek', True)
-
-            print(f"🔍 DEBUG: ai_mode={ai_mode_setting}, use_gpt4={use_gpt4_setting}, use_claude={use_claude_setting}, use_deepseek={use_deepseek_setting}")
-
-            # Call AI ensemble
-            ai_action, ai_confidence, ai_reason, ai_expiry = await ai_brain.analyze_with_ensemble(
-                market_data=market_data,
-                indicators=ai_indicators,
-                ai_mode=ai_mode_setting,
-                use_gpt4=use_gpt4_setting,
-                use_claude=use_claude_setting,
-                use_deepseek=use_deepseek_setting
-            )
-
-            # Check if AI made a decision
-            if ai_action != 'hold' and ai_confidence >= settings.get('ai_min_confidence', 70):
-                print(f"✅ AI DECISION: {ai_action.upper()} @ {ai_confidence}% confidence ⏰ {ai_expiry}s")
-                print(f"📝 Reason: {ai_reason}")
-                print(f"{'='*70}\n")
-
-                # ========== 🎯 TREND VALIDATION FILTER (NEW!) ==========
-                # For scalping, we MUST validate trade is WITH the trend, not against it
-                print(f"🔍 TREND FILTER: Validating {ai_action.upper()} trade against trend...")
-
-                # Prepare complete indicators dict for validation
-                validation_indicators = {
-                    'ema_fast': ema_fast,
-                    'ema_slow': ema_slow,
-                    'supertrend_direction': supertrend_direction,
-                    'macd_histogram': macd_histogram,
-                    'adx': adx_value,
-                    'rsi': rsi
-                }
-
-                # Run trend validation
-                is_valid, validation_reason, trend_strength = await validate_trend_alignment(
-                    action=ai_action,
-                    indicators=validation_indicators,
-                    multi_tf_data=multi_tf_data,
-                    settings=settings
-                )
-
-                print(f"{validation_reason}")
-                print(f"{'='*70}\n")
-
-                # If trade is counter-trend and rejected, return None (HOLD)
-                if not is_valid:
-                    add_log(f"🚫 TREND FILTER BLOCKED: {validation_reason}")
-                    print(f"⚠️ AI wanted {ai_action.upper()} but TREND FILTER rejected it!")
-                    print(f"⏸️ Waiting for trend-aligned opportunity...")
-                    return None  # Block counter-trend trade
-
-                # Trade passed trend validation - proceed
-                add_log(f"✅ TREND VALIDATED: {validation_reason}")
-
-                # Set active strategy tracking
-                ACTIVE_STRATEGY_ID = 'ai_ensemble'
-                ACTIVE_STRATEGY_NAME = f"AI {settings.get('ai_mode', 'ensemble').upper()}"
-                LAST_TRADE_CONFIDENCE = ai_confidence
-
-                # Add log and return AI decision
-                add_log(f"🤖 AI: {ai_action.upper()} - {ai_reason} ({ai_confidence:.0f}%)")
-                return ai_action, ai_reason, ai_expiry
-            else:
-                print(f"ℹ️ AI says HOLD (confidence: {ai_confidence}%)")
-                print(f"📝 Reason: {ai_reason}")
-                print(f"⏭️ Falling back to Custom Strategies...")
-
-        except Exception as e:
-            print(f"⚠️ AI Analysis error: {e}")
-            import traceback
-            traceback.print_exc()
-            print(f"⏭️ Falling back to Custom Strategies...")
-
-    # ===================================================================
-    # CUSTOM STRATEGY MODE (Fallback if AI disabled or no signal)
-    # Evaluate custom strategies using indicators calculated above
+    # CUSTOM STRATEGY MODE - PRIMARY TRADING LOGIC
+    # AI systems removed - using only custom strategies and indicators
     # ===================================================================
 
     print(f"\n{'='*70}")
@@ -3160,24 +3009,7 @@ async def check_recent_trades(driver):
                         bot_state['chart_data']['balances'].append(bot_state['balance'])
                         bot_state['chart_data']['trades'].append(trade_info)
 
-                        # AI Learning: Track winning pattern
-                        if ai_brain and optimizer:
-                            try:
-                                trade_data = {
-                                    'asset': asset,
-                                    'action': action.lower(),
-                                    'result': 'WIN',
-                                    'profit': profit
-                                }
-                                ai_brain.learn_from_trade(trade_data)
-
-                                # Update strategy performance
-                                current_strategy = settings.get('active_strategy', 'TRADITIONAL')
-                                if current_strategy in optimizer.strategy_performance:
-                                    optimizer.strategy_performance[current_strategy]['wins'] += 1
-                                    optimizer.strategy_performance[current_strategy]['trades'] += 1
-                            except:
-                                pass
+                        # AI Learning: Removed - using custom strategies only
 
                         # 🚀 ULTRA SYSTEMS: Record trade in performance tracker and journal
                         if ULTRA_SYSTEMS_AVAILABLE:
@@ -3279,23 +3111,7 @@ async def check_recent_trades(driver):
                             bot_state['chart_data']['balances'].append(bot_state['balance'])
                             bot_state['chart_data']['trades'].append(trade_info)
 
-                            # AI Learning: Track losing pattern
-                            if ai_brain and optimizer:
-                                try:
-                                    trade_data = {
-                                        'asset': asset,
-                                        'action': action.lower(),
-                                        'result': 'LOSS',
-                                        'profit': -stake
-                                    }
-                                    ai_brain.learn_from_trade(trade_data)
-
-                                    # Update strategy performance
-                                    current_strategy = settings.get('active_strategy', 'TRADITIONAL')
-                                    if current_strategy in optimizer.strategy_performance:
-                                        optimizer.strategy_performance[current_strategy]['trades'] += 1
-                                except:
-                                    pass
+                            # AI Learning: Removed - using custom strategies only
 
                             # 🚀 ULTRA SYSTEMS: Record trade in performance tracker and journal
                             if ULTRA_SYSTEMS_AVAILABLE:

@@ -1,12 +1,5 @@
 {
-  "ai_enabled": true,
-  "use_gpt4": true,
-  "use_claude": true,
-  "use_deepseek": true,
-  "ai_mode": "deepseek_only",
-  "ai_min_confidence": 70,
-  "ai_strategy": "ULTRA_SCALPING",
-  "decision_mode": "full_power",
+  "decision_mode": "custom_strategies",
   "active_strategy_id": null,
   "pattern_recognition_enabled": true,
   "custom_strategies_enabled": true,
@@ -86,18 +79,6 @@
   "reversal_min_confidence": 65,
   "reversal_indicator_boost": 2,
   "reversal_weight": 25,
-  "ai_dynamic_expiry_enabled": true,
-  "ai_expiry_min": 30,
-  "ai_expiry_max": 300,
-  "ai_expiry_default": 60,
-  "ai_expiry_allowed": [
-    30,
-    60,
-    90,
-    120,
-    180,
-    300
-  ],
   "min_confidence": 4,
   "min_payout": 85,
   "max_trades_per_hour": 20,
@@ -120,7 +101,7 @@
   "max_consecutive_trades_enabled": true,
   "max_consecutive_trades": 3,
   "break_duration": 120,
-  "active_strategy": "AI_ENHANCED",
+  "active_strategy": "CUSTOM_STRATEGIES",
   "take_profit": 100,
   "stop_loss": 50,
   "trailing_stop": false,
@@ -132,8 +113,5 @@
       "start": "09:00",
       "end": "17:00"
     }
-  ],
-  "master_trader_enabled": false,
-  "master_trader_min_confidence": 95,
-  "master_trader_min_win_probability": 90
+  ]
 }
