@@ -194,10 +194,7 @@
       "cooldown_after_loss_seconds": 180,
       "cooldown_after_win_seconds": 60
     },
-    "regime_filter": [
-      "trending_down",
-      "breakout_down"
-    ],
+    "regime_filter": [],
     "timeframe_alignment": false,
     "expiry_time": 60,
     "notes": "ZERO LAG TREND - BEARISH PUT ONLY. Exact replication of PineScript Zero Lag Trend Signals indicator by AlgoAlpha. ENTRY SIGNAL (PINESCRIPT LINE 41): ta.crossunder(trend, 0) which means trend changes from 1 (bullish) to -1 (bearish). This happens when close crosses BELOW (zlema - volatility). CALCULATIONS: ZLEMA = EMA(close + (close - close[34]), 70) where lag = floor((70-1)/2) = 34. Volatility = highest(ATR(70), 210) * 1.2. Upper Band = zlema + volatility. Lower Band = zlema - volatility. TREND LOGIC: trend = 1 (bullish) when close crosses above upper band (LINE 27-28). trend = -1 (bearish) when close crosses below lower band (LINE 30-31). BEARISH TREND SIGNAL: Triggered when trend crossunder from 1 to -1 (LINE 41). This is the LARGE ARROW DOWN signal. Strategy enters PUT on this signal ONLY. Does NOT use the small entry arrows (LINE 45). Uses ONLY the bearish trend signal (large arrow). Expected: High win rate on strong trend changes. This is EXACT PineScript logic!",
@@ -404,10 +401,7 @@
       "cooldown_after_loss_seconds": 180,
       "cooldown_after_win_seconds": 60
     },
-    "regime_filter": [
-      "trending_up",
-      "breakout_up"
-    ],
+    "regime_filter": [],
     "timeframe_alignment": false,
     "expiry_time": 60,
     "notes": "ZERO LAG TREND - BULLISH CALL ONLY. Exact replication of PineScript Zero Lag Trend Signals indicator by AlgoAlpha. ENTRY SIGNAL (PINESCRIPT LINE 42): ta.crossover(trend, 0) which means trend changes from -1 (bearish) to 1 (bullish). This happens when close crosses ABOVE (zlema + volatility). CALCULATIONS: ZLEMA = EMA(close + (close - close[34]), 70) where lag = floor((70-1)/2) = 34. Volatility = highest(ATR(70), 210) * 1.2. Upper Band = zlema + volatility. Lower Band = zlema - volatility. TREND LOGIC: trend = 1 (bullish) when close crosses above upper band (LINE 27-28). trend = -1 (bearish) when close crosses below lower band (LINE 30-31). BULLISH TREND SIGNAL: Triggered when trend crossover from -1 to 1 (LINE 42). This is the LARGE ARROW UP signal. Strategy enters CALL on this signal ONLY. Does NOT use the small entry arrows (LINE 44). Uses ONLY the bullish trend signal (large arrow). Expected: High win rate on strong trend changes. This is EXACT PineScript logic!",
