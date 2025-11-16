@@ -1,1379 +1,422 @@
 {
-  "momentum_reversal_master": {
-    "name": "Momentum Reversal Master",
-    "description": "Catches strong reversals using RSI divergence, volume analysis, and momentum indicators",
-    "action": "call",
-    "active": false,
-    "priority": 10,
-    "asset_filter": {
-      "enabled": true,
-      "whitelist": [
-        "EUR/USD",
-        "GBP/USD",
-        "USD/JPY",
-        "AUD/USD"
-      ],
-      "blacklist": []
-    },
-    "condition_groups": [
-      {
-        "conditions": [
-          {
-            "indicator": "rsi",
-            "operator": "<",
-            "value": 25,
-            "weight": 2
-          },
-          {
-            "indicator": "macd_histogram",
-            "operator": ">",
-            "value": 0,
-            "weight": 3
-          },
-          {
-            "indicator": "volume",
-            "operator": ">",
-            "value": 150,
-            "weight": 1.5
-          }
-        ],
-        "logic": "AND"
-      },
-      {
-        "conditions": [
-          {
-            "indicator": "stochastic_k",
-            "operator": "<",
-            "value": 20,
-            "weight": 1.5
-          },
-          {
-            "indicator": "stochastic_d",
-            "operator": "<",
-            "value": 20,
-            "weight": 1.5
-          }
-        ],
-        "logic": "AND"
-      }
-    ],
-    "regime_filter": [
-      "trending_down",
-      "ranging"
-    ],
-    "signal_strength": {
-      "condition_weights": true,
-      "min_confidence": 80
-    },
-    "risk_management": {
-      "position_size_percent": 1.5,
-      "max_consecutive_losses": 2,
-      "max_trades_per_hour": 5,
-      "max_trades_per_day": 20,
-      "stop_on_drawdown_percent": 3,
-      "take_profit_target_percent": 15
-    },
-    "time_filter": {
-      "enabled": true,
-      "timezone": "UTC",
-      "allowed_hours": [
-        [
-          8,
-          20
-        ]
-      ]
-    },
-    "timeframe_alignment": true,
-    "performance": {
-      "wins": 0,
-      "losses": 0,
-      "total_trades": 0,
-      "win_rate": 0,
-      "avg_profit_per_trade": 0,
-      "total_profit": 0,
-      "consecutive_losses": 0,
-      "max_drawdown": 0,
-      "sharpe_ratio": 0,
-      "trades_today": 0,
-      "trades_this_hour": 0,
-      "last_trade_time": null
-    }
-  },
-  "trend_continuation_elite": {
-    "name": "Trend Continuation Elite",
-    "description": "Rides strong trends using moving averages, ADX, and momentum confirmation",
-    "action": "call",
-    "active": false,
-    "priority": 9,
-    "asset_filter": {
-      "enabled": false,
-      "whitelist": [],
-      "blacklist": []
-    },
-    "condition_groups": [
-      {
-        "conditions": [
-          {
-            "indicator": "ema_20",
-            "operator": ">",
-            "value": 50,
-            "weight": 2
-          },
-          {
-            "indicator": "adx",
-            "operator": ">",
-            "value": 25,
-            "weight": 2.5
-          },
-          {
-            "indicator": "rsi",
-            "operator": ">",
-            "value": 50,
-            "weight": 1.5
-          }
-        ],
-        "logic": "AND"
-      },
-      {
-        "conditions": [
-          {
-            "indicator": "macd_line",
-            "operator": ">",
-            "value": 0,
-            "weight": 2
-          },
-          {
-            "indicator": "volume",
-            "operator": ">",
-            "value": 100,
-            "weight": 1
-          }
-        ],
-        "logic": "AND"
-      }
-    ],
-    "regime_filter": [
-      "trending_up"
-    ],
-    "signal_strength": {
-      "condition_weights": true,
-      "min_confidence": 75
-    },
-    "risk_management": {
-      "position_size_percent": 2,
-      "max_consecutive_losses": 3,
-      "max_trades_per_hour": 8,
-      "max_trades_per_day": 30,
-      "stop_on_drawdown_percent": 5,
-      "take_profit_target_percent": 20
-    },
-    "time_filter": {
-      "enabled": true,
-      "timezone": "UTC",
-      "allowed_hours": [
-        [
-          6,
-          22
-        ]
-      ]
-    },
-    "timeframe_alignment": true,
-    "performance": {
-      "wins": 0,
-      "losses": 0,
-      "total_trades": 0,
-      "win_rate": 0,
-      "avg_profit_per_trade": 0,
-      "total_profit": 0,
-      "consecutive_losses": 0,
-      "max_drawdown": 0,
-      "sharpe_ratio": 0,
-      "trades_today": 0,
-      "trades_this_hour": 0,
-      "last_trade_time": null
-    }
-  },
-  "volatility_breakout_sniper": {
-    "name": "Volatility Breakout Sniper",
-    "description": "Captures explosive moves using Bollinger Bands, ATR, and volume spikes",
-    "action": "call",
-    "active": false,
-    "priority": 8,
-    "asset_filter": {
-      "enabled": true,
-      "whitelist": [
-        "EUR/USD",
-        "GBP/USD",
-        "USD/JPY",
-        "XAU/USD"
-      ],
-      "blacklist": []
-    },
-    "condition_groups": [
-      {
-        "conditions": [
-          {
-            "indicator": "bollinger_upper",
-            "operator": "<",
-            "value": 100,
-            "weight": 3
-          },
-          {
-            "indicator": "atr",
-            "operator": ">",
-            "value": 20,
-            "weight": 2
-          },
-          {
-            "indicator": "volume",
-            "operator": ">",
-            "value": 200,
-            "weight": 2.5
-          }
-        ],
-        "logic": "AND"
-      },
-      {
-        "conditions": [
-          {
-            "indicator": "rsi",
-            "operator": ">",
-            "value": 60,
-            "weight": 1
-          },
-          {
-            "indicator": "cci",
-            "operator": ">",
-            "value": 100,
-            "weight": 1.5
-          }
-        ],
-        "logic": "OR"
-      }
-    ],
-    "regime_filter": [
-      "breakout",
-      "trending_up"
-    ],
-    "signal_strength": {
-      "condition_weights": true,
-      "min_confidence": 85
-    },
-    "risk_management": {
-      "position_size_percent": 1,
-      "max_consecutive_losses": 2,
-      "max_trades_per_hour": 3,
-      "max_trades_per_day": 15,
-      "stop_on_drawdown_percent": 4,
-      "take_profit_target_percent": 25
-    },
-    "time_filter": {
-      "enabled": true,
-      "timezone": "UTC",
-      "allowed_hours": [
-        [
-          7,
-          19
-        ]
-      ]
-    },
-    "timeframe_alignment": true,
-    "performance": {
-      "wins": 0,
-      "losses": 0,
-      "total_trades": 0,
-      "win_rate": 0,
-      "avg_profit_per_trade": 0,
-      "total_profit": 0,
-      "consecutive_losses": 0,
-      "max_drawdown": 0,
-      "sharpe_ratio": 0,
-      "trades_today": 0,
-      "trades_this_hour": 0,
-      "last_trade_time": null
-    }
-  },
-  "mean_reversion_precision": {
-    "name": "Mean Reversion Precision",
-    "description": "Trades extreme deviations with high probability of snapback",
-    "action": "put",
+  "zero_lag_trend___bearish_put": {
+    "name": "ZERO LAG TREND - BEARISH PUT",
+    "description": "PineScript Zero Lag Trend Signals - BEARISH TREND SIGNAL ONLY. Enters PUT when trend changes from bullish to bearish (close crosses BELOW zlema-volatility). Exact replication of PineScript line 41: ta.crossunder(trend, 0). Uses Zero Lag EMA (70 period) + Volatility Bands (ATR 70, multiplier 1.2). Action hardcoded to 'put' - only enters PUT trades on bearish trend signals.",
     "active": true,
-    "priority": 8,
-    "asset_filter": {
-      "enabled": true,
-      "whitelist": [
-        "EUR/USD",
-        "GBP/USD",
-        "USD/JPY",
-        "AUD/USD",
-        "USD/CAD"
-      ],
-      "blacklist": [
-        "XAU/USD",
-        "XAG/USD"
-      ]
-    },
-    "condition_groups": [
-      {
-        "conditions": [
-          {
-            "indicator": "rsi",
-            "operator": ">",
-            "value": 75,
-            "weight": 2
-          },
-          {
-            "indicator": "bollinger_upper",
-            "operator": ">",
-            "value": 90,
-            "weight": 2.5
-          },
-          {
-            "indicator": "stochastic_k",
-            "operator": ">",
-            "value": 80,
-            "weight": 1.5
-          }
-        ],
-        "logic": "AND"
-      },
-      {
-        "conditions": [
-          {
-            "indicator": "williams_r",
-            "operator": ">",
-            "value": -20,
-            "weight": 2
-          },
-          {
-            "indicator": "cci",
-            "operator": ">",
-            "value": 200,
-            "weight": 1.5
-          }
-        ],
-        "logic": "AND"
-      }
-    ],
-    "regime_filter": [
-      "ranging",
-      "trending_up"
-    ],
-    "signal_strength": {
-      "condition_weights": true,
-      "min_confidence": 78
-    },
-    "risk_management": {
-      "position_size_percent": 1.5,
-      "max_consecutive_losses": 3,
-      "max_trades_per_hour": 6,
-      "max_trades_per_day": 25,
-      "stop_on_drawdown_percent": 4.5,
-      "take_profit_target_percent": 18
-    },
-    "time_filter": {
-      "enabled": true,
-      "timezone": "UTC",
-      "allowed_hours": [
-        [
-          9,
-          21
-        ]
-      ]
-    },
-    "timeframe_alignment": true,
-    "performance": {
-      "wins": 0,
-      "losses": 0,
-      "total_trades": 0,
-      "win_rate": 0,
-      "avg_profit_per_trade": 0,
-      "total_profit": 0,
-      "consecutive_losses": 0,
-      "max_drawdown": 0,
-      "sharpe_ratio": 0,
-      "trades_today": 0,
-      "trades_this_hour": 0,
-      "last_trade_time": null
-    }
-  },
-  "multi_timeframe_confluence": {
-    "name": "Multi-Timeframe Confluence",
-    "description": "Combines signals from multiple timeframes for ultra-high probability trades",
-    "action": "call",
-    "active": false,
     "priority": 10,
     "asset_filter": {
       "enabled": true,
       "whitelist": [
         "EUR/USD",
         "GBP/USD",
-        "USD/JPY",
+        "BTC/USD",
+        "EUR/GBP",
         "AUD/USD",
-        "USD/CAD"
+        "USD/JPY",
+        "EUR/USD OTC",
+        "GBP/USD OTC",
+        "BTC/USD OTC"
       ],
       "blacklist": []
     },
-    "condition_groups": [
-      {
-        "conditions": [
-          {
-            "indicator": "ema_50",
-            "operator": ">",
-            "value": 200,
-            "weight": 3
-          },
-          {
-            "indicator": "rsi",
-            "operator": ">",
-            "value": 45,
-            "weight": 1.5
-          },
-          {
-            "indicator": "rsi",
-            "operator": "<",
-            "value": 65,
-            "weight": 1.5
-          }
-        ],
-        "logic": "AND"
-      },
-      {
-        "conditions": [
-          {
-            "indicator": "macd_histogram",
-            "operator": ">",
-            "value": 0,
-            "weight": 2
-          },
-          {
-            "indicator": "adx",
-            "operator": ">",
-            "value": 20,
-            "weight": 2
-          },
-          {
-            "indicator": "volume",
-            "operator": ">",
-            "value": 120,
-            "weight": 1.5
-          }
-        ],
-        "logic": "AND"
-      }
-    ],
-    "regime_filter": [
-      "trending_up",
-      "trending_down"
-    ],
-    "signal_strength": {
-      "condition_weights": true,
-      "min_confidence": 88
-    },
-    "risk_management": {
-      "position_size_percent": 2.5,
-      "max_consecutive_losses": 2,
-      "max_trades_per_hour": 2,
-      "max_trades_per_day": 12,
-      "stop_on_drawdown_percent": 4,
-      "take_profit_target_percent": 30
-    },
     "time_filter": {
       "enabled": true,
-      "timezone": "UTC",
       "allowed_hours": [
         [
-          7,
-          21
+          0,
+          23
         ]
-      ]
-    },
-    "timeframe_alignment": true,
-    "performance": {
-      "wins": 0,
-      "losses": 0,
-      "total_trades": 0,
-      "win_rate": 0,
-      "avg_profit_per_trade": 0,
-      "total_profit": 0,
-      "consecutive_losses": 0,
-      "max_drawdown": 0,
-      "sharpe_ratio": 0,
-      "trades_today": 0,
-      "trades_this_hour": 0,
-      "last_trade_time": null
-    }
-  },
-  "smart_money_flow": {
-    "name": "Smart Money Flow",
-    "description": "Follows institutional order flow and smart money movements",
-    "action": "call",
-    "active": false,
-    "priority": 9,
-    "asset_filter": {
-      "enabled": false,
-      "whitelist": [],
-      "blacklist": []
+      ],
+      "blocked_hours": [],
+      "timezone": "UTC"
     },
     "condition_groups": [
       {
+        "name": "PUT_Zero_Lag_Bearish_Trend_Signal",
+        "logic": "AND",
         "conditions": [
           {
-            "indicator": "volume",
-            "operator": ">",
-            "value": 300,
-            "weight": 3
+            "indicator": "zlema",
+            "operator": "calculated",
+            "value": "ema(close + (close - close[lag]), 70)",
+            "weight": 10,
+            "description": "ZLEMA: Zero Lag EMA calculated (lag = floor((70-1)/2) = 34) - PINESCRIPT LINE 21"
           },
           {
-            "indicator": "rsi",
-            "operator": "<",
-            "value": 30,
-            "weight": 2
-          },
-          {
-            "indicator": "macd_line",
-            "operator": ">",
-            "value": -5,
-            "weight": 1.5
-          }
-        ],
-        "logic": "AND"
-      },
-      {
-        "conditions": [
-          {
-            "indicator": "ema_20",
-            "operator": ">",
-            "value": 0,
-            "weight": 2
+            "indicator": "zlema_lag",
+            "operator": "==",
+            "value": 34,
+            "weight": 10,
+            "description": "LAG: lag = floor((70-1)/2) = 34 periods - PINESCRIPT LINE 19"
           },
           {
             "indicator": "atr",
-            "operator": ">",
-            "value": 15,
-            "weight": 1.5
-          }
-        ],
-        "logic": "AND"
-      }
-    ],
-    "regime_filter": [
-      "trending_up",
-      "ranging",
-      "breakout"
-    ],
-    "signal_strength": {
-      "condition_weights": true,
-      "min_confidence": 82
-    },
-    "risk_management": {
-      "position_size_percent": 1.8,
-      "max_consecutive_losses": 2,
-      "max_trades_per_hour": 4,
-      "max_trades_per_day": 18,
-      "stop_on_drawdown_percent": 3.5,
-      "take_profit_target_percent": 22
-    },
-    "time_filter": {
-      "enabled": true,
-      "timezone": "UTC",
-      "allowed_hours": [
-        [
-          8,
-          20
-        ]
-      ]
-    },
-    "timeframe_alignment": true,
-    "performance": {
-      "wins": 0,
-      "losses": 0,
-      "total_trades": 0,
-      "win_rate": 0,
-      "avg_profit_per_trade": 0,
-      "total_profit": 0,
-      "consecutive_losses": 0,
-      "max_drawdown": 0,
-      "sharpe_ratio": 0,
-      "trades_today": 0,
-      "trades_this_hour": 0,
-      "last_trade_time": null
-    }
-  },
-  "scalping_precision_pro": {
-    "name": "Scalping Precision Pro",
-    "description": "Quick in-and-out trades on micro movements with tight risk control",
-    "action": "call",
-    "active": false,
-    "priority": 7,
-    "asset_filter": {
-      "enabled": true,
-      "whitelist": [
-        "EUR/USD",
-        "GBP/USD",
-        "USD/JPY"
-      ],
-      "blacklist": []
-    },
-    "condition_groups": [
-      {
-        "conditions": [
+            "operator": "calculated",
+            "value": "atr(70)",
+            "weight": 10,
+            "description": "ATR: Average True Range (70 periods) - PINESCRIPT LINE 23"
+          },
           {
-            "indicator": "rsi",
+            "indicator": "volatility",
+            "operator": "calculated",
+            "value": "highest(atr(70), 210) * 1.2",
+            "weight": 10,
+            "description": "VOLATILITY: highest(ATR(70), 210) * 1.2 - PINESCRIPT LINE 23"
+          },
+          {
+            "indicator": "upper_band",
+            "operator": "calculated",
+            "value": "zlema + volatility",
+            "weight": 10,
+            "description": "UPPER BAND: zlema + volatility - PINESCRIPT LINE 35"
+          },
+          {
+            "indicator": "lower_band",
+            "operator": "calculated",
+            "value": "zlema - volatility",
+            "weight": 10,
+            "description": "LOWER BAND: zlema - volatility - PINESCRIPT LINE 36"
+          },
+          {
+            "indicator": "close",
+            "operator": "crossunder",
+            "value": "lower_band",
+            "weight": 10,
+            "description": "CROSSUNDER: close crosses BELOW (zlema - volatility) - PINESCRIPT LINE 30 - CRITICAL"
+          },
+          {
+            "indicator": "trend_previous",
+            "operator": "==",
+            "value": 1,
+            "weight": 10,
+            "description": "TREND PREVIOUS: Previous trend was 1 (bullish) - PINESCRIPT LINE 27 - CRITICAL"
+          },
+          {
+            "indicator": "trend_current",
+            "operator": "==",
+            "value": -1,
+            "weight": 10,
+            "description": "TREND CURRENT: Current trend is -1 (bearish) - PINESCRIPT LINE 30-31 - CRITICAL"
+          },
+          {
+            "indicator": "trend_change",
+            "operator": "==",
+            "value": "crossunder",
+            "weight": 10,
+            "description": "TREND CHANGE: trend crossunder from 1 to -1 (bullish to bearish) - PINESCRIPT LINE 41 - CRITICAL"
+          },
+          {
+            "indicator": "bearish_trend_signal",
+            "operator": "==",
+            "value": "true",
+            "weight": 10,
+            "description": "BEARISH TREND SIGNAL: ta.crossunder(trend, 0) = TRUE - PINESCRIPT LINE 41 - MANDATORY"
+          },
+          {
+            "indicator": "price_below_lower_band",
+            "operator": "==",
+            "value": "true",
+            "weight": 10,
+            "description": "PRICE POSITION: Close is now BELOW (zlema - volatility) - CONFIRMS BEARISH TREND - CRITICAL"
+          },
+          {
+            "indicator": "trend_confirmed",
+            "operator": "==",
+            "value": "bearish",
+            "weight": 10,
+            "description": "TREND CONFIRMED: Bearish trend confirmed (trend = -1) - MANDATORY"
+          },
+          {
+            "indicator": "signal_type",
+            "operator": "==",
+            "value": "Bearish_Trend_Signal",
+            "weight": 10,
+            "description": "SIGNAL TYPE: Bearish Trend Signal (large arrow down) - PINESCRIPT LINE 41 - MANDATORY"
+          },
+          {
+            "indicator": "close",
             "operator": "<",
-            "value": 35,
-            "weight": 2
+            "value": "open",
+            "weight": 9,
+            "description": "CANDLE: Close < Open (bearish candle confirmation)"
           },
           {
-            "indicator": "ema_9",
+            "indicator": "price_direction",
+            "operator": "==",
+            "value": "Falling",
+            "weight": 9,
+            "description": "PRICE: Price falling (confirming bearish move)"
+          },
+          {
+            "indicator": "price_change",
             "operator": "<",
-            "value": 21,
-            "weight": 1.5
-          },
-          {
-            "indicator": "volume",
-            "operator": ">",
-            "value": 80,
-            "weight": 1
-          }
-        ],
-        "logic": "AND"
-      },
-      {
-        "conditions": [
-          {
-            "indicator": "macd_histogram",
-            "operator": ">",
-            "value": -2,
-            "weight": 1.5
-          },
-          {
-            "indicator": "stochastic_k",
-            "operator": "<",
-            "value": 30,
-            "weight": 1
-          }
-        ],
-        "logic": "AND"
-      }
-    ],
-    "regime_filter": [
-      "ranging",
-      "trending_down"
-    ],
-    "signal_strength": {
-      "condition_weights": true,
-      "min_confidence": 72
-    },
-    "risk_management": {
-      "position_size_percent": 0.5,
-      "max_consecutive_losses": 4,
-      "max_trades_per_hour": 12,
-      "max_trades_per_day": 40,
-      "stop_on_drawdown_percent": 2,
-      "take_profit_target_percent": 8
-    },
-    "time_filter": {
-      "enabled": true,
-      "timezone": "UTC",
-      "allowed_hours": [
-        [
-          8,
-          16
-        ]
-      ]
-    },
-    "timeframe_alignment": true,
-    "performance": {
-      "wins": 0,
-      "losses": 0,
-      "total_trades": 0,
-      "win_rate": 0,
-      "avg_profit_per_trade": 0,
-      "total_profit": 0,
-      "consecutive_losses": 0,
-      "max_drawdown": 0,
-      "sharpe_ratio": 0,
-      "trades_today": 0,
-      "trades_this_hour": 0,
-      "last_trade_time": null
-    }
-  },
-  "news_fade_master": {
-    "name": "News Fade Master",
-    "description": "Fades initial news reactions when overextended",
-    "action": "put",
-    "active": false,
-    "priority": 6,
-    "asset_filter": {
-      "enabled": true,
-      "whitelist": [
-        "EUR/USD",
-        "GBP/USD",
-        "USD/JPY",
-        "USD/CAD",
-        "AUD/USD"
-      ],
-      "blacklist": []
-    },
-    "condition_groups": [
-      {
-        "conditions": [
-          {
-            "indicator": "rsi",
-            "operator": ">",
-            "value": 80,
-            "weight": 2.5
-          },
-          {
-            "indicator": "volume",
-            "operator": ">",
-            "value": 400,
-            "weight": 3
-          },
-          {
-            "indicator": "atr",
-            "operator": ">",
-            "value": 30,
-            "weight": 2
-          }
-        ],
-        "logic": "AND"
-      },
-      {
-        "conditions": [
-          {
-            "indicator": "bollinger_upper",
-            "operator": ">",
-            "value": 95,
-            "weight": 2
-          },
-          {
-            "indicator": "cci",
-            "operator": ">",
-            "value": 250,
-            "weight": 1.5
-          }
-        ],
-        "logic": "AND"
-      }
-    ],
-    "regime_filter": [
-      "breakout",
-      "trending_up"
-    ],
-    "signal_strength": {
-      "condition_weights": true,
-      "min_confidence": 83
-    },
-    "risk_management": {
-      "position_size_percent": 1,
-      "max_consecutive_losses": 2,
-      "max_trades_per_hour": 2,
-      "max_trades_per_day": 10,
-      "stop_on_drawdown_percent": 3,
-      "take_profit_target_percent": 20
-    },
-    "time_filter": {
-      "enabled": true,
-      "timezone": "UTC",
-      "allowed_hours": [
-        [
-          13,
-          21
-        ]
-      ]
-    },
-    "timeframe_alignment": true,
-    "performance": {
-      "wins": 0,
-      "losses": 0,
-      "total_trades": 0,
-      "win_rate": 0,
-      "avg_profit_per_trade": 0,
-      "total_profit": 0,
-      "consecutive_losses": 0,
-      "max_drawdown": 0,
-      "sharpe_ratio": 0,
-      "trades_today": 0,
-      "trades_this_hour": 0,
-      "last_trade_time": null
-    }
-  },
-  "turbo_momentum_surge": {
-    "name": "Turbo Momentum Surge",
-    "description": "Catches explosive 5-second momentum bursts for 1-minute expiry",
-    "action": "call",
-    "active": false,
-    "priority": 10,
-    "asset_filter": {
-      "enabled": true,
-      "whitelist": [
-        "EUR/USD",
-        "GBP/USD",
-        "USD/JPY",
-        "AUD/USD"
-      ],
-      "blacklist": []
-    },
-    "condition_groups": [
-      {
-        "conditions": [
-          {
-            "indicator": "rsi_5s",
-            "operator": "<",
-            "value": 20,
-            "weight": 3
-          },
-          {
-            "indicator": "ema_3",
-            "operator": "crossing_above",
-            "value": "ema_8",
-            "weight": 4
-          },
-          {
-            "indicator": "volume_5s",
-            "operator": ">",
-            "value": 250,
-            "weight": 2.5
-          }
-        ],
-        "logic": "AND"
-      },
-      {
-        "conditions": [
-          {
-            "indicator": "macd_histogram_5s",
-            "operator": "turning_positive",
             "value": 0,
-            "weight": 3
+            "weight": 9,
+            "description": "CHANGE: Price change negative (downward movement)"
           },
           {
-            "indicator": "price_velocity_5s",
-            "operator": ">",
-            "value": 0.0003,
-            "weight": 2
-          }
-        ],
-        "logic": "AND"
-      }
-    ],
-    "regime_filter": [
-      "trending_down",
-      "ranging",
-      "breakout"
-    ],
-    "signal_strength": {
-      "condition_weights": true,
-      "min_confidence": 85
-    },
-    "risk_management": {
-      "position_size_percent": 2,
-      "max_consecutive_losses": 3,
-      "max_trades_per_hour": 15,
-      "max_trades_per_day": 60,
-      "stop_on_drawdown_percent": 5,
-      "take_profit_target_percent": 70
-    },
-    "time_filter": {
-      "enabled": true,
-      "timezone": "UTC",
-      "allowed_hours": [
-        [
-          8,
-          20
-        ]
-      ],
-      "avoid_seconds": [
-        55,
-        56,
-        57,
-        58,
-        59,
-        0,
-        1,
-        2,
-        3,
-        4,
-        5
-      ]
-    },
-    "timeframe_alignment": true,
-    "expiry_time": 60,
-    "candle_timeframe": "5s",
-    "performance": {
-      "wins": 0,
-      "losses": 0,
-      "total_trades": 0,
-      "win_rate": 0,
-      "avg_profit_per_trade": 0,
-      "total_profit": 0,
-      "consecutive_losses": 0,
-      "max_drawdown": 0,
-      "sharpe_ratio": 0,
-      "trades_today": 0,
-      "trades_this_hour": 0,
-      "last_trade_time": null
-    }
-  },
-  "micro_reversal_sniper": {
-    "name": "Micro Reversal Sniper",
-    "description": "Catches micro reversals at extreme levels with 5-second precision",
-    "action": "put",
-    "active": false,
-    "priority": 10,
-    "asset_filter": {
-      "enabled": true,
-      "whitelist": [
-        "EUR/USD",
-        "GBP/USD",
-        "USD/JPY"
-      ],
-      "blacklist": []
-    },
-    "condition_groups": [
-      {
-        "conditions": [
+            "indicator": "momentum_direction",
+            "operator": "==",
+            "value": "Down",
+            "weight": 9,
+            "description": "MOMENTUM: Momentum direction DOWN (confirming trend)"
+          },
           {
-            "indicator": "rsi_5s",
+            "indicator": "no_conflicting_signals",
+            "operator": "==",
+            "value": "true",
+            "weight": 10,
+            "description": "NO CONFLICTS: No bullish signals present - CRITICAL"
+          },
+          {
+            "indicator": "signal_strength",
             "operator": ">",
             "value": 85,
-            "weight": 3.5
-          },
-          {
-            "indicator": "bollinger_upper_5s",
-            "operator": "touched",
-            "value": true,
-            "weight": 3
-          },
-          {
-            "indicator": "stochastic_k_5s",
-            "operator": ">",
-            "value": 90,
-            "weight": 2
+            "weight": 9,
+            "description": "STRENGTH: Signal strength > 85 (strong bearish trend signal)"
           }
         ],
-        "logic": "AND"
-      },
-      {
-        "conditions": [
-          {
-            "indicator": "volume_spike_5s",
-            "operator": ">",
-            "value": 3,
-            "weight": 2.5
-          },
-          {
-            "indicator": "cci_5s",
-            "operator": ">",
-            "value": 200,
-            "weight": 2
-          },
-          {
-            "indicator": "price_acceleration_5s",
-            "operator": "decreasing",
-            "value": true,
-            "weight": 3
-          }
-        ],
-        "logic": "AND"
+        "min_conditions": 14,
+        "description": "ZERO LAG TREND - BEARISH PUT. Exact PineScript replication. ZLEMA = EMA(close + (close - close[34]), 70) + volatility = highest(ATR(70), 210) * 1.2 + upper_band = zlema + volatility + lower_band = zlema - volatility. ENTRY SIGNAL (PINESCRIPT LINE 41): ta.crossunder(trend, 0) = close crosses BELOW (zlema - volatility) = trend changes from 1 to -1 (bullish to bearish) = BEARISH TREND SIGNAL = PUT. Previous trend 1 + current trend -1 + close < lower_band + trend crossunder confirmed + bearish trend signal TRUE + price below lower band + trend confirmed bearish + signal type Bearish Trend Signal + close < open + price falling + negative change + momentum DOWN + no conflicts + strength > 85. Requires 14 out of 20 conditions + 85% confidence. This is EXACT PineScript logic!"
       }
     ],
-    "regime_filter": [
-      "trending_up",
-      "breakout"
-    ],
+    "action": "put",
     "signal_strength": {
-      "condition_weights": true,
-      "min_confidence": 88
-    },
-    "risk_management": {
-      "position_size_percent": 2.5,
-      "max_consecutive_losses": 2,
-      "max_trades_per_hour": 12,
-      "max_trades_per_day": 50,
-      "stop_on_drawdown_percent": 4,
-      "take_profit_target_percent": 75
-    },
-    "time_filter": {
-      "enabled": true,
-      "timezone": "UTC",
-      "allowed_hours": [
-        [
-          9,
-          19
-        ]
-      ],
-      "avoid_minute_starts": true
-    },
-    "timeframe_alignment": true,
-    "expiry_time": 60,
-    "candle_timeframe": "5s",
-    "performance": {
-      "wins": 0,
-      "losses": 0,
-      "total_trades": 0,
-      "win_rate": 0,
-      "avg_profit_per_trade": 0,
-      "total_profit": 0,
-      "consecutive_losses": 0,
-      "max_drawdown": 0,
-      "sharpe_ratio": 0,
-      "trades_today": 0,
-      "trades_this_hour": 0,
-      "last_trade_time": null
-    }
-  },
-  "lightning_scalp_master": {
-    "name": "Lightning Scalp Master",
-    "description": "Ultra-fast scalping on 5-second micro-trends with momentum confirmation",
-    "action": "call",
-    "active": false,
-    "priority": 9,
-    "asset_filter": {
-      "enabled": false,
-      "whitelist": [],
-      "blacklist": [
-        "XAU/USD",
-        "XAG/USD"
-      ]
-    },
-    "condition_groups": [
-      {
-        "conditions": [
-          {
-            "indicator": "ema_2",
-            "operator": ">",
-            "value": "ema_5",
-            "weight": 3
-          },
-          {
-            "indicator": "rsi_5s",
-            "operator": "between",
-            "value": [
-              30,
-              50
-            ],
-            "weight": 2
-          },
-          {
-            "indicator": "macd_signal_5s",
-            "operator": "crossing_up",
-            "value": 0,
-            "weight": 3.5
-          }
-        ],
-        "logic": "AND"
-      },
-      {
-        "conditions": [
-          {
-            "indicator": "momentum_5s",
-            "operator": ">",
-            "value": 0,
-            "weight": 2.5
-          },
-          {
-            "indicator": "volume_ratio_5s",
-            "operator": ">",
-            "value": 1.5,
-            "weight": 2
-          },
-          {
-            "indicator": "atr_5s",
-            "operator": ">",
-            "value": 0.0002,
-            "weight": 1.5
-          }
-        ],
-        "logic": "AND"
-      }
-    ],
-    "regime_filter": [
-      "all"
-    ],
-    "signal_strength": {
-      "condition_weights": true,
-      "min_confidence": 82
-    },
-    "risk_management": {
-      "position_size_percent": 1.5,
-      "max_consecutive_losses": 4,
-      "max_trades_per_hour": 20,
-      "max_trades_per_day": 80,
-      "stop_on_drawdown_percent": 6,
-      "take_profit_target_percent": 68
-    },
-    "time_filter": {
-      "enabled": true,
-      "timezone": "UTC",
-      "allowed_hours": [
-        [
-          7,
-          21
-        ]
-      ]
-    },
-    "timeframe_alignment": true,
-    "expiry_time": 60,
-    "candle_timeframe": "5s",
-    "performance": {
-      "wins": 0,
-      "losses": 0,
-      "total_trades": 0,
-      "win_rate": 0,
-      "avg_profit_per_trade": 0,
-      "total_profit": 0,
-      "consecutive_losses": 0,
-      "max_drawdown": 0,
-      "sharpe_ratio": 0,
-      "trades_today": 0,
-      "trades_this_hour": 0,
-      "last_trade_time": null
-    }
-  },
-  "vortex_pressure_zone": {
-    "name": "Vortex Pressure Zone",
-    "description": "Trades compression zones that lead to explosive 60-second moves",
-    "action": "dynamic",
-    "active": false,
-    "priority": 10,
-    "asset_filter": {
-      "enabled": true,
-      "whitelist": [
-        "EUR/USD",
-        "GBP/USD",
-        "USD/JPY",
-        "AUD/USD"
-      ],
-      "blacklist": []
-    },
-    "condition_groups": [
-      {
-        "conditions": [
-          {
-            "indicator": "bollinger_width_5s",
-            "operator": "<",
-            "value": 0.0003,
-            "weight": 4
-          },
-          {
-            "indicator": "rsi_5s",
-            "operator": "between",
-            "value": [
-              45,
-              55
-            ],
-            "weight": 2
-          },
-          {
-            "indicator": "volume_5s",
-            "operator": "<",
-            "value": 50,
-            "weight": 2
-          }
-        ],
-        "logic": "AND"
-      },
-      {
-        "conditions": [
-          {
-            "indicator": "price_break_5s",
-            "operator": "==",
-            "value": true,
-            "weight": 5
-          },
-          {
-            "indicator": "volume_explosion_5s",
-            "operator": ">",
-            "value": 5,
-            "weight": 3
-          },
-          {
-            "indicator": "directional_movement_5s",
-            "operator": ">",
-            "value": 0.0004,
-            "weight": 3
-          }
-        ],
-        "logic": "AND"
-      }
-    ],
-    "regime_filter": [
-      "ranging",
-      "breakout"
-    ],
-    "signal_strength": {
-      "condition_weights": true,
-      "min_confidence": 90
-    },
-    "risk_management": {
-      "position_size_percent": 3,
-      "max_consecutive_losses": 2,
-      "max_trades_per_hour": 8,
-      "max_trades_per_day": 30,
-      "stop_on_drawdown_percent": 4,
-      "take_profit_target_percent": 80
-    },
-    "time_filter": {
-      "enabled": true,
-      "timezone": "UTC",
-      "allowed_hours": [
-        [
-          8,
-          20
-        ]
-      ],
-      "high_volatility_only": true
-    },
-    "timeframe_alignment": true,
-    "expiry_time": 60,
-    "candle_timeframe": "5s",
-    "performance": {
-      "wins": 0,
-      "losses": 0,
-      "total_trades": 0,
-      "win_rate": 0,
-      "avg_profit_per_trade": 0,
-      "total_profit": 0,
-      "consecutive_losses": 0,
-      "max_drawdown": 0,
-      "sharpe_ratio": 0,
-      "trades_today": 0,
-      "trades_this_hour": 0,
-      "last_trade_time": null
-    }
-  },
-  "quantum_pulse_trader": {
-    "name": "Quantum Pulse Trader",
-    "description": "Combines multiple 5-second indicators for highest win rate on 1-minute expiry",
-    "action": "dynamic",
-    "active": false,
-    "priority": 10,
-    "asset_filter": {
-      "enabled": false,
-      "whitelist": [],
-      "blacklist": []
-    },
-    "condition_groups": [
-      {
-        "conditions": [
-          {
-            "indicator": "rsi_divergence_5s",
-            "operator": "detected",
-            "value": true,
-            "weight": 4
-          },
-          {
-            "indicator": "macd_histogram_5s",
-            "operator": "changing_direction",
-            "value": true,
-            "weight": 3
-          },
-          {
-            "indicator": "support_resistance_5s",
-            "operator": "touched",
-            "value": true,
-            "weight": 3.5
-          }
-        ],
-        "logic": "AND"
-      },
-      {
-        "conditions": [
-          {
-            "indicator": "stochastic_cross_5s",
-            "operator": "==",
-            "value": true,
-            "weight": 3
-          },
-          {
-            "indicator": "momentum_shift_5s",
-            "operator": "confirmed",
-            "value": true,
-            "weight": 3
-          },
-          {
-            "indicator": "volume_pattern_5s",
-            "operator": "bullish",
-            "value": true,
-            "weight": 2.5
-          }
-        ],
-        "logic": "AND"
-      },
-      {
-        "conditions": [
-          {
-            "indicator": "fibonacci_level_5s",
-            "operator": "at",
-            "value": 0.618,
-            "weight": 2
-          },
-          {
-            "indicator": "pivot_point_5s",
-            "operator": "near",
-            "value": 0.0002,
-            "weight": 2
-          }
-        ],
-        "logic": "OR"
-      }
-    ],
-    "regime_filter": [
-      "all"
-    ],
-    "signal_strength": {
-      "condition_weights": true,
-      "min_confidence": 92
+      "min_confidence": 85
     },
     "risk_management": {
       "position_size_percent": 4,
-      "max_consecutive_losses": 2,
-      "max_trades_per_hour": 6,
-      "max_trades_per_day": 25,
-      "stop_on_drawdown_percent": 3,
-      "take_profit_target_percent": 85
+      "max_trades_per_day": 20,
+      "max_trades_per_hour": 8,
+      "max_consecutive_losses": 3,
+      "stop_on_drawdown_percent": 6,
+      "take_profit_target_percent": 40,
+      "cooldown_after_loss_seconds": 180,
+      "cooldown_after_win_seconds": 60
+    },
+    "regime_filter": [
+      "trending_down",
+      "breakout_down"
+    ],
+    "timeframe_alignment": false,
+    "expiry_time": 60,
+    "notes": "ZERO LAG TREND - BEARISH PUT ONLY. Exact replication of PineScript Zero Lag Trend Signals indicator by AlgoAlpha. ENTRY SIGNAL (PINESCRIPT LINE 41): ta.crossunder(trend, 0) which means trend changes from 1 (bullish) to -1 (bearish). This happens when close crosses BELOW (zlema - volatility). CALCULATIONS: ZLEMA = EMA(close + (close - close[34]), 70) where lag = floor((70-1)/2) = 34. Volatility = highest(ATR(70), 210) * 1.2. Upper Band = zlema + volatility. Lower Band = zlema - volatility. TREND LOGIC: trend = 1 (bullish) when close crosses above upper band (LINE 27-28). trend = -1 (bearish) when close crosses below lower band (LINE 30-31). BEARISH TREND SIGNAL: Triggered when trend crossunder from 1 to -1 (LINE 41). This is the LARGE ARROW DOWN signal. Strategy enters PUT on this signal ONLY. Does NOT use the small entry arrows (LINE 45). Uses ONLY the bearish trend signal (large arrow). Expected: High win rate on strong trend changes. This is EXACT PineScript logic!",
+    "performance": {
+      "total_trades": 0,
+      "wins": 0,
+      "losses": 0,
+      "win_rate": 0.0,
+      "total_profit": 0.0
+    }
+  },
+  "zero_lag_trend___bullish_call": {
+    "name": "ZERO LAG TREND - BULLISH CALL",
+    "description": "PineScript Zero Lag Trend Signals - BULLISH TREND SIGNAL ONLY. Enters CALL when trend changes from bearish to bullish (close crosses ABOVE zlema+volatility). Exact replication of PineScript line 42: ta.crossover(trend, 0). Uses Zero Lag EMA (70 period) + Volatility Bands (ATR 70, multiplier 1.2). Action hardcoded to 'call' - only enters CALL trades on bullish trend signals.",
+    "active": true,
+    "priority": 10,
+    "asset_filter": {
+      "enabled": true,
+      "whitelist": [
+        "EUR/USD",
+        "GBP/USD",
+        "BTC/USD",
+        "EUR/GBP",
+        "AUD/USD",
+        "USD/JPY",
+        "EUR/USD OTC",
+        "GBP/USD OTC",
+        "BTC/USD OTC"
+      ],
+      "blacklist": []
     },
     "time_filter": {
       "enabled": true,
-      "timezone": "UTC",
       "allowed_hours": [
         [
-          9,
-          19
+          0,
+          23
         ]
       ],
-      "best_minutes": [
-        5,
-        10,
-        15,
-        20,
-        25,
-        30,
-        35,
-        40,
-        45,
-        50,
-        55
-      ]
+      "blocked_hours": [],
+      "timezone": "UTC"
     },
-    "timeframe_alignment": true,
+    "condition_groups": [
+      {
+        "name": "CALL_Zero_Lag_Bullish_Trend_Signal",
+        "logic": "AND",
+        "conditions": [
+          {
+            "indicator": "zlema",
+            "operator": "calculated",
+            "value": "ema(close + (close - close[lag]), 70)",
+            "weight": 10,
+            "description": "ZLEMA: Zero Lag EMA calculated (lag = floor((70-1)/2) = 34) - PINESCRIPT LINE 21"
+          },
+          {
+            "indicator": "zlema_lag",
+            "operator": "==",
+            "value": 34,
+            "weight": 10,
+            "description": "LAG: lag = floor((70-1)/2) = 34 periods - PINESCRIPT LINE 19"
+          },
+          {
+            "indicator": "atr",
+            "operator": "calculated",
+            "value": "atr(70)",
+            "weight": 10,
+            "description": "ATR: Average True Range (70 periods) - PINESCRIPT LINE 23"
+          },
+          {
+            "indicator": "volatility",
+            "operator": "calculated",
+            "value": "highest(atr(70), 210) * 1.2",
+            "weight": 10,
+            "description": "VOLATILITY: highest(ATR(70), 210) * 1.2 - PINESCRIPT LINE 23"
+          },
+          {
+            "indicator": "upper_band",
+            "operator": "calculated",
+            "value": "zlema + volatility",
+            "weight": 10,
+            "description": "UPPER BAND: zlema + volatility - PINESCRIPT LINE 35"
+          },
+          {
+            "indicator": "lower_band",
+            "operator": "calculated",
+            "value": "zlema - volatility",
+            "weight": 10,
+            "description": "LOWER BAND: zlema - volatility - PINESCRIPT LINE 36"
+          },
+          {
+            "indicator": "close",
+            "operator": "crossover",
+            "value": "upper_band",
+            "weight": 10,
+            "description": "CROSSOVER: close crosses ABOVE (zlema + volatility) - PINESCRIPT LINE 27 - CRITICAL"
+          },
+          {
+            "indicator": "trend_previous",
+            "operator": "==",
+            "value": -1,
+            "weight": 10,
+            "description": "TREND PREVIOUS: Previous trend was -1 (bearish) - PINESCRIPT LINE 30 - CRITICAL"
+          },
+          {
+            "indicator": "trend_current",
+            "operator": "==",
+            "value": 1,
+            "weight": 10,
+            "description": "TREND CURRENT: Current trend is 1 (bullish) - PINESCRIPT LINE 27-28 - CRITICAL"
+          },
+          {
+            "indicator": "trend_change",
+            "operator": "==",
+            "value": "crossover",
+            "weight": 10,
+            "description": "TREND CHANGE: trend crossover from -1 to 1 (bearish to bullish) - PINESCRIPT LINE 42 - CRITICAL"
+          },
+          {
+            "indicator": "bullish_trend_signal",
+            "operator": "==",
+            "value": "true",
+            "weight": 10,
+            "description": "BULLISH TREND SIGNAL: ta.crossover(trend, 0) = TRUE - PINESCRIPT LINE 42 - MANDATORY"
+          },
+          {
+            "indicator": "price_above_upper_band",
+            "operator": "==",
+            "value": "true",
+            "weight": 10,
+            "description": "PRICE POSITION: Close is now ABOVE (zlema + volatility) - CONFIRMS BULLISH TREND - CRITICAL"
+          },
+          {
+            "indicator": "trend_confirmed",
+            "operator": "==",
+            "value": "bullish",
+            "weight": 10,
+            "description": "TREND CONFIRMED: Bullish trend confirmed (trend = 1) - MANDATORY"
+          },
+          {
+            "indicator": "signal_type",
+            "operator": "==",
+            "value": "Bullish_Trend_Signal",
+            "weight": 10,
+            "description": "SIGNAL TYPE: Bullish Trend Signal (large arrow up) - PINESCRIPT LINE 42 - MANDATORY"
+          },
+          {
+            "indicator": "close",
+            "operator": ">",
+            "value": "open",
+            "weight": 9,
+            "description": "CANDLE: Close > Open (bullish candle confirmation)"
+          },
+          {
+            "indicator": "price_direction",
+            "operator": "==",
+            "value": "Rising",
+            "weight": 9,
+            "description": "PRICE: Price rising (confirming bullish move)"
+          },
+          {
+            "indicator": "price_change",
+            "operator": ">",
+            "value": 0,
+            "weight": 9,
+            "description": "CHANGE: Price change positive (upward movement)"
+          },
+          {
+            "indicator": "momentum_direction",
+            "operator": "==",
+            "value": "Up",
+            "weight": 9,
+            "description": "MOMENTUM: Momentum direction UP (confirming trend)"
+          },
+          {
+            "indicator": "no_conflicting_signals",
+            "operator": "==",
+            "value": "true",
+            "weight": 10,
+            "description": "NO CONFLICTS: No bearish signals present - CRITICAL"
+          },
+          {
+            "indicator": "signal_strength",
+            "operator": ">",
+            "value": 85,
+            "weight": 9,
+            "description": "STRENGTH: Signal strength > 85 (strong bullish trend signal)"
+          }
+        ],
+        "min_conditions": 14,
+        "description": "ZERO LAG TREND - BULLISH CALL. Exact PineScript replication. ZLEMA = EMA(close + (close - close[34]), 70) + volatility = highest(ATR(70), 210) * 1.2 + upper_band = zlema + volatility + lower_band = zlema - volatility. ENTRY SIGNAL (PINESCRIPT LINE 42): ta.crossover(trend, 0) = close crosses ABOVE (zlema + volatility) = trend changes from -1 to 1 (bearish to bullish) = BULLISH TREND SIGNAL = CALL. Previous trend -1 + current trend 1 + close > upper_band + trend crossover confirmed + bullish trend signal TRUE + price above upper band + trend confirmed bullish + signal type Bullish Trend Signal + close > open + price rising + positive change + momentum UP + no conflicts + strength > 85. Requires 14 out of 20 conditions + 85% confidence. This is EXACT PineScript logic!"
+      }
+    ],
+    "action": "call",
+    "signal_strength": {
+      "min_confidence": 85
+    },
+    "risk_management": {
+      "position_size_percent": 4,
+      "max_trades_per_day": 20,
+      "max_trades_per_hour": 8,
+      "max_consecutive_losses": 3,
+      "stop_on_drawdown_percent": 6,
+      "take_profit_target_percent": 40,
+      "cooldown_after_loss_seconds": 180,
+      "cooldown_after_win_seconds": 60
+    },
+    "regime_filter": [
+      "trending_up",
+      "breakout_up"
+    ],
+    "timeframe_alignment": false,
     "expiry_time": 60,
-    "candle_timeframe": "5s",
+    "notes": "ZERO LAG TREND - BULLISH CALL ONLY. Exact replication of PineScript Zero Lag Trend Signals indicator by AlgoAlpha. ENTRY SIGNAL (PINESCRIPT LINE 42): ta.crossover(trend, 0) which means trend changes from -1 (bearish) to 1 (bullish). This happens when close crosses ABOVE (zlema + volatility). CALCULATIONS: ZLEMA = EMA(close + (close - close[34]), 70) where lag = floor((70-1)/2) = 34. Volatility = highest(ATR(70), 210) * 1.2. Upper Band = zlema + volatility. Lower Band = zlema - volatility. TREND LOGIC: trend = 1 (bullish) when close crosses above upper band (LINE 27-28). trend = -1 (bearish) when close crosses below lower band (LINE 30-31). BULLISH TREND SIGNAL: Triggered when trend crossover from -1 to 1 (LINE 42). This is the LARGE ARROW UP signal. Strategy enters CALL on this signal ONLY. Does NOT use the small entry arrows (LINE 44). Uses ONLY the bullish trend signal (large arrow). Expected: High win rate on strong trend changes. This is EXACT PineScript logic!",
     "performance": {
+      "total_trades": 0,
       "wins": 0,
       "losses": 0,
-      "total_trades": 0,
-      "win_rate": 0,
-      "avg_profit_per_trade": 0,
-      "total_profit": 0,
-      "consecutive_losses": 0,
-      "max_drawdown": 0,
-      "sharpe_ratio": 0,
-      "trades_today": 0,
-      "trades_this_hour": 0,
-      "last_trade_time": null
+      "win_rate": 0.0,
+      "total_profit": 0.0
     }
   }
 }
